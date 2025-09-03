@@ -35,10 +35,7 @@ const bookingWizard = new Scenes.WizardScene(
       if (userRows.length > 0 && userRows[0].phone_number) {
         ctx.wizard.state.phone = userRows[0].phone_number;
 
-        await ctx.reply(
-          `🤖 Tartibga rioya qiling!`,
-          Markup.removeKeyboard()
-        );
+        await ctx.reply(`🤖 Tartibga rioya qiling!`, Markup.removeKeyboard());
 
         // сразу готовим данные
         ctx.wizard.state.relatives = [];
@@ -271,7 +268,7 @@ async function saveBooking(ctx) {
         visit_type,
         prisoner_name,
         JSON.stringify(relatives),
-        chatId
+        chatId,
       ]
     );
 
@@ -304,14 +301,17 @@ async function saveBooking(ctx) {
         .oneTime(false)
     );
 
-
     await ctx.reply(
       "📱 Grupaga qo'shing",
       Markup.inlineKeyboard([
-        [Markup.button.url("📌 Grupaga otish", "https://t.me/+qWg7Qh3t_OIxMDBi")],
+        [
+          Markup.button.url(
+            "📌 Grupaga otish",
+            "https://t.me/+qWg7Qh3t_OIxMDBi"
+          ),
+        ],
       ])
     );
-
   } catch (err) {
     console.error(err);
     await ctx.reply("❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring.");
@@ -323,7 +323,11 @@ async function sendApplicationToAdmin(ctx, application) {
   const firstRelative = application.relatives[0];
   const text = `📌 Yangi ariza. Nomer: ${application.id}
 👤 Arizachi: ${firstRelative ? `${firstRelative.full_name}` : "Noma'lum"}
-📅 Berilgan sana: ${new Date().toLocaleString("uz-UZ", { day: "2-digit", month: "2-digit", year: "numeric" })}
+📅 Berilgan sana: ${new Date().toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })}
 ⏲️ Turi: ${application.visit_type === "long" ? "2-kunlik" : "1-kunlik"}
 🟡 Holat: Tekshiruvni kutish`;
 

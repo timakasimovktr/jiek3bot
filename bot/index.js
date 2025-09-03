@@ -34,8 +34,18 @@ async function getLatestPendingIdWithoutStatus(userId) {
   return rows.length ? rows[0].id : null;
 }
 
+async function getUserBookingStatus(userId) {
+  const [rows] = await pool.query(
+    "SELECT * FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+    [userId]
+  );
+  return rows.length ? rows : null;
+}
+
 function buildMainMenu(latestPendingId) {
-  const rows = [["📊 Navbat holati", "📱 Grupaga otish", "🖨️ Ariza nusxasini olish"]];
+  const rows = [
+    ["📊 Navbat holati", "📱 Grupaga otish", "🖨️ Ariza nusxasini olish"],
+  ];
 
   if (latestPendingId) {
     rows.push([`❌ Arizani bekor qilish #${latestPendingId}`]);
@@ -45,7 +55,6 @@ function buildMainMenu(latestPendingId) {
 
   return Markup.keyboard(rows).resize();
 }
-
 
 async function getQueuePosition(bookingId) {
   const [rows] = await pool.query(
@@ -100,7 +109,7 @@ bot.action("cancel", async (ctx) => {
  *  ───────────────────── */
 bot.hears("📊 Navbat holati", async (ctx) => {
   try {
-    const latestId = await getLatestPendingId(ctx.from.id);
+    const latestId = await getLatestPendingIdWithoutStatus(ctx.from.id);
     if (!latestId) {
       return ctx.reply(
         "❌ Sizda hozirda kutayotgan ariza yo‘q.",
@@ -108,9 +117,34 @@ bot.hears("📊 Navbat holati", async (ctx) => {
       );
     }
     const pos = await getQueuePosition(latestId);
+    const rowInfo = await getUserBookingStatus(ctx.from.id);
+    const relatives = JSON.parse(rowInfo[0].relatives);
+
+    if (rowInfo[0].status === "approved") {
+      await ctx.reply(
+        `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
+👤 Arizachi: ${relatives[0].full_name}
+📅 Berilgan sana: ${rowInfo[0].start_datetime.toLocaleString("ru-RU", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })}
+⌚️ Kelishi sana: ${rowInfo[0].end_datetime.toLocaleString("ru-RU", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })}
+🟢 Holat: Tasdiqlangan`,
+        buildMainMenu(latestId)
+      );
+
+      return;
+    }
+
     if (!pos) {
       return ctx.reply("❌ Navbat topilmadi.", buildMainMenu(latestId));
     }
+
     await ctx.reply(`📊 Sizning navbatingiz: ${pos}`, buildMainMenu(latestId));
   } catch (err) {
     console.error(err);
@@ -164,7 +198,8 @@ bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
   try {
     // 1) Если есть id в тексте — используем его, иначе берём последний pending
     const explicitId = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
-    const latestId = explicitId || (await getLatestPendingId(ctx.from.id));
+    const latestId =
+      explicitId || (await getLatestPendingIdWithoutStatus(ctx.from.id));
 
     if (!latestId) {
       return ctx.reply(
@@ -315,25 +350,30 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
       commander: library.commander,
       fullname: rel1.full_name || "",
       passport: rel1.passport || "",
-      fullname2: rel2.full_name || "____________________________________________________",
+      fullname2:
+        rel2.full_name ||
+        "____________________________________________________",
       passport2: rel2.passport || "",
-      fullname3: rel3.full_name || "____________________________________________________",
+      fullname3:
+        rel3.full_name ||
+        "____________________________________________________",
       passport3: rel3.passport || "",
       prisoner: booking.prisoner_name || "",
+      arizaNumber: booking.id || "",
       today: new Date().toLocaleDateString("uz-UZ"),
     });
 
     const buf = doc.getZip().generate({ type: "nodebuffer" });
-    const outputPath = path.join(__dirname, `ariza_${latestId}.docx`);
-    fs.writeFileSync(outputPath, buf);
 
-    await ctx.replyWithDocument({ source: outputPath });
+    await ctx.replyWithDocument({
+      source: buf,
+      filename: `ariza_${latestId}.docx`,
+    });
   } catch (err) {
     console.error(err);
     await ctx.reply("❌ Xatolik yuz berdi (печать).");
   }
 });
-
 
 bot.launch().then(() => console.log("🚀 Bot ishga tushdi"));
 process.once("SIGINT", () => bot.stop("SIGINT"));
