@@ -73,13 +73,7 @@ const bookingWizard = new Scenes.WizardScene(
   // Step 1: Принимаем только контакт
   async (ctx) => {
     if (ctx.message?.contact?.phone_number) {
-      ctx.wizard.state.phone = ctx.message.contact.phone_number;
-
-      // сохраняем в bookings (INSERT или UPDATE)
-      await pool.query(
-        "INSERT INTO bookings (user_id, phone_number) VALUES (?, ?) ON DUPLICATE KEY UPDATE phone_number = VALUES(phone_number)",
-        [ctx.from.id, ctx.wizard.state.phone]
-      );
+      ctx.wizard.state.phone = ctx.message.contact.phone_number; // только сохраняем во временном state
 
       await ctx.reply(
         "✅ Telefon raqamingiz qabul qilindi.",
