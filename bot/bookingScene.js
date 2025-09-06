@@ -90,9 +90,8 @@ const bookingWizard = new Scenes.WizardScene(
       await ctx.reply("✅ Заявка сохранена!");
       return ctx.scene.leave();
     }
-  }
+  },
 
-  // Step 4: Passport va mahbus ismi
   async (ctx) => {
     if (!ctx.message?.text) {
       await ctx.reply("❌ Iltimos, pasport raqamini matn shaklida yuboring.");
