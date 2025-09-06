@@ -60,8 +60,9 @@ async function getQueuePosition(bookingId) {
   const [rows] = await pool.query(
     "SELECT id FROM bookings WHERE status = 'pending' ORDER BY id ASC"
   );
-  const idx = rows.findIndex((b) => b.id === Number(bookingId));
-  return idx >= 0 ? idx + 1 : null;
+  const ids = rows.map((row) => row.id);
+  const position = ids.indexOf(bookingId);
+  return position !== -1 ? position + 1 : null; 
 }
 
 /** ─────────────────────
