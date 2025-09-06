@@ -76,7 +76,10 @@ const bookingWizard = new Scenes.WizardScene(
       ctx.wizard.state.phone = ctx.message.contact.phone_number;
 
       // сохраняем в bookings (INSERT или UPDATE)
-      ctx.wizard.state.phone = ctx.message.contact.phone_number;
+      await pool.query(
+        "INSERT INTO bookings (user_id, phone_number) VALUES (?, ?) ON DUPLICATE KEY UPDATE phone_number = VALUES(phone_number)",
+        [ctx.from.id, ctx.wizard.state.phone]
+      );
 
       await ctx.reply(
         "✅ Telefon raqamingiz qabul qilindi.",
@@ -258,7 +261,7 @@ async function saveBooking(ctx) {
   const chatId = ctx.chat.id;
   try {
     const [result] = await pool.query(
-      "INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, status, telegram_chat_id) VALUES (?, ?, ?, ?, ?, 'pending', ?)",
+      "INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, status, telegram_chat_id) VALUES (?, ?, ?, ?, ?, 'pending', ?) ON DUPLICATE KEY UPDATE phone_number = VALUES(phone_number), visit_type = VALUES(visit_type), prisoner_name = VALUES(prisoner_name), relatives = VALUES(relatives), status = 'pending', telegram_chat_id = VALUES(telegram_chat_id)",
       [
         ctx.from.id,
         ctx.wizard.state.phone,
