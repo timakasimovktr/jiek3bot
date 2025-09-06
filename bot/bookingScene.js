@@ -4,147 +4,93 @@ const pool = require("../db");
 const MAX_RELATIVES = 3;
 
 const bookingWizard = new Scenes.WizardScene(
-  "booking-wizard",
+  // "booking-wizard",
 
   // Step 0: Проверка и запрос телефона
   async (ctx) => {
     try {
-      // Проверяем активные заявки
+      const userId = ctx.from.id;
+      const chatId = ctx.chat.id;
+      const phone = ctx.message?.text || null;
+
+      // Проверяем активную заявку
       const [rows] = await pool.query(
-        "SELECT * FROM bookings WHERE user_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1",
-        [ctx.from.id]
+        "SELECT id FROM bookings WHERE user_id = ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
+        [userId]
       );
 
       if (rows.length > 0) {
-        await ctx.reply(
-          "⚠️ Sizda hali tugallanmagan ariza mavjud. Yangi ariza yaratish uchun uni yakunlang yoki bekor qiling.",
-          Markup.keyboard([
-            ["📊 Navbat holati"],
-            ["❌ Arizani bekor qilish"],
-          ]).resize()
+        // Если есть активная заявка → обновляем
+        ctx.session.bookingId = rows[0].id;
+        await pool.query(
+          "UPDATE bookings SET phone_number = ?, telegram_chat_id = ? WHERE id = ?",
+          [phone, chatId, ctx.session.bookingId]
         );
-        return ctx.scene.leave();
+      } else {
+        // Если нет → создаём новую
+        const [result] = await pool.query(
+          "INSERT INTO bookings (phone_number, status, user_id, telegram_chat_id, created_at) VALUES (?, 'pending', ?, ?, NOW())",
+          [phone, userId, chatId]
+        );
+        ctx.session.bookingId = result.insertId;
       }
 
-      // Проверяем, есть ли сохранённый номер телефона
-      const [userRows] = await pool.query(
-        "SELECT phone_number FROM bookings WHERE user_id = ?",
-        [ctx.from.id]
-      );
-
-      if (userRows.length > 0 && userRows[0].phone_number) {
-        ctx.wizard.state.phone = userRows[0].phone_number;
-
-        await ctx.reply(`🤖 Tartibga rioya qiling!`, Markup.removeKeyboard());
-
-        // сразу готовим данные
-        ctx.wizard.state.relatives = [];
-        ctx.wizard.state.currentRelative = {};
-        ctx.wizard.state.prisoner_name = null;
-        ctx.wizard.state.visit_type = null;
-
-        await ctx.reply(
-          "📅 Iltimos, uchrashuv turini tanlang:",
-          Markup.inlineKeyboard([
-            [Markup.button.callback("🔵 1-kunlik", "short")],
-            [Markup.button.callback("🟢 2-kunlik", "long")],
-          ])
-        );
-        return ctx.wizard.selectStep(2); // сразу переходим на Step 2
-      }
-
-      // Если номера нет → просим ввести
-      await ctx.reply(
-        "📲 Iltimos, telefon raqamingizni yuboring:",
-        Markup.keyboard([[Markup.button.contactRequest("📞 Raqamni yuborish")]])
-          .resize()
-          .oneTime()
+      await ctx.reply("✅ Телефон сохранён. Теперь выбери тип визита:", 
+        Markup.keyboard([["short", "long"]]).oneTime().resize()
       );
       return ctx.wizard.next();
+
     } catch (err) {
-      console.error(err);
-      await ctx.reply(
-        "❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring."
-      );
+      console.error("Ошибка при сохранении телефона:", err);
+      await ctx.reply("❌ Произошла ошибка, попробуй снова.");
       return ctx.scene.leave();
     }
   },
 
-  // Step 1: Принимаем только контакт
+  // Step 1: Тип визита
   async (ctx) => {
-    if (ctx.message?.contact?.phone_number) {
-      ctx.wizard.state.phone = ctx.message.contact.phone_number;
-
-      // сохраняем в bookings (INSERT или UPDATE)
-      await pool.query(
-        "INSERT INTO bookings (user_id, phone_number) VALUES (?, ?) ON DUPLICATE KEY UPDATE phone_number = VALUES(phone_number)",
-        [ctx.from.id, ctx.wizard.state.phone]
-      );
-
-      await ctx.reply(
-        "✅ Telefon raqamingiz qabul qilindi.",
-        Markup.removeKeyboard()
-      );
-
-      ctx.wizard.state.relatives = [];
-      ctx.wizard.state.currentRelative = {};
-      ctx.wizard.state.prisoner_name = null;
-      ctx.wizard.state.visit_type = null;
-
-      await ctx.reply(
-        "📅 Iltimos, uchrashuv turini tanlang:",
-        Markup.inlineKeyboard([
-          [Markup.button.callback("🔵 1-kunlik", "short")],
-          [Markup.button.callback("🟢 2-kunlik", "long")],
-        ])
-      );
-      return ctx.wizard.next();
-    } else {
-      await ctx.reply("❌ Telefon raqamingizni faqat tugma orqali yuboring.");
-      return;
-    }
-  },
-
-  // Step 2: выбор типа визита
-  async (ctx) => {
-    if (
-      ctx.callbackQuery?.data === "long" ||
-      ctx.callbackQuery?.data === "short"
-    ) {
-      await ctx.answerCbQuery();
-      ctx.wizard.state.visit_type = ctx.callbackQuery.data;
-
-      await ctx.reply(
-        "👤 Iltimos, to‘liq ismingiz va familiyangizni kiriting:"
-      );
-      return ctx.wizard.next();
-    } else {
-      await ctx.reply("❌ Iltimos, uchrashuv turini tanlang.");
-    }
-  },
-
-  // Step 3: Ism va familiya
-  async (ctx) => {
-    if (ctx.message?.text === "❌ Bekor qilish ariza") {
-      await ctx.reply(
-        "❌ Uchrashuv yozuvi bekor qilindi.",
-        Markup.keyboard([["📅 Uchrashuvga yozilish"]]).resize()
-      );
-      return ctx.scene.leave();
-    }
-
-    if (!ctx.message?.text) {
-      await ctx.reply("❌ Iltimos, ism va familiyani matn shaklida yuboring.");
-      return ctx.wizard.selectStep(3);
-    }
-
-    ctx.wizard.state.currentRelative.full_name = ctx.message.text.toUpperCase();
-
-    await ctx.reply(
-      "🛂 Endi pasport seriyasi va raqamini kiriting (masalan: AB1234567):"
+    const visitType = ctx.message.text;
+    await pool.query(
+      "UPDATE bookings SET visit_type = ? WHERE id = ?",
+      [visitType, ctx.session.bookingId]
     );
+
+    await ctx.reply("Введи имя заключённого:");
     return ctx.wizard.next();
   },
+
+  // Step 2: Имя заключённого
+  async (ctx) => {
+    const prisonerName = ctx.message.text;
+    await pool.query(
+      "UPDATE bookings SET prisoner_name = ? WHERE id = ?",
+      [prisonerName, ctx.session.bookingId]
+    );
+
+    ctx.session.relatives = [];
+    await ctx.reply("Введи данные первого родственника (ФИО, паспорт):");
+    return ctx.wizard.next();
+  },
+
+  // Step 3: Родственники
+  async (ctx) => {
+    const text = ctx.message.text;
+    const [full_name, passport] = text.split(",");
+    ctx.session.relatives.push({ full_name, passport });
+
+    if (ctx.session.relatives.length < MAX_RELATIVES) {
+      await ctx.reply("Хочешь добавить ещё родственника? (да/нет)");
+      return ctx.wizard.next();
+    } else {
+      // Сохраняем родственников
+      await pool.query(
+        "UPDATE bookings SET relatives = ? WHERE id = ?",
+        [JSON.stringify(ctx.session.relatives), ctx.session.bookingId]
+      );
+      await ctx.reply("✅ Заявка сохранена!");
+      return ctx.scene.leave();
+    }
+  }
 
   // Step 4: Passport va mahbus ismi
   async (ctx) => {
