@@ -301,7 +301,7 @@ bot.hears("✅ Ha", async (ctx) => {
   }
 });
 
-bot.hears("Yangi ariza yuborish").catch(async (ctx) => {
+bot.hears("Yangi ariza yuborish", async (ctx) => {
   try {
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
