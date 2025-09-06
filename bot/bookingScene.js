@@ -76,10 +76,7 @@ const bookingWizard = new Scenes.WizardScene(
       ctx.wizard.state.phone = ctx.message.contact.phone_number;
 
       // сохраняем в bookings (INSERT или UPDATE)
-      await pool.query(
-        "INSERT INTO bookings (user_id, phone_number) VALUES (?, ?) ON DUPLICATE KEY UPDATE phone_number = VALUES(phone_number)",
-        [ctx.from.id, ctx.wizard.state.phone]
-      );
+      ctx.wizard.state.phone = ctx.message.contact.phone_number;
 
       await ctx.reply(
         "✅ Telefon raqamingiz qabul qilindi.",
