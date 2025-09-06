@@ -300,6 +300,15 @@ bot.hears("✅ Ha", async (ctx) => {
   }
 });
 
+bot.hears("Yangi ariza yuborish").catch(async (ctx) => {
+  try {
+    await ctx.scene.enter("booking-wizard");
+  } catch (err) {
+    console.error(err);
+    await ctx.reply("❌ Xatolik yuz berdi.");
+  }
+});
+
 bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
   try {
     const latestId = await getLatestPendingIdWithoutStatus(ctx.from.id);
