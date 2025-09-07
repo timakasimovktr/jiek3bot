@@ -2,6 +2,8 @@ const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const pool = require("../db");
 
 const MAX_RELATIVES = 3;
+const SHORT_ROOM_START = 1;
+const LONG_ROOM_START = 21;
 
 const bookingWizard = new Scenes.WizardScene(
   "booking-wizard",
@@ -253,6 +255,8 @@ async function showSummary(ctx) {
 async function saveBooking(ctx) {
   const { prisoner_name, relatives, visit_type } = ctx.wizard.state;
   const chatId = ctx.chat.id;
+  const adminChatId = process.env.ADMIN_CHAT_ID;
+  const submissionDate = new Date();
   try {
     const [result] = await pool.query(
       "INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, status, telegram_chat_id) VALUES (?, ?, ?, ?, ?, 'pending', ?)",
@@ -268,32 +272,103 @@ async function saveBooking(ctx) {
 
     const bookingId = result.insertId;
 
+    // Автоматическое назначение даты и комнаты
+    const daysToAdd = visit_type === 'short' ? 1 : 2;
+    const maxRooms = visit_type === 'short' ? 20 : 10;
+    const roomStart = visit_type === 'short' ? SHORT_ROOM_START : LONG_ROOM_START;
+    const rooms = Array.from({ length: maxRooms }, (_, i) => roomStart + i);
+
+    let currentDate = new Date(submissionDate);
+    currentDate.setDate(currentDate.getDate() + 10);
+    currentDate.setHours(0, 0, 0, 0);
+
+    let assigned = false;
+    let assignedDate, assignedRoom;
+    const maxAttempts = 365;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      let start = new Date(currentDate);
+      let end = new Date(currentDate);
+      end.setDate(end.getDate() + daysToAdd);
+
+      const startStr = start.toISOString().slice(0, 19).replace('T', ' ');
+      const endStr = end.toISOString().slice(0, 19).replace('T', ' ');
+
+      for (let room of rooms) {
+        const [overlapRows] = await pool.query(
+          "SELECT COUNT(*) as count FROM bookings WHERE status = 'approved' AND room_id = ? AND NOT (end_datetime <= ? OR start_datetime >= ?)",
+          [room, startStr, endStr]
+        );
+
+        if (overlapRows[0].count === 0) {
+          assignedDate = start;
+          assignedRoom = room;
+          assigned = true;
+          break;
+        }
+      }
+
+      if (assigned) break;
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
     await ctx.scene.leave();
 
-    // Отправка в админ-группу
-    await sendApplicationToAdmin(ctx, {
-      relatives,
-      prisoner: prisoner_name,
-      id: bookingId,
-      visit_type,
-    });
+    if (!assigned) {
+      // Не удалось назначить, оставляем pending
+      await ctx.telegram.sendMessage(adminChatId, `⚠️ Не удалось автоматически назначить дату для заявки №${bookingId}. Слишком загружено.`);
+      
+      // Получаем позицию в очереди (для pending)
+      const [rows] = await pool.query(
+        "SELECT * FROM bookings WHERE status = 'pending' ORDER BY id ASC"
+      );
+      const myIndex = rows.findIndex((b) => b.id === bookingId);
+      const position = myIndex + 1;
 
-    // Получаем позицию в очереди
-    const [rows] = await pool.query(
-      "SELECT * FROM bookings WHERE status = 'pending' ORDER BY id ASC"
-    );
-    const myIndex = rows.findIndex((b) => b.id === bookingId);
-    const position = myIndex + 1;
+      await ctx.reply(
+        `✅ Uchrashuv muvaffaqiyatli bron qilindi, lekin hali tasdiqlanmagan (admin tasdiqlashi kerak).\n\n📊 Sizning navbatingiz: ${position}`,
+        Markup.keyboard([
+          ["📊 Navbat holati"],
+          [`❌ Arizani bekor qilish #${bookingId}`],
+        ])
+          .resize()
+          .oneTime(false)
+      );
+    } else {
+      // Назначаем
+      const startStr = assignedDate.toISOString().slice(0, 19).replace('T', ' ');
+      await pool.query(
+        "UPDATE bookings SET status='approved', start_datetime=?, end_datetime=DATE_ADD(?, INTERVAL ? DAY), room_id=? WHERE id=?",
+        [startStr, startStr, daysToAdd, assignedRoom, bookingId]
+      );
 
-    await ctx.reply(
-      `✅ Uchrashuv muvaffaqiyatli bron qilindi!\n\n📊 Sizning navbatingiz: ${position}`,
-      Markup.keyboard([
-        ["📊 Navbat holati"],
+      const relativeName = relatives[0].full_name || "Noma'lum";
+
+      const messageUser = `
+🎉 Ariza tasdiqlangan. Nomer: ${bookingId}
+👤 Arizachi: ${relativeName}
+📅 Berilgan sana: ${submissionDate.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" })}
+⌚ Kelishi sana: ${assignedDate.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" })}
+⏲️ Turi: ${visit_type === "long" ? "2-kunlik" : "1-kunlik"}
+🟢 Holat: Tasdiqlangan
+`;
+
+      await ctx.reply(messageUser, Markup.keyboard([
+        ["📊 Navbat holati", "📱 Grupaga otish", "🖨️ Ariza nusxasini olish"],
         [`❌ Arizani bekor qilish #${bookingId}`],
-      ])
-        .resize()
-        .oneTime(false)
-    );
+      ]).resize());
+
+      const messageGroup = `
+🎉 Ariza tasdiqlangan. Nomer: ${bookingId}
+👤 Arizachi: ${relativeName}
+📅 Berilgan sana: ${submissionDate.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" })}
+⌚ Kelishi sana: ${assignedDate.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" })}
+🟢 Holat: Tasdiqlangan
+`;
+
+      await ctx.telegram.sendMessage(adminChatId, messageGroup);
+    }
 
     await ctx.reply(
       "📱 Grupaga qo'shing",
