@@ -304,6 +304,14 @@ bot.hears("✅ Ha", async (ctx) => {
   }
 });
 
+bot.catch((err, ctx) => {
+  if (err.response && err.response.error_code === 403) {
+    console.warn(`⚠️ User ${ctx.from?.id} blocked the bot, skip message`);
+  } else {
+    console.error("❌ Global error:", err);
+  }
+});
+
 bot.hears("Yangi ariza yuborish", async (ctx) => {
   try {
     await ctx.scene.enter("booking-wizard");
