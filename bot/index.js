@@ -62,7 +62,7 @@ async function getQueuePosition(bookingId) {
   );
   const ids = rows.map((row) => row.id);
   const position = ids.indexOf(bookingId);
-  return position !== -1 ? position + 1 : null; 
+  return position !== -1 ? position + 1 : null;
 }
 
 /** ─────────────────────
@@ -125,12 +125,15 @@ bot.hears("📊 Navbat holati", async (ctx) => {
       await ctx.reply(
         `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
 👤 Arizachi: ${relatives[0].full_name}
-📅 Berilgan sana: ${rowInfo[0].start_datetime.toLocaleString("ru-RU", {
+📅 Berilgan sana: ${new Date().toLocaleString("ru-RU", {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
         })}
-⌚️ Kelishi sana: ${rowInfo[0].end_datetime.toLocaleString("ru-RU", {
+⌚️ Kelishi sana: ${new Date(
+          new Date(rowInfo[0].start_datetime).getTime() +
+            1 * 24 * 60 * 60 * 1000
+        ).toLocaleString("ru-RU", {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
