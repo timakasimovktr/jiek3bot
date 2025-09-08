@@ -18,9 +18,9 @@ bot.use(stage.middleware());
 /** ─────────────────────
  *  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
  *  ───────────────────── */
-async function getLatestPendingId(userId) {
+async function getLatestPendingOrApprovedId(userId) {
   const [rows] = await pool.query(
-    "SELECT id FROM bookings WHERE status = 'pending' AND user_id = ? ORDER BY id DESC LIMIT 1",
+    "SELECT id FROM bookings WHERE status IN ('pending', 'approved') AND user_id = ? ORDER BY id DESC LIMIT 1",
     [userId]
   );
   return rows.length ? rows[0].id : null;
@@ -39,7 +39,7 @@ async function getUserBookingStatus(userId) {
     "SELECT * FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
     [userId]
   );
-  return rows.length ? rows : null;
+  return rows.length ? rows[0] : null;
 }
 
 function buildMainMenu(latestPendingId) {
@@ -69,40 +69,107 @@ async function getQueuePosition(bookingId) {
  *  СТАРТ
  *  ───────────────────── */
 bot.start(async (ctx) => {
-  await ctx.reply(
-    "👋 Assalomu alaykum!\nBu platforma orqali siz qamoqxona mahbuslari bilan uchrashuvga yozilishingiz mumkin.",
-    Markup.inlineKeyboard([
-      [Markup.button.callback("📅 Uchrashuvga yozilish", "start_booking")],
-    ])
-  );
+  try {
+    const userId = ctx.from.id;
+    const latestBooking = await getUserBookingStatus(userId);
+
+    if (latestBooking && latestBooking.status !== "canceled") {
+      const latestId = latestBooking.id;
+      const relatives = JSON.parse(latestBooking.relatives || "[]");
+      const rel1 = relatives[0] || {};
+      
+      if (latestBooking.status === "approved") {
+        await ctx.reply(
+          `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
+👤 Arizachi: ${rel1.full_name || "Noma'lum"}
+📅 Berilgan sana: ${new Date(latestBooking.created_at).toLocaleString("ru-RU", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
+⌚️ Kelishi sana: ${new Date(
+            new Date(latestBooking.start_datetime).getTime() +
+              1 * 24 * 60 * 60 * 1000
+          ).toLocaleString("ru-RU", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
+🟢 Holat: Tasdiqlangan`,
+          buildMainMenu(latestId)
+        );
+      } else if (latestBooking.status === "pending") {
+        const pos = await getQueuePosition(latestId);
+        await ctx.reply(
+          pos
+            ? `📊 Sizning navbatingiz: ${pos}`
+            : "❌ Navbat topilmadi.",
+          buildMainMenu(latestId)
+        );
+      }
+    } else {
+      await ctx.reply(
+        "👋 Assalomu alaykum!\nBu platforma orqali siz qamoqxona mahbuslari bilan uchrashuvga yozilishingiz mumkin.",
+        Markup.inlineKeyboard([
+          [Markup.button.callback("📅 Uchrashuvga yozilish", "start_booking")],
+        ])
+      );
+    }
+  } catch (err) {
+    console.error(err);
+    await ctx.reply("❌ Xatolik yuz berdi.");
+  }
 });
 
 /** ─────────────────────
  *  ЗАПУСК СЦЕНЫ
  *  ───────────────────── */
 bot.action("start_booking", async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.scene.enter("booking-wizard");
+  try {
+    const userId = ctx.from.id;
+    const existingBookingId = await getLatestPendingOrApprovedId(userId);
+
+    if (existingBookingId) {
+      const booking = await getUserBookingStatus(userId);
+      const relatives = JSON.parse(booking.relatives || "[]");
+      const rel1 = relatives[0] || {};
+      const statusText = booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
+      
+      await ctx.answerCbQuery();
+      return ctx.reply(
+        `❌ Sizda allaqachon ariza mavjud (Nomer: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${rel1.full_name || "Noma'lum"}). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
+        buildMainMenu(existingBookingId)
+      );
+    }
+
+    await ctx.answerCbQuery();
+    await ctx.scene.enter("booking-wizard");
+  } catch (err) {
+    console.error(err);
+    await ctx.reply("❌ Xatolik yuz berdi.");
+  }
 });
 
 /** ─────────────────────
  *  ВНУТРИСЦЕНОВАЯ ОТМЕНА ЧЕРНОВИКА (inline "cancel")
  *  ───────────────────── */
 bot.action("cancel", async (ctx) => {
-  // Это ОТМЕНА ЧЕРНОВИКА в визарде (НЕ отмена уже сохранённой заявки!)
-  if (ctx.scene && ctx.scene.leave) {
-    await ctx.scene.leave();
+  try {
+    if (ctx.scene && ctx.scene.leave) {
+      await ctx.scene.leave();
+    }
+    ctx.session = {};
+    ctx.wizard.state = {};
+    await ctx.answerCbQuery();
+    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+    await ctx.reply(
+      "❌ Uchrashuv yozuvi bekor qilindi.",
+      buildMainMenu(latestId)
+    );
+  } catch (err) {
+    console.error(err);
+    await ctx.reply("❌ Xatolik yuz berdi.");
   }
-  ctx.session = {};
-  ctx.wizard.state = {};
-  await ctx.answerCbQuery();
-  await ctx.reply(
-    "❌ Uchrashuv yozuvi bekor qilindi.",
-    Markup.inlineKeyboard([
-      [Markup.button.callback("📅 Uchrashuvga yozilish", "start_booking")],
-    ])
-  );
-  await ctx.scene.leave();
 });
 
 /** ─────────────────────
@@ -117,21 +184,20 @@ bot.hears("📊 Navbat holati", async (ctx) => {
         buildMainMenu(null)
       );
     }
-    const pos = await getQueuePosition(latestId);
-    const rowInfo = await getUserBookingStatus(ctx.from.id);
-    const relatives = JSON.parse(rowInfo[0].relatives);
+    const booking = await getUserBookingStatus(ctx.from.id);
+    const relatives = JSON.parse(booking.relatives || "[]");
 
-    if (rowInfo[0].status === "approved") {
+    if (booking.status === "approved") {
       await ctx.reply(
         `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
-👤 Arizachi: ${relatives[0].full_name}
-📅 Berilgan sana: ${new Date().toLocaleString("ru-RU", {
+👤 Arizachi: ${relatives[0]?.full_name || "Noma'lum"}
+📅 Berilgan sana: ${new Date(booking.created_at).toLocaleString("ru-RU", {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
         })}
 ⌚️ Kelishi sana: ${new Date(
-          new Date(rowInfo[0].start_datetime).getTime() +
+          new Date(booking.start_datetime).getTime() +
             1 * 24 * 60 * 60 * 1000
         ).toLocaleString("ru-RU", {
           day: "2-digit",
@@ -141,15 +207,14 @@ bot.hears("📊 Navbat holati", async (ctx) => {
 🟢 Holat: Tasdiqlangan`,
         buildMainMenu(latestId)
       );
-
       return;
     }
 
-    if (!pos) {
-      return ctx.reply("❌ Navbat topilmadi.", buildMainMenu(latestId));
-    }
-
-    await ctx.reply(`📊 Sizning navbatingiz: ${pos}`, buildMainMenu(latestId));
+    const pos = await getQueuePosition(latestId);
+    await ctx.reply(
+      pos ? `📊 Sizning navbatingiz: ${pos}` : "❌ Navbat topilmadi.",
+      buildMainMenu(latestId)
+    );
   } catch (err) {
     console.error(err);
     await ctx.reply("❌ Xatolik yuz berdi.");
@@ -158,6 +223,7 @@ bot.hears("📊 Navbat holati", async (ctx) => {
 
 bot.hears("📱 Grupaga otish", async (ctx) => {
   try {
+    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(
       "📱 Tugmasini bosing:",
       Markup.inlineKeyboard([
@@ -169,6 +235,7 @@ bot.hears("📱 Grupaga otish", async (ctx) => {
         ],
       ])
     );
+    await ctx.reply("🔙 Asosiy menyuga qaytish", buildMainMenu(latestId));
   } catch (err) {
     console.error(err);
     await ctx.reply("❌ Xatolik yuz berdi.");
@@ -183,11 +250,11 @@ bot.hears("❌ Yo‘q", async (ctx) => {
     ctx.session.confirmCancel = false;
     ctx.session.confirmCancelId = null;
 
-    const latestId = await getLatestPendingId(ctx.from.id);
+    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
 
     await ctx.reply(
       "✅ Ariza bekor qilinmadi.",
-      Markup.keyboard(buildMainMenu(latestId).reply_markup.keyboard).resize()
+      buildMainMenu(latestId)
     );
   } catch (err) {
     console.error(err);
@@ -200,10 +267,9 @@ bot.hears("❌ Yo‘q", async (ctx) => {
  *  ───────────────────── */
 bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
   try {
-    // 1) Если есть id в тексте — используем его, иначе берём последний pending
     const explicitId = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestId =
-      explicitId || (await getLatestPendingIdWithoutStatus(ctx.from.id));
+      explicitId || (await getLatestPendingOrApprovedId(ctx.from.id));
 
     if (!latestId) {
       return ctx.reply(
@@ -212,11 +278,9 @@ bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
       );
     }
 
-    // 2) Сохраняем ожидание подтверждения в сессию
     ctx.session.confirmCancel = true;
     ctx.session.confirmCancelId = latestId;
 
-    // 3) Показываем подтверждение
     await ctx.reply(
       "❓ Arizani bekor qilmoqchimisiz?",
       Markup.keyboard([["✅ Ha", "❌ Yo‘q"]]).resize()
@@ -237,7 +301,6 @@ bot.hears("✅ Ha", async (ctx) => {
       return ctx.reply("❌ Hozir bekor qilish uchun ariza topilmadi.");
     }
 
-    // Сбрасываем флаги вне зависимости от результата
     ctx.session.confirmCancel = false;
     ctx.session.confirmCancelId = null;
 
@@ -250,7 +313,6 @@ bot.hears("✅ Ha", async (ctx) => {
       return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
     }
 
-    // Узнаем имя для админа
     const [rows] = await pool.query(
       "SELECT relatives FROM bookings WHERE id = ?",
       [bookingId]
@@ -267,7 +329,6 @@ bot.hears("✅ Ha", async (ctx) => {
       }
     }
 
-    // Чистим клавиатуру и уведомляем
     await ctx.reply("❌ Sizning arizangiz bekor qilindi.", {
       reply_markup: { remove_keyboard: true },
     });
@@ -277,7 +338,6 @@ bot.hears("✅ Ha", async (ctx) => {
     }
     ctx.session = {};
 
-    // Сообщаем админу
     try {
       await ctx.telegram.sendMessage(
         adminChatId,
@@ -291,7 +351,6 @@ bot.hears("✅ Ha", async (ctx) => {
       }
     }
 
-    // Предлагаем начать заново
     await ctx.reply(
       "🔄 Yangi uchrashuvga yozilish uchun quyidagi tugmani bosing:",
       Markup.inlineKeyboard([
@@ -314,6 +373,21 @@ bot.catch((err, ctx) => {
 
 bot.hears("Yangi ariza yuborish", async (ctx) => {
   try {
+    const userId = ctx.from.id;
+    const existingBookingId = await getLatestPendingOrApprovedId(userId);
+
+    if (existingBookingId) {
+      const booking = await getUserBookingStatus(userId);
+      const relatives = JSON.parse(booking.relatives || "[]");
+      const rel1 = relatives[0] || {};
+      const statusText = booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
+      
+      return ctx.reply(
+        `❌ Sizda allaqachon ariza mavjud (Nomer: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${rel1.full_name || "Noma'lum"}). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
+        buildMainMenu(existingBookingId)
+      );
+    }
+
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
     console.error(err);
@@ -325,24 +399,24 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
   try {
     const latestId = await getLatestPendingIdWithoutStatus(ctx.from.id);
     if (!latestId) {
-      return ctx.reply("❌ Sizda hozirda kutayotgan ariza yo‘q.");
+      return ctx.reply(
+        "❌ Sizda hozirda kutayotgan ariza yo‘q.",
+        buildMainMenu(null)
+      );
     }
 
-    // Берем данные заявки
     const [bookingRows] = await pool.query(
       "SELECT * FROM bookings WHERE id = ?",
       [latestId]
     );
     if (!bookingRows.length) {
-      return ctx.reply("❌ Ariza topilmadi.");
+      return ctx.reply("❌ Ariza topilmadi.", buildMainMenu(null));
     }
     const booking = bookingRows[0];
 
-    // Берем данные из library
     const [libRows] = await pool.query("SELECT * FROM library LIMIT 1");
     const library = libRows[0] || { placeNumber: "", commander: "" };
 
-    // Парсим родственников
     let relatives = [];
     try {
       relatives = booking.relatives ? JSON.parse(booking.relatives) : [];
@@ -350,12 +424,10 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
       console.error("JSON parse error:", e);
     }
 
-    // Достаём каждого безопасно
     const rel1 = relatives[0] || {};
     const rel2 = relatives[1] || {};
     const rel3 = relatives[2] || {};
 
-    // Загружаем шаблон
     const templatePath = path.join(__dirname, "ariza.docx");
     const content = fs.readFileSync(templatePath, "binary");
     const zip = new PizZip(content);
@@ -365,7 +437,6 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
       linebreaks: true,
     });
 
-    // Заполняем шаблон
     doc.render({
       placeNumber: library.placeNumber,
       commander: library.commander,
@@ -390,6 +461,7 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
       source: buf,
       filename: `ariza_${latestId}.docx`,
     });
+    await ctx.reply("🔙 Asosiy menyuga qaytish", buildMainMenu(latestId));
   } catch (err) {
     console.error(err);
     await ctx.reply("❌ Xatolik yuz berdi (печать).");

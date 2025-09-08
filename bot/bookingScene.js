@@ -301,7 +301,7 @@ async function saveBooking(ctx) {
         [
           Markup.button.url(
             "📌 Grupaga otish",
-            "https://t.me/+qWg7Qh3t_OIxMDBi"
+            "https://t.me/smartdunyomeet"
           ),
         ],
       ])
