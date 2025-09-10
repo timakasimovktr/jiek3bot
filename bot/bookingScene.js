@@ -134,34 +134,32 @@ const bookingWizard = new Scenes.WizardScene(
 
     ctx.wizard.state.currentRelative.full_name = ctx.message.text.toUpperCase();
 
-    await ctx.reply(
-      "🛂 Endi pasport seriyasi va raqamini kiriting (masalan: AB1234567):"
-    );
-    return ctx.wizard.next();
-  },
+    // Временно комментируем запрос паспорта и устанавливаем фиксированное значение
+    // await ctx.reply(
+    //   "🛂 Endi pasport seriyasi va raqamini kiriting (masalan: AB1234567):"
+    // );
+    ctx.wizard.state.currentRelative.passport = "AC1234567";
+    // return ctx.wizard.next();
 
-  // Step 4: Passport va mahbus ismi
-  async (ctx) => {
-    if (!ctx.message?.text) {
-      await ctx.reply("❌ Iltimos, pasport raqamini matn shaklida yuboring.");
-      return ctx.wizard.selectStep(3);
-    }
-
-    ctx.wizard.state.currentRelative.passport = ctx.message.text.toUpperCase();
-    ctx.wizard.state.relatives.push(ctx.wizard.state.currentRelative);
-
+    // Пропускаем шаг с паспортом и переходим к следующему
     if (!ctx.wizard.state.prisoner_name) {
       await ctx.reply(
         "👥 Siz kim bilan uchrashmoqchisiz? Mahbusning to‘liq ismini kiriting:"
       );
-      return ctx.wizard.next(); // Step 5
+      return ctx.wizard.selectStep(5); // Переходим к Step 5
     } else {
-      // agar mahbus ismi allaqachon bo'lsa → to'g'ridan-to'g'ri qo'shimcha savol
+      // Если имя заключенного уже есть, переходим к вопросу о добавлении
       return askAddMore(ctx);
     }
   },
 
-  // Step 5: Mahbus ismi (faqat birinchi marta)
+  // Step 4: Passport va mahbus ismi (этот шаг теперь не используется)
+  async (ctx) => {
+    // Этот шаг пропускается, так как паспорт теперь фиксирован
+    return ctx.wizard.next();
+  },
+
+  // Step 5: Mahbus ismi (был Step 5, теперь фактически Step 4)
   async (ctx) => {
     if (!ctx.message?.text) {
       await ctx.reply("❌ Iltimos, mahbusning ismini matn shaklida yuboring.");
@@ -169,6 +167,7 @@ const bookingWizard = new Scenes.WizardScene(
     }
 
     ctx.wizard.state.prisoner_name = ctx.message.text.toUpperCase();
+    ctx.wizard.state.relatives.push(ctx.wizard.state.currentRelative);
     return askAddMore(ctx);
   },
 
