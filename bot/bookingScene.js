@@ -133,15 +133,9 @@ const bookingWizard = new Scenes.WizardScene(
     }
 
     ctx.wizard.state.currentRelative.full_name = ctx.message.text.toUpperCase();
-
-    // Временно комментируем запрос паспорта и устанавливаем фиксированное значение
-    // await ctx.reply(
-    //   "🛂 Endi pasport seriyasi va raqamini kiriting (masalan: AB1234567):"
-    // );
     ctx.wizard.state.currentRelative.passport = "AC1234567";
-    // return ctx.wizard.next();
+    ctx.wizard.state.relatives.push(ctx.wizard.state.currentRelative); // Push currentRelative to relatives array
 
-    // Пропускаем шаг с паспортом и переходим к следующему
     if (!ctx.wizard.state.prisoner_name) {
       await ctx.reply(
         "👥 Siz kim bilan uchrashmoqchisiz? Mahbusning to‘liq ismini kiriting:"
@@ -153,13 +147,12 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 4: Passport va mahbus ismi (этот шаг теперь не используется)
+  // Step 4: Placeholder (not used)
   async (ctx) => {
-    // Этот шаг пропускается, так как паспорт теперь фиксирован
     return ctx.wizard.next();
   },
 
-  // Step 5: Mahbus ismi (был Step 5, теперь фактически Step 4)
+  // Step 5: Mahbus ismi
   async (ctx) => {
     if (!ctx.message?.text) {
       await ctx.reply("❌ Iltimos, mahbusning ismini matn shaklida yuboring.");
@@ -167,7 +160,6 @@ const bookingWizard = new Scenes.WizardScene(
     }
 
     ctx.wizard.state.prisoner_name = ctx.message.text.toUpperCase();
-    ctx.wizard.state.relatives.push(ctx.wizard.state.currentRelative);
     return askAddMore(ctx);
   },
 
@@ -232,11 +224,7 @@ async function showSummary(ctx) {
   let text = "📋 Arizangiz tafsilotlari:\n\n";
   text += `👥 Mahbus: ${prisoner_name}\n\n`;
   relatives.forEach((r, i) => {
-    text += `👤 Qarindosh ${i + 1}:\n- Ism Familiya: ${
-      r.full_name
-    }`;
-
-    // \n- Pasport: ${r.passport}\n\n
+    text += `👤 Qarindosh ${i + 1}:\n- Ism Familiya: ${r.full_name}\n- Pasport: ${r.passport}\n\n`;
   });
   text += "❓ Ushbu ma’lumotlarni tasdiqlaysizmi?";
 
@@ -284,6 +272,11 @@ async function saveBooking(ctx) {
       "SELECT * FROM bookings WHERE status = 'pending' ORDER BY id ASC"
     );
     const myIndex = rows.findIndex((b) => b.id === bookingId);
+    if (myIndex === -1) {
+      console.error("Booking ID not found in pending bookings");
+      await ctx.reply("❌ Xatolik: Arizangiz topilmadi.");
+      return;
+    }
     const position = myIndex + 1;
 
     await ctx.reply(
