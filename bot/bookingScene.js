@@ -133,33 +133,41 @@ const bookingWizard = new Scenes.WizardScene(
     }
 
     ctx.wizard.state.currentRelative.full_name = ctx.message.text.toUpperCase();
+    ctx.wizard.state.currentRelative.passport = "AC1234567"; // временно фикс
 
-    await ctx.reply(
-      "🛂 Endi pasport seriyasi va raqamini kiriting (masalan: AB1234567):"
-    );
-    return ctx.wizard.next();
-  },
+    // await ctx.reply(
+    //   "🛂 Endi pasport seriyasi va raqamini kiriting (masalan: AB1234567):"
+    // );
+    // return ctx.wizard.next();
 
-  // Step 4: Passport va mahbus ismi
-  async (ctx) => {
-    if (!ctx.message?.text) {
-      await ctx.reply("❌ Iltimos, pasport raqamini matn shaklida yuboring.");
-      return ctx.wizard.selectStep(3);
-    }
-
-    ctx.wizard.state.currentRelative.passport = ctx.message.text.toUpperCase();
     ctx.wizard.state.relatives.push(ctx.wizard.state.currentRelative);
 
-    if (!ctx.wizard.state.prisoner_name) {
-      await ctx.reply(
-        "👥 Siz kim bilan uchrashmoqchisiz? Mahbusning to‘liq ismini kiriting:"
-      );
-      return ctx.wizard.next(); // Step 5
-    } else {
-      // agar mahbus ismi allaqachon bo'lsa → to'g'ridan-to'g'ri qo'shimcha savol
-      return askAddMore(ctx);
-    }
+    await ctx.reply(
+      "👥 Siz kim bilan uchrashmoqchisiz? Mahbusning to‘liq ismini kiriting:"
+    );
+    return ctx.wizard.selectStep(5);
   },
+
+  // // Step 4: Passport va mahbus ismi
+  // async (ctx) => {
+  //   if (!ctx.message?.text) {
+  //     await ctx.reply("❌ Iltimos, pasport raqamini matn shaklida yuboring.");
+  //     return ctx.wizard.selectStep(3);
+  //   }
+
+  //   ctx.wizard.state.currentRelative.passport = ctx.message.text.toUpperCase();
+  //   ctx.wizard.state.relatives.push(ctx.wizard.state.currentRelative);
+
+  //   if (!ctx.wizard.state.prisoner_name) {
+  //     await ctx.reply(
+  //       "👥 Siz kim bilan uchrashmoqchisiz? Mahbusning to‘liq ismini kiriting:"
+  //     );
+  //     return ctx.wizard.next(); // Step 5
+  //   } else {
+  //     // agar mahbus ismi allaqachon bo'lsa → to'g'ridan-to'g'ri qo'shimcha savol
+  //     return askAddMore(ctx);
+  //   }
+  // },
 
   // Step 5: Mahbus ismi (faqat birinchi marta)
   async (ctx) => {
@@ -298,12 +306,7 @@ async function saveBooking(ctx) {
     await ctx.reply(
       "📱 Grupaga qo'shing",
       Markup.inlineKeyboard([
-        [
-          Markup.button.url(
-            "📌 Grupaga otish",
-            "https://t.me/smartdunyomeet"
-          ),
-        ],
+        [Markup.button.url("📌 Grupaga otish", "https://t.me/smartdunyomeet")],
       ])
     );
   } catch (err) {
