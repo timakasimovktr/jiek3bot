@@ -19,27 +19,43 @@ bot.use(stage.middleware());
  *  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
  *  ───────────────────── */
 async function getLatestPendingOrApprovedId(userId) {
-  const [rows] = await pool.query(
-    "SELECT id FROM bookings WHERE status IN ('pending', 'approved') AND user_id = ? ORDER BY id DESC LIMIT 1",
-    [userId]
-  );
-  return rows.length ? rows[0].id : null;
+  try {
+    const [rows] = await pool.query(
+      "SELECT id FROM bookings WHERE status IN ('pending', 'approved') AND user_id = ? ORDER BY id DESC LIMIT 1",
+      [userId]
+    );
+    return rows.length ? rows[0].id : null;
+  } catch (err) {
+    console.error("Error in getLatestPendingOrApprovedId:", err);
+    return null;
+  }
 }
 
 async function getLatestPendingIdWithoutStatus(userId) {
-  const [rows] = await pool.query(
-    "SELECT id FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-    [userId]
-  );
-  return rows.length ? rows[0].id : null;
+  try {
+    const [rows] = await pool.query(
+      "SELECT id FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+      [userId]
+    );
+    return rows.length ? rows[0].id : null;
+  } catch (err) {
+    console.error("Error in getLatestPendingIdWithoutStatus:", err);
+    return null;
+  }
 }
 
+
 async function getUserBookingStatus(userId) {
-  const [rows] = await pool.query(
-    "SELECT * FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-    [userId]
-  );
-  return rows.length ? rows[0] : null;
+  try {
+    const [rows] = await pool.query(
+      "SELECT * FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+      [userId]
+    );
+    return rows.length ? rows[0] : null;
+  } catch (err) {
+    console.error("Error in getUserBookingStatus:", err);
+    return null;
+  }
 }
 
 function buildMainMenu(latestPendingId) {
@@ -57,24 +73,41 @@ function buildMainMenu(latestPendingId) {
 }
 
 async function getQueuePosition(bookingId) {
-  const [rows] = await pool.query(
-    "SELECT id FROM bookings WHERE status = 'pending' ORDER BY id ASC"
-  );
-  const ids = rows.map((row) => row.id);
-  const position = ids.indexOf(bookingId);
-  return position !== -1 ? position + 1 : null;
+  try {
+    const [rows] = await pool.query(
+      "SELECT id FROM bookings WHERE status = 'pending' ORDER BY id ASC"
+    );
+    const ids = rows.map((row) => row.id);
+    const position = ids.indexOf(bookingId);
+    return position !== -1 ? position + 1 : null;
+  } catch (err) {
+    console.error("Error in getQueuePosition:", err);
+    return null;
+  }
 }
 
 /** ─────────────────────
  *  СБРОС СЕССИИ И СЦЕНЫ ПРИ ЛЮБОМ ВЗАИМОДЕЙСТВИИ
  *  ───────────────────── */
 async function resetSessionAndScene(ctx) {
-  console.log(`Resetting session and scene for user ${ctx.from.id}`); // Лог для отладки
-  if (ctx.scene && ctx.scene.current) {
-    await ctx.scene.leave();
+  try {
+    console.log(`Resetting session and scene for user ${ctx.from.id}`);
+    if (ctx.scene && ctx.scene.current) {
+      await ctx.scene.leave();
+      // Сброс состояния сцены через session (в Telegraf 4.x)
+      if (ctx.scene.session) {
+        ctx.scene.session = {};
+      }
+    }
+    // Сброс глобальной сессии: устанавливаем {} только если она undefined (Telegraf 4.x поведение)
+    if (typeof ctx.session === "undefined") {
+      ctx.session = {};
+    } else {
+      ctx.session = {};
+    }
+  } catch (err) {
+    console.error("Error in resetSessionAndScene:", err);
   }
-  ctx.session = {}; // Очищаем сессию
-  ctx.wizard.state = {}; // Очищаем состояние сцены
 }
 
 /** ─────────────────────
@@ -89,7 +122,7 @@ bot.command("cancel", async (ctx) => {
       buildMainMenu(latestId)
     );
   } catch (err) {
-    console.error("Error in /cancel:", err);
+    console.error("Error in /cancel:", err.message, err.stack);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
@@ -101,17 +134,38 @@ bot.start(async (ctx) => {
   try {
     // Полный сброс сессии и сцены
     await resetSessionAndScene(ctx);
-    console.log(`Session after reset for user ${ctx.from.id}:`, ctx.session); // Лог для отладки
+    console.log(`Session after reset for user ${ctx.from.id}:`, ctx.session);
 
     const userId = ctx.from.id;
     const latestBooking = await getUserBookingStatus(userId);
 
     if (latestBooking && latestBooking.status !== "canceled") {
       const latestId = latestBooking.id;
-      const relatives = JSON.parse(latestBooking.relatives || "[]");
+      let relatives = [];
+      try {
+        relatives = JSON.parse(latestBooking.relatives || "[]");
+      } catch (parseErr) {
+        console.error("JSON parse error in /start:", parseErr);
+        relatives = [];
+      }
       const rel1 = relatives[0] || {};
 
       if (latestBooking.status === "approved") {
+        let kelishDateStr = "Noma'lum";
+        if (latestBooking.start_datetime) {
+          try {
+            const startTime = new Date(latestBooking.start_datetime).getTime();
+            if (!isNaN(startTime)) {
+              kelishDateStr = new Date(startTime + 1 * 24 * 60 * 60 * 1000).toLocaleString("ru-RU", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              });
+            }
+          } catch (dateErr) {
+            console.error("Date error in /start:", dateErr);
+          }
+        }
         await ctx.reply(
           `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
 👤 Arizachi: ${rel1.full_name || "Noma'lum"}
@@ -120,14 +174,7 @@ bot.start(async (ctx) => {
             month: "2-digit",
             year: "numeric",
           })}
-⌚️ Kelishi sana: ${new Date(
-            new Date(latestBooking.start_datetime).getTime() +
-              1 * 24 * 60 * 60 * 1000
-          ).toLocaleString("ru-RU", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          })}
+⌚️ Kelishi sana: ${kelishDateStr}
 🟢 Holat: Tasdiqlangan`,
           buildMainMenu(latestId)
         );
@@ -149,14 +196,11 @@ bot.start(async (ctx) => {
       );
     }
   } catch (err) {
-    console.error("Error in /start:", err);
+    console.error("Error in /start:", err.message, err.stack);
     await ctx.reply("❌ Xatolik yuz berdi, iltimos, qayta urinib ko‘ring.");
   }
 });
 
-/** ─────────────────────
- *  ЗАПУСК СЦЕНЫ
- *  ───────────────────── */
 bot.action("start_booking", async (ctx) => {
   try {
     const userId = ctx.from.id;
@@ -164,7 +208,13 @@ bot.action("start_booking", async (ctx) => {
 
     if (existingBookingId) {
       const booking = await getUserBookingStatus(userId);
-      const relatives = JSON.parse(booking.relatives || "[]");
+      let relatives = [];
+      try {
+        relatives = JSON.parse(booking.relatives || "[]");
+      } catch (parseErr) {
+        console.error("JSON parse error in start_booking:", parseErr);
+        relatives = [];
+      }
       const rel1 = relatives[0] || {};
       const statusText = booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
 
@@ -175,13 +225,12 @@ bot.action("start_booking", async (ctx) => {
       );
     }
 
-    // Сбрасываем сессию перед входом в сцену
     await resetSessionAndScene(ctx);
-    console.log(`Entering booking-wizard for user ${userId}`); // Лог для отладки
+    console.log(`Entering booking-wizard for user ${userId}`);
     await ctx.answerCbQuery();
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
-    console.error("Error in start_booking:", err);
+    console.error("Error in start_booking:", err.message, err.stack);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
@@ -403,30 +452,38 @@ bot.hears("✅ Ha", async (ctx) => {
  *  ГЛОБАЛЬНЫЙ ПЕРЕХВАТ ТЕКСТА ДЛЯ СБРОСА ПРИ НЕОЖИДАННОМ ВВОДЕ
  *  ───────────────────── */
 bot.on("text", async (ctx, next) => {
-  // Если пользователь находится в сцене, но сцена ожидает неверный ввод
-  if (ctx.scene && ctx.scene.current) {
-    console.log(`User ${ctx.from.id} in scene ${ctx.scene.current.id}, resetting due to unexpected input`);
-    await resetSessionAndScene(ctx);
-    await ctx.reply(
-      "❌ Jarayon bekor qilindi. Iltimos, /start buyrug‘ini qayta yuboring yoki yangi ariza yuborish uchun tugmani bosing:",
-      Markup.inlineKeyboard([
-        [Markup.button.callback("📅 Uchrashuvga yozilish", "start_booking")],
-      ])
-    );
-    return;
+  try {
+    if (ctx.scene && ctx.scene.current) {
+      console.log(`User ${ctx.from.id} in scene ${ctx.scene.current.id}, resetting due to unexpected input`);
+      await resetSessionAndScene(ctx);
+      await ctx.reply(
+        "❌ Jarayon bekor qilindi. Iltimos, /start buyrug‘ini qayta yuboring yoki yangi ariza yuborish uchun tugmani bosing:",
+        Markup.inlineKeyboard([
+          [Markup.button.callback("📅 Uchrashuvga yozilish", "start_booking")],
+        ])
+      );
+      return;
+    }
+    await next();
+  } catch (err) {
+    console.error("Error in text handler:", err.message, err.stack);
   }
-  await next();
 });
 
 /** ─────────────────────
  *  ГЛОБАЛЬНЫЙ ПЕРЕХВАТ ОШИБОК
  *  ───────────────────── */
 bot.catch((err, ctx) => {
+  console.error("Global error:", err.message, err.stack);
   if (err.response && err.response.error_code === 403) {
     console.warn(`⚠️ User ${ctx.from?.id} blocked the bot, skip message`);
-  } else {
-    console.error("❌ Global error:", err);
+    return;
+  }
+  try {
+    resetSessionAndScene(ctx);
     ctx.reply("❌ Xatolik yuz berdi, iltimos, /start buyrug‘ini qayta yuboring.");
+  } catch (resetErr) {
+    console.error("Error in global catch reset:", resetErr);
   }
 });
 
@@ -482,7 +539,8 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
     try {
       relatives = booking.relatives ? JSON.parse(booking.relatives) : [];
     } catch (e) {
-      console.error("JSON parse error:", e);
+      console.error("JSON parse error in Ariza nusxasini olish:", e);
+      relatives = [];
     }
 
     const rel1 = relatives[0] || {};
@@ -520,7 +578,7 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
     });
     await ctx.reply("🔙 Asosiy menyuga qaytish", buildMainMenu(latestId));
   } catch (err) {
-    console.error("Error in Ariza nusxasini olish:", err);
+    console.error("Error in Ariza nusxasini olish:", err.message, err.stack);
     await ctx.reply("❌ Xatolik yuz berdi (печать).");
   }
 });
