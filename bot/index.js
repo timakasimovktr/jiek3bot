@@ -27,7 +27,7 @@ async function getLatestPendingOrApprovedId(userId) {
     return rows.length ? rows[0].id : null;
   } catch (err) {
     console.error("Error in getLatestPendingOrApprovedId:", err);
-    return null;
+    throw err; // Пробрасываем ошибку для обработки выше
   }
 }
 
@@ -40,10 +40,9 @@ async function getLatestPendingIdWithoutStatus(userId) {
     return rows.length ? rows[0].id : null;
   } catch (err) {
     console.error("Error in getLatestPendingIdWithoutStatus:", err);
-    return null;
+    throw err;
   }
 }
-
 
 async function getUserBookingStatus(userId) {
   try {
@@ -54,7 +53,7 @@ async function getUserBookingStatus(userId) {
     return rows.length ? rows[0] : null;
   } catch (err) {
     console.error("Error in getUserBookingStatus:", err);
-    return null;
+    throw err;
   }
 }
 
@@ -82,7 +81,7 @@ async function getQueuePosition(bookingId) {
     return position !== -1 ? position + 1 : null;
   } catch (err) {
     console.error("Error in getQueuePosition:", err);
-    return null;
+    throw err;
   }
 }
 
@@ -91,22 +90,19 @@ async function getQueuePosition(bookingId) {
  *  ───────────────────── */
 async function resetSessionAndScene(ctx) {
   try {
-    console.log(`Resetting session and scene for user ${ctx.from.id}`);
+    console.log(`Resetting session and scene for user ${ctx.from?.id}`); // Лог для отладки
     if (ctx.scene && ctx.scene.current) {
+      console.log(`Leaving scene: ${ctx.scene.current.id}`);
       await ctx.scene.leave();
-      // Сброс состояния сцены через session (в Telegraf 4.x)
-      if (ctx.scene.session) {
-        ctx.scene.session = {};
-      }
     }
-    // Сброс глобальной сессии: устанавливаем {} только если она undefined (Telegraf 4.x поведение)
-    if (typeof ctx.session === "undefined") {
-      ctx.session = {};
-    } else {
-      ctx.session = {};
+    ctx.session = {}; // Очищаем сессию
+    if (ctx.wizard) {
+      ctx.wizard.state = {}; // Очищаем состояние сцены
     }
+    console.log(`Session after reset:`, ctx.session); // Лог для отладки
   } catch (err) {
     console.error("Error in resetSessionAndScene:", err);
+    throw err;
   }
 }
 
@@ -122,7 +118,7 @@ bot.command("cancel", async (ctx) => {
       buildMainMenu(latestId)
     );
   } catch (err) {
-    console.error("Error in /cancel:", err.message, err.stack);
+    console.error("Error in /cancel:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
@@ -132,9 +128,8 @@ bot.command("cancel", async (ctx) => {
  *  ───────────────────── */
 bot.start(async (ctx) => {
   try {
-    // Полный сброс сессии и сцены
+    console.log(`Processing /start for user ${ctx.from.id}`); // Лог для отладки
     await resetSessionAndScene(ctx);
-    console.log(`Session after reset for user ${ctx.from.id}:`, ctx.session);
 
     const userId = ctx.from.id;
     const latestBooking = await getUserBookingStatus(userId);
@@ -144,28 +139,13 @@ bot.start(async (ctx) => {
       let relatives = [];
       try {
         relatives = JSON.parse(latestBooking.relatives || "[]");
-      } catch (parseErr) {
-        console.error("JSON parse error in /start:", parseErr);
+      } catch (err) {
+        console.error(`JSON parse error for booking ${latestId}:`, err);
         relatives = [];
       }
       const rel1 = relatives[0] || {};
 
       if (latestBooking.status === "approved") {
-        let kelishDateStr = "Noma'lum";
-        if (latestBooking.start_datetime) {
-          try {
-            const startTime = new Date(latestBooking.start_datetime).getTime();
-            if (!isNaN(startTime)) {
-              kelishDateStr = new Date(startTime + 1 * 24 * 60 * 60 * 1000).toLocaleString("ru-RU", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              });
-            }
-          } catch (dateErr) {
-            console.error("Date error in /start:", dateErr);
-          }
-        }
         await ctx.reply(
           `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
 👤 Arizachi: ${rel1.full_name || "Noma'lum"}
@@ -174,7 +154,14 @@ bot.start(async (ctx) => {
             month: "2-digit",
             year: "numeric",
           })}
-⌚️ Kelishi sana: ${kelishDateStr}
+⌚️ Kelishi sana: ${new Date(
+            new Date(latestBooking.start_datetime).getTime() +
+              1 * 24 * 60 * 60 * 1000
+          ).toLocaleString("ru-RU", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
 🟢 Holat: Tasdiqlangan`,
           buildMainMenu(latestId)
         );
@@ -196,11 +183,14 @@ bot.start(async (ctx) => {
       );
     }
   } catch (err) {
-    console.error("Error in /start:", err.message, err.stack);
+    console.error("Error in /start:", err);
     await ctx.reply("❌ Xatolik yuz berdi, iltimos, qayta urinib ko‘ring.");
   }
 });
 
+/** ─────────────────────
+ *  ЗАПУСК СЦЕНЫ
+ *  ───────────────────── */
 bot.action("start_booking", async (ctx) => {
   try {
     const userId = ctx.from.id;
@@ -211,8 +201,8 @@ bot.action("start_booking", async (ctx) => {
       let relatives = [];
       try {
         relatives = JSON.parse(booking.relatives || "[]");
-      } catch (parseErr) {
-        console.error("JSON parse error in start_booking:", parseErr);
+      } catch (err) {
+        console.error(`JSON parse error for booking ${existingBookingId}:`, err);
         relatives = [];
       }
       const rel1 = relatives[0] || {};
@@ -230,7 +220,7 @@ bot.action("start_booking", async (ctx) => {
     await ctx.answerCbQuery();
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
-    console.error("Error in start_booking:", err.message, err.stack);
+    console.error("Error in start_booking:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
@@ -258,7 +248,6 @@ bot.action("cancel", async (ctx) => {
  *  ───────────────────── */
 bot.hears("📊 Navbat holati", async (ctx) => {
   try {
-    // Сбрасываем сессию, чтобы избежать влияния предыдущих сцен
     await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingIdWithoutStatus(ctx.from.id);
     if (!latestId) {
@@ -268,12 +257,19 @@ bot.hears("📊 Navbat holati", async (ctx) => {
       );
     }
     const booking = await getUserBookingStatus(ctx.from.id);
-    const relatives = JSON.parse(booking.relatives || "[]");
+    let relatives = [];
+    try {
+      relatives = JSON.parse(booking.relatives || "[]");
+    } catch (err) {
+      console.error(`JSON parse error for booking ${latestId}:`, err);
+      relatives = [];
+    }
+    const rel1 = relatives[0] || {};
 
     if (booking.status === "approved") {
       await ctx.reply(
         `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
-👤 Arizachi: ${relatives[0]?.full_name || "Noma'lum"}
+👤 Arizachi: ${rel1.full_name || "Noma'lum"}
 📅 Berilgan sana: ${new Date(booking.created_at).toLocaleString("ru-RU", {
           day: "2-digit",
           month: "2-digit",
@@ -413,7 +409,7 @@ bot.hears("✅ Ha", async (ctx) => {
           bookingName = relatives[0].full_name || "Noma'lum";
         }
       } catch (e) {
-        console.error("JSON parse error:", e);
+        console.error("JSON parse error for booking cancellation:", e);
       }
     }
 
@@ -466,7 +462,8 @@ bot.on("text", async (ctx, next) => {
     }
     await next();
   } catch (err) {
-    console.error("Error in text handler:", err.message, err.stack);
+    console.error("Error in text handler:", err);
+    await ctx.reply("❌ Xatolik yuz berdi, iltimos, /start buyrug‘ini qayta yuboring.");
   }
 });
 
@@ -474,16 +471,11 @@ bot.on("text", async (ctx, next) => {
  *  ГЛОБАЛЬНЫЙ ПЕРЕХВАТ ОШИБОК
  *  ───────────────────── */
 bot.catch((err, ctx) => {
-  console.error("Global error:", err.message, err.stack);
+  console.error("Global error:", err);
   if (err.response && err.response.error_code === 403) {
     console.warn(`⚠️ User ${ctx.from?.id} blocked the bot, skip message`);
-    return;
-  }
-  try {
-    resetSessionAndScene(ctx);
+  } else {
     ctx.reply("❌ Xatolik yuz berdi, iltimos, /start buyrug‘ini qayta yuboring.");
-  } catch (resetErr) {
-    console.error("Error in global catch reset:", resetErr);
   }
 });
 
@@ -495,7 +487,13 @@ bot.hears("Yangi ariza yuborish", async (ctx) => {
 
     if (existingBookingId) {
       const booking = await getUserBookingStatus(userId);
-      const relatives = JSON.parse(booking.relatives || "[]");
+      let relatives = [];
+      try {
+        relatives = JSON.parse(booking.relatives || "[]");
+      } catch (err) {
+        console.error(`JSON parse error for booking ${existingBookingId}:`, err);
+        relatives = [];
+      }
       const rel1 = relatives[0] || {};
       const statusText = booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
 
@@ -539,8 +537,7 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
     try {
       relatives = booking.relatives ? JSON.parse(booking.relatives) : [];
     } catch (e) {
-      console.error("JSON parse error in Ariza nusxasini olish:", e);
-      relatives = [];
+      console.error(`JSON parse error for booking ${latestId} in document generation:`, e);
     }
 
     const rel1 = relatives[0] || {};
@@ -578,7 +575,7 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
     });
     await ctx.reply("🔙 Asosiy menyuga qaytish", buildMainMenu(latestId));
   } catch (err) {
-    console.error("Error in Ariza nusxasini olish:", err.message, err.stack);
+    console.error("Error in Ariza nusxasini olish:", err);
     await ctx.reply("❌ Xatolik yuz berdi (печать).");
   }
 });
