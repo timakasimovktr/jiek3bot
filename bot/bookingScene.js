@@ -224,7 +224,7 @@ async function showSummary(ctx) {
   let text = "📋 Arizangiz tafsilotlari:\n\n";
   text += `👥 Mahbus: ${prisoner_name}\n\n`;
   relatives.forEach((r, i) => {
-    text += `👤 Qarindosh ${i + 1}:\n- Ism Familiya: ${r.full_name}\n- Pasport: ${r.passport}\n\n`;
+    text += `👤 Qarindosh ${i + 1}:\n- Ism Familiya: ${r.full_name}\n`;
   });
   text += "❓ Ushbu ma’lumotlarni tasdiqlaysizmi?";
 
