@@ -70,6 +70,12 @@ async function getQueuePosition(bookingId) {
  *  ───────────────────── */
 bot.start(async (ctx) => {
   try {
+    // Сбрасываем сессию и выходим из текущей сцены, если она активна
+    if (ctx.scene && ctx.scene.current) {
+      await ctx.scene.leave();
+    }
+    ctx.session = {}; // Очищаем сессию
+
     const userId = ctx.from.id;
     const latestBooking = await getUserBookingStatus(userId);
 
@@ -117,7 +123,7 @@ bot.start(async (ctx) => {
     }
   } catch (err) {
     console.error(err);
-    await ctx.reply("❌ Xatolik yuz berdi.");
+    await ctx.reply("❌ Xatolik yuz berdi, iltimos, qayta urinib ko‘ring.");
   }
 });
 
