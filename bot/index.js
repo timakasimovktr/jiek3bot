@@ -66,15 +66,42 @@ async function getQueuePosition(bookingId) {
 }
 
 /** ─────────────────────
+ *  СБРОС СЕССИИ И СЦЕНЫ ПРИ ЛЮБОМ ВЗАИМОДЕЙСТВИИ
+ *  ───────────────────── */
+async function resetSessionAndScene(ctx) {
+  console.log(`Resetting session and scene for user ${ctx.from.id}`); // Лог для отладки
+  if (ctx.scene && ctx.scene.current) {
+    await ctx.scene.leave();
+  }
+  ctx.session = {}; // Очищаем сессию
+  ctx.wizard.state = {}; // Очищаем состояние сцены
+}
+
+/** ─────────────────────
+ *  ГЛОБАЛЬНАЯ КОМАНДА /cancel
+ *  ───────────────────── */
+bot.command("cancel", async (ctx) => {
+  try {
+    await resetSessionAndScene(ctx);
+    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+    await ctx.reply(
+      "❌ Jarayon bekor qilindi.",
+      buildMainMenu(latestId)
+    );
+  } catch (err) {
+    console.error("Error in /cancel:", err);
+    await ctx.reply("❌ Xatolik yuz berdi.");
+  }
+});
+
+/** ─────────────────────
  *  СТАРТ
  *  ───────────────────── */
 bot.start(async (ctx) => {
   try {
-    // Сбрасываем сессию и выходим из текущей сцены, если она активна
-    if (ctx.scene && ctx.scene.current) {
-      await ctx.scene.leave();
-    }
-    ctx.session = {}; // Очищаем сессию
+    // Полный сброс сессии и сцены
+    await resetSessionAndScene(ctx);
+    console.log(`Session after reset for user ${ctx.from.id}:`, ctx.session); // Лог для отладки
 
     const userId = ctx.from.id;
     const latestBooking = await getUserBookingStatus(userId);
@@ -83,7 +110,7 @@ bot.start(async (ctx) => {
       const latestId = latestBooking.id;
       const relatives = JSON.parse(latestBooking.relatives || "[]");
       const rel1 = relatives[0] || {};
-      
+
       if (latestBooking.status === "approved") {
         await ctx.reply(
           `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
@@ -122,7 +149,7 @@ bot.start(async (ctx) => {
       );
     }
   } catch (err) {
-    console.error(err);
+    console.error("Error in /start:", err);
     await ctx.reply("❌ Xatolik yuz berdi, iltimos, qayta urinib ko‘ring.");
   }
 });
@@ -140,7 +167,7 @@ bot.action("start_booking", async (ctx) => {
       const relatives = JSON.parse(booking.relatives || "[]");
       const rel1 = relatives[0] || {};
       const statusText = booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
-      
+
       await ctx.answerCbQuery();
       return ctx.reply(
         `❌ Sizda allaqachon ariza mavjud (Nomer: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${rel1.full_name || "Noma'lum"}). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
@@ -148,10 +175,13 @@ bot.action("start_booking", async (ctx) => {
       );
     }
 
+    // Сбрасываем сессию перед входом в сцену
+    await resetSessionAndScene(ctx);
+    console.log(`Entering booking-wizard for user ${userId}`); // Лог для отладки
     await ctx.answerCbQuery();
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
-    console.error(err);
+    console.error("Error in start_booking:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
@@ -161,19 +191,15 @@ bot.action("start_booking", async (ctx) => {
  *  ───────────────────── */
 bot.action("cancel", async (ctx) => {
   try {
-    if (ctx.scene && ctx.scene.leave) {
-      await ctx.scene.leave();
-    }
-    ctx.session = {};
-    ctx.wizard.state = {};
-    await ctx.answerCbQuery();
+    await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+    await ctx.answerCbQuery();
     await ctx.reply(
       "❌ Uchrashuv yozuvi bekor qilindi.",
       buildMainMenu(latestId)
     );
   } catch (err) {
-    console.error(err);
+    console.error("Error in cancel action:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
@@ -183,6 +209,8 @@ bot.action("cancel", async (ctx) => {
  *  ───────────────────── */
 bot.hears("📊 Navbat holati", async (ctx) => {
   try {
+    // Сбрасываем сессию, чтобы избежать влияния предыдущих сцен
+    await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingIdWithoutStatus(ctx.from.id);
     if (!latestId) {
       return ctx.reply(
@@ -222,13 +250,14 @@ bot.hears("📊 Navbat holati", async (ctx) => {
       buildMainMenu(latestId)
     );
   } catch (err) {
-    console.error(err);
+    console.error("Error in Navbat holati:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
 
 bot.hears("📱 Grupaga otish", async (ctx) => {
   try {
+    await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(
       "📱 Tugmasini bosing:",
@@ -243,7 +272,7 @@ bot.hears("📱 Grupaga otish", async (ctx) => {
     );
     await ctx.reply("🔙 Asosiy menyuga qaytish", buildMainMenu(latestId));
   } catch (err) {
-    console.error(err);
+    console.error("Error in Grupaga otish:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
@@ -253,6 +282,7 @@ bot.hears("📱 Grupaga otish", async (ctx) => {
  *  ───────────────────── */
 bot.hears("❌ Yo‘q", async (ctx) => {
   try {
+    await resetSessionAndScene(ctx);
     ctx.session.confirmCancel = false;
     ctx.session.confirmCancelId = null;
 
@@ -263,7 +293,7 @@ bot.hears("❌ Yo‘q", async (ctx) => {
       buildMainMenu(latestId)
     );
   } catch (err) {
-    console.error(err);
+    console.error("Error in Yo‘q:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
@@ -273,6 +303,7 @@ bot.hears("❌ Yo‘q", async (ctx) => {
  *  ───────────────────── */
 bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
   try {
+    await resetSessionAndScene(ctx);
     const explicitId = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestId =
       explicitId || (await getLatestPendingOrApprovedId(ctx.from.id));
@@ -292,7 +323,7 @@ bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
       Markup.keyboard([["✅ Ha", "❌ Yo‘q"]]).resize()
     );
   } catch (err) {
-    console.error(err);
+    console.error("Error in Arizani bekor qilish:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
@@ -304,6 +335,7 @@ bot.hears("✅ Ha", async (ctx) => {
   try {
     const bookingId = ctx.session.confirmCancelId;
     if (!ctx.session.confirmCancel || !bookingId) {
+      await resetSessionAndScene(ctx);
       return ctx.reply("❌ Hozir bekor qilish uchun ariza topilmadi.");
     }
 
@@ -316,6 +348,7 @@ bot.hears("✅ Ha", async (ctx) => {
     );
 
     if (result.affectedRows === 0) {
+      await resetSessionAndScene(ctx);
       return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
     }
 
@@ -339,10 +372,7 @@ bot.hears("✅ Ha", async (ctx) => {
       reply_markup: { remove_keyboard: true },
     });
 
-    if (ctx.scene && ctx.scene.leave) {
-      await ctx.scene.leave();
-    }
-    ctx.session = {};
+    await resetSessionAndScene(ctx);
 
     try {
       await ctx.telegram.sendMessage(
@@ -364,21 +394,45 @@ bot.hears("✅ Ha", async (ctx) => {
       ])
     );
   } catch (err) {
-    console.error(err);
+    console.error("Error in Ha:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
 
+/** ─────────────────────
+ *  ГЛОБАЛЬНЫЙ ПЕРЕХВАТ ТЕКСТА ДЛЯ СБРОСА ПРИ НЕОЖИДАННОМ ВВОДЕ
+ *  ───────────────────── */
+bot.on("text", async (ctx, next) => {
+  // Если пользователь находится в сцене, но сцена ожидает неверный ввод
+  if (ctx.scene && ctx.scene.current) {
+    console.log(`User ${ctx.from.id} in scene ${ctx.scene.current.id}, resetting due to unexpected input`);
+    await resetSessionAndScene(ctx);
+    await ctx.reply(
+      "❌ Jarayon bekor qilindi. Iltimos, /start buyrug‘ini qayta yuboring yoki yangi ariza yuborish uchun tugmani bosing:",
+      Markup.inlineKeyboard([
+        [Markup.button.callback("📅 Uchrashuvga yozilish", "start_booking")],
+      ])
+    );
+    return;
+  }
+  await next();
+});
+
+/** ─────────────────────
+ *  ГЛОБАЛЬНЫЙ ПЕРЕХВАТ ОШИБОК
+ *  ───────────────────── */
 bot.catch((err, ctx) => {
   if (err.response && err.response.error_code === 403) {
     console.warn(`⚠️ User ${ctx.from?.id} blocked the bot, skip message`);
   } else {
     console.error("❌ Global error:", err);
+    ctx.reply("❌ Xatolik yuz berdi, iltimos, /start buyrug‘ini qayta yuboring.");
   }
 });
 
 bot.hears("Yangi ariza yuborish", async (ctx) => {
   try {
+    await resetSessionAndScene(ctx);
     const userId = ctx.from.id;
     const existingBookingId = await getLatestPendingOrApprovedId(userId);
 
@@ -387,7 +441,7 @@ bot.hears("Yangi ariza yuborish", async (ctx) => {
       const relatives = JSON.parse(booking.relatives || "[]");
       const rel1 = relatives[0] || {};
       const statusText = booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
-      
+
       return ctx.reply(
         `❌ Sizda allaqachon ariza mavjud (Nomer: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${rel1.full_name || "Noma'lum"}). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
         buildMainMenu(existingBookingId)
@@ -396,13 +450,14 @@ bot.hears("Yangi ariza yuborish", async (ctx) => {
 
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
-    console.error(err);
+    console.error("Error in Yangi ariza yuborish:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
 
 bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
   try {
+    await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingIdWithoutStatus(ctx.from.id);
     if (!latestId) {
       return ctx.reply(
@@ -448,13 +503,9 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
       commander: library.commander,
       fullname: rel1.full_name || "",
       passport: rel1.passport || "",
-      fullname2:
-        rel2.full_name ||
-        "____________________________________________________",
+      fullname2: rel2.full_name || "____________________________________________________",
       passport2: rel2.passport || "",
-      fullname3:
-        rel3.full_name ||
-        "____________________________________________________",
+      fullname3: rel3.full_name || "____________________________________________________",
       passport3: rel3.passport || "",
       prisoner: booking.prisoner_name || "",
       arizaNumber: booking.id || "",
@@ -469,7 +520,7 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
     });
     await ctx.reply("🔙 Asosiy menyuga qaytish", buildMainMenu(latestId));
   } catch (err) {
-    console.error(err);
+    console.error("Error in Ariza nusxasini olish:", err);
     await ctx.reply("❌ Xatolik yuz berdi (печать).");
   }
 });
