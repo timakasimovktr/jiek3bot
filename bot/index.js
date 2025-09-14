@@ -181,18 +181,36 @@ bot.start(async (ctx) => {
           [Markup.button.callback("📅 Uchrashuvga yozilish", "start_booking")],
         ])
       );
-
-      await ctx.reply(
-        "🌐 Iltimos, tilni tanlang:",
-        Markup.inlineKeyboard([
-          [Markup.button.callback("🇺🇿 O‘zbekcha", "uz")],
-          [Markup.button.callback("🇷🇺 Русский", "ru")],
-        ])
-      );
     }
   } catch (err) {
     console.error("Error in /start:", err);
     await ctx.reply("❌ Xatolik yuz berdi, iltimos, qayta urinib ko‘ring.");
+  }
+});
+
+bot.action("choose_language", async (ctx) => {
+  await ctx.answerCbQuery();
+  await ctx.reply(
+    "🌐 Iltimos, tilni tanlang:",
+    Markup.inlineKeyboard([
+      [Markup.button.callback("🇺🇿 O‘zbekcha", "lang_uz")],
+      [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
+    ])
+  );
+});
+
+// После выбора языка запускаем booking-wizard
+bot.action(["lang_uz", "lang_ru"], async (ctx) => {
+  try {
+    await ctx.answerCbQuery();
+
+    // можно сохранить язык в сессии
+    ctx.session.language = ctx.match[0] === "lang_uz" ? "uz" : "ru";
+
+    await ctx.scene.enter("booking-wizard");
+  } catch (err) {
+    console.error("Error in language selection:", err);
+    await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
 
