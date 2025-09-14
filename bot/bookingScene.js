@@ -197,9 +197,6 @@ const bookingWizard = new Scenes.WizardScene(
       "🏛 Iltimos, koloniyani tanlang:",
       Markup.inlineKeyboard([
         [Markup.button.callback("1-koloniya", "colony_1")],
-        [Markup.button.callback("2-koloniya", "colony_2")],
-        [Markup.button.callback("3-koloniya", "colony_3")],
-        [Markup.button.callback("4-koloniya", "colony_4")],
       ])
     );
     console.log(`Step 2: Moving to colony selection for user ${ctx.from.id}`);
@@ -220,9 +217,6 @@ const bookingWizard = new Scenes.WizardScene(
         "❌ Iltimos, koloniyani tanlang:",
         Markup.inlineKeyboard([
           [Markup.button.callback("1-koloniya", "colony_1")],
-          [Markup.button.callback("2-koloniya", "colony_2")],
-          [Markup.button.callback("3-koloniya", "colony_3")],
-          [Markup.button.callback("4-koloniya", "colony_4")],
         ])
       );
       return;
