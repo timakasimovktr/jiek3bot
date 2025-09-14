@@ -53,13 +53,10 @@ const bookingWizard = new Scenes.WizardScene(
 
       if (userRows.length > 0 && userRows[0].phone_number) {
         ctx.wizard.state.phone = userRows[0].phone_number;
-        ctx.wizard.state.offerRequested = false;
+        ctx.wizard.state.offerRequested = true; // Устанавливаем флаг, чтобы избежать повторного запроса
         await ctx.reply(
           `✅ Telefon raqamingiz saqlangan. Ofertani qabul qiling.`,
           Markup.removeKeyboard()
-        );
-        console.log(
-          `Step 0: Moving to Step 1 for user ${ctx.from.id} with phone ${ctx.wizard.state.phone}`
         );
         // Явно отправляем запрос на принятие оферты
         await ctx.reply(
@@ -74,10 +71,14 @@ const bookingWizard = new Scenes.WizardScene(
             [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
           ])
         );
-        return ctx.wizard.next();
+        console.log(
+          `Step 0: Moving to Step 2 for user ${ctx.from.id} with phone ${ctx.wizard.state.phone}`
+        );
+        return ctx.wizard.selectStep(2); // Пропускаем шаг 1, так как номер уже есть
       }
 
       // Если номера нет → просим ввести
+      ctx.wizard.state.offerRequested = false; // Сбрасываем флаг для новых пользователей
       await ctx.reply(
         "📲 Iltimos, telefon raqamingizni yuboring:",
         Markup.keyboard([[Markup.button.contactRequest("📞 Raqamni yuborish")]])
@@ -95,7 +96,6 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 1: Принимаем только контакт и запрашиваем оферту
   // Step 1: Принимаем только контакт
   async (ctx) => {
     try {
@@ -106,61 +106,56 @@ const bookingWizard = new Scenes.WizardScene(
         ctx.wizard.state
       );
 
-      if (!ctx.wizard.state.phone) {
-        // Если номер ещё не сохранён, проверяем контакт
-        if (!ctx.message?.contact?.phone_number) {
-          ctx.wizard.state.retryCount = (ctx.wizard.state.retryCount || 0) + 1;
+      // Проверяем, что пользователь отправил контакт
+      if (!ctx.message?.contact?.phone_number) {
+        ctx.wizard.state.retryCount = (ctx.wizard.state.retryCount || 0) + 1;
 
-          if (ctx.wizard.state.retryCount > 2) {
-            await ctx.reply(
-              "❌ Siz ko‘p marta noto‘g‘ri ma’lumot yubordingiz. Iltimos, /start buyrug‘i bilan qaytadan boshlang.",
-              Markup.removeKeyboard()
-            );
-            console.log(`Step 1: Too many retries for user ${ctx.from.id}`);
-            return ctx.scene.leave();
-          }
-
+        if (ctx.wizard.state.retryCount > 2) {
           await ctx.reply(
-            "📱 Telefon raqamingizni faqat tugma orqali yuboring. Raqamni matn sifatida yozmang:",
-            Markup.keyboard([
-              [Markup.button.contactRequest("📞 Raqamni yuborish")],
-            ])
-              .resize()
-              .oneTime()
+            "❌ Siz ko‘p marta noto‘g‘ri ma’lumot yubordingiz. Iltimos, /start buyrug‘i bilan qaytadan boshlang.",
+            Markup.removeKeyboard()
           );
-          console.log(`Step 1: Requesting phone retry for user ${ctx.from.id}`);
-          return;
+          console.log(`Step 1: Too many retries for user ${ctx.from.id}`);
+          return ctx.scene.leave();
         }
 
-        // Успешная отправка контакта
-        ctx.wizard.state.phone = ctx.message.contact.phone_number;
         await ctx.reply(
-          "✅ Telefon raqamingiz qabul qilindi.",
-          Markup.removeKeyboard()
-        );
-        console.log(
-          `Step 1: Phone received for user ${ctx.from.id}: ${ctx.wizard.state.phone}`
-        );
-      }
-
-      // Запрашиваем принятие публичной оферты (если ещё не запрошено)
-      if (!ctx.wizard.state.offerRequested) {
-        ctx.wizard.state.offerRequested = true;
-        await ctx.reply(
-          "📜 Iltimos, publychnaya ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
-          Markup.inlineKeyboard([
-            [
-              Markup.button.url(
-                "📖 Ofertani o‘qish",
-                "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
-              ),
-            ],
-            [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
+          "📱 Telefon raqamingizni faqat tugma orqali yuboring. Raqamni matn sifatida yozmang:",
+          Markup.keyboard([
+            [Markup.button.contactRequest("📞 Raqamni yuborish")],
           ])
+            .resize()
+            .oneTime()
         );
-        console.log(`Step 1: Offer requested for user ${ctx.from.id}`);
+        console.log(`Step 1: Requesting phone retry for user ${ctx.from.id}`);
+        return;
       }
 
+      // Успешная отправка контакта
+      ctx.wizard.state.phone = ctx.message.contact.phone_number;
+      ctx.wizard.state.offerRequested = true; // Устанавливаем флаг
+      await ctx.reply(
+        "✅ Telefon raqamingiz qabul qilindi.",
+        Markup.removeKeyboard()
+      );
+      console.log(
+        `Step 1: Phone received for user ${ctx.from.id}: ${ctx.wizard.state.phone}`
+      );
+
+      // Запрашиваем принятие публичной оферты
+      await ctx.reply(
+        "📜 Iltimos, publychnaya ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
+        Markup.inlineKeyboard([
+          [
+            Markup.button.url(
+              "📖 Ofertani o‘qish",
+              "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
+            ),
+          ],
+          [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
+        ])
+      );
+      console.log(`Step 1: Offer requested for user ${ctx.from.id}`);
       return ctx.wizard.next();
     } catch (err) {
       console.error(`Error in Step 1 for user ${ctx.from.id}:`, err);
@@ -207,9 +202,11 @@ const bookingWizard = new Scenes.WizardScene(
         [Markup.button.callback("4-koloniya", "colony_4")],
       ])
     );
+    console.log(`Step 2: Moving to colony selection for user ${ctx.from.id}`);
     return ctx.wizard.next();
   },
 
+  // Остальные шаги остаются без изменений
   // Step 3: Выбор колонии
   async (ctx) => {
     console.log(
