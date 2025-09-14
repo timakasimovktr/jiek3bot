@@ -27,15 +27,20 @@ const bookingWizard = new Scenes.WizardScene(
       }
 
       // Проверяем, есть ли сохранённый номер телефона
+      // В Step 0, внутри try
       const [userRows] = await pool.query(
-        "SELECT phone_number FROM bookings WHERE user_id = ?",
+        "SELECT phone_number FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
         [ctx.from.id]
       );
+      console.log(`Step 0: User ${ctx.from.id} phone query result:`, userRows);
 
       if (userRows.length > 0 && userRows[0].phone_number) {
         ctx.wizard.state.phone = userRows[0].phone_number;
+        // Сбрасываем флаг оферты, чтобы гарантировать запрос
+        ctx.wizard.state.offerRequested = false;
+        // Убираем клавиатуру и переходим к следующему шагу
         await ctx.reply(`🤖 Tartibga rioya qiling!`, Markup.removeKeyboard());
-        return ctx.wizard.next(); // Переходим к Step 1 без запроса оферты
+        return ctx.wizard.next();
       }
 
       // Если номера нет → просим ввести
@@ -59,38 +64,40 @@ const bookingWizard = new Scenes.WizardScene(
   async (ctx) => {
     console.log(`Step 1: User ${ctx.from.id} sent message:`, ctx.message);
 
-    if (!ctx.wizard.state.phone) {
-      // Если номер ещё не сохранён, проверяем контакт
-      if (!ctx.message?.contact?.phone_number) {
-        ctx.wizard.state.retryCount = (ctx.wizard.state.retryCount || 0) + 1;
+    try {
+      if (!ctx.wizard.state.phone) {
+        // Если номер ещё не сохранён, проверяем контакт
+        if (!ctx.message?.contact?.phone_number) {
+          ctx.wizard.state.retryCount = (ctx.wizard.state.retryCount || 0) + 1;
 
-        if (ctx.wizard.state.retryCount > 2) {
+          if (ctx.wizard.state.retryCount > 2) {
+            await ctx.reply(
+              "❌ Siz ko‘p marta noto‘g‘ri ma’lumot yubordingiz. Iltimos, /start buyrug‘i bilan qaytadan boshlang.",
+              Markup.removeKeyboard()
+            );
+            return ctx.scene.leave();
+          }
+
           await ctx.reply(
-            "❌ Siz ko‘p marta noto‘g‘ri ma’lumot yubordingiz. Iltimos, /start buyrug‘i bilan qaytadan boshlang.",
-            Markup.removeKeyboard()
+            "📱 Telefon raqamingizni faqat tugma orqali yuboring. Raqamni matn sifatida yozmang:",
+            Markup.keyboard([
+              [Markup.button.contactRequest("📞 Raqamni yuborish")],
+            ])
+              .resize()
+              .oneTime()
           );
-          return ctx.scene.leave();
+          return;
         }
 
+        // Успешная отправка контакта
+        ctx.wizard.state.phone = ctx.message.contact.phone_number;
         await ctx.reply(
-          "📱 Telefon raqamingizni faqat tugma orqali yuboring. Raqamni matn sifatida yozmang:",
-          Markup.keyboard([[Markup.button.contactRequest("📞 Raqamni yuborish")]])
-            .resize()
-            .oneTime()
+          "✅ Telefon raqamingiz qabul qilindi.",
+          Markup.removeKeyboard()
         );
-        return;
       }
 
-      // Успешная отправка контакта
-      ctx.wizard.state.phone = ctx.message.contact.phone_number;
-      await ctx.reply(
-        "✅ Telefon raqamingiz qabul qilindi.",
-        Markup.removeKeyboard()
-      );
-    }
-
-    // Запрашиваем принятие публичной оферты, если ещё не запрашивали
-    if (!ctx.wizard.state.offerRequested) {
+      // Запрашиваем принятие публичной оферты
       console.log(`Step 1: Requesting offer for user ${ctx.from.id}`);
       ctx.wizard.state.offerRequested = true;
       await ctx.reply(
@@ -105,9 +112,15 @@ const bookingWizard = new Scenes.WizardScene(
           [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
         ])
       );
-    }
 
-    return ctx.wizard.next();
+      return ctx.wizard.next();
+    } catch (err) {
+      console.error("Error in Step 1:", err);
+      await ctx.reply(
+        "❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring."
+      );
+      return ctx.scene.leave();
+    }
   },
 
   // Step 2: Принятие публичной оферты
@@ -445,10 +458,14 @@ async function sendApplicationToAdmin(ctx, application) {
 
   try {
     await ctx.reply(text);
-    await ctx.telegram.sendMessage(adminChatId, text, { parse_mode: "Markdown" });
+    await ctx.telegram.sendMessage(adminChatId, text, {
+      parse_mode: "Markdown",
+    });
   } catch (err) {
     if (err.response && err.response.error_code === 403) {
-      console.warn(`⚠️ Admin chat ${adminChatId} blocked the bot, message not sent`);
+      console.warn(
+        `⚠️ Admin chat ${adminChatId} blocked the bot, message not sent`
+      );
     } else {
       console.error("Error sending to admin:", err);
     }
