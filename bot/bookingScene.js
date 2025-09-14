@@ -9,6 +9,9 @@ const bookingWizard = new Scenes.WizardScene(
   // Step 0: Проверка и запрос телефона
   async (ctx) => {
     try {
+      // Сбрасываем состояние сцены
+      ctx.wizard.state = {};
+
       // Проверяем активные заявки
       const [rows] = await pool.query(
         "SELECT * FROM bookings WHERE user_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1",
@@ -27,7 +30,6 @@ const bookingWizard = new Scenes.WizardScene(
       }
 
       // Проверяем, есть ли сохранённый номер телефона
-      // В Step 0, внутри try
       const [userRows] = await pool.query(
         "SELECT phone_number FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
         [ctx.from.id]
@@ -36,9 +38,7 @@ const bookingWizard = new Scenes.WizardScene(
 
       if (userRows.length > 0 && userRows[0].phone_number) {
         ctx.wizard.state.phone = userRows[0].phone_number;
-        // Сбрасываем флаг оферты, чтобы гарантировать запрос
         ctx.wizard.state.offerRequested = false;
-        // Убираем клавиатуру и переходим к следующему шагу
         await ctx.reply(`🤖 Tartibga rioya qiling!`, Markup.removeKeyboard());
         return ctx.wizard.next();
       }

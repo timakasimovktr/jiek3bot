@@ -197,16 +197,11 @@ bot.action(["lang_uz", "lang_ru"], async (ctx) => {
   try {
     await ctx.answerCbQuery();
 
-    // Сбрасываем сессию и состояние сцены
+    // Сбрасываем только сессию
     ctx.session = {};
-    ctx.wizard.state = {};
-
-    // Сохраняем язык в сессии
     ctx.session.language = ctx.match[0] === "lang_uz" ? "uz" : "ru";
 
-    console.log(
-      `Entering booking-wizard for user ${ctx.from.id} with language ${ctx.session.language}`
-    );
+    console.log(`Entering booking-wizard for user ${ctx.from.id} with language ${ctx.session.language}`);
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
     console.error("Error in language selection:", err);
