@@ -197,14 +197,14 @@ bot.action(["lang_uz", "lang_ru"], async (ctx) => {
   try {
     await ctx.answerCbQuery();
 
-    // Сбрасываем только сессию
+    // Сбрасываем сессию
     ctx.session = {};
     ctx.session.language = ctx.match[0] === "lang_uz" ? "uz" : "ru";
 
     console.log(`Entering booking-wizard for user ${ctx.from.id} with language ${ctx.session.language}`);
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
-    console.error("Error in language selection:", err);
+    console.error(`Error in language selection for user ${ctx.from.id}:`, err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
