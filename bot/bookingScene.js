@@ -70,18 +70,7 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-      // Step 1.1: Select language Uzbek or Russian
-  async (ctx) => {
-    await ctx.reply(
-      "🌐 Iltimos, tilni tanlang:",
-      Markup.inlineKeyboard([
-        [Markup.button.callback("🇺🇿 O‘zbekcha", "uz")],
-        [Markup.button.callback("🇷🇺 Русский", "ru")],
-      ])
-    );
-    return ctx.wizard.next();
-  },
-
+  // Step 1.1: Select language Uzbek or Russian
   // Step 1: Принимаем только контакт
   async (ctx) => {
     if (ctx.message?.contact?.phone_number) {
@@ -109,6 +98,17 @@ const bookingWizard = new Scenes.WizardScene(
       await ctx.reply("❌ Telefon raqamingizni faqat tugma orqali yuboring.");
       return;
     }
+  },
+
+  async (ctx) => {
+    await ctx.reply(
+      "🌐 Iltimos, tilni tanlang:",
+      Markup.inlineKeyboard([
+        [Markup.button.callback("🇺🇿 O‘zbekcha", "uz")],
+        [Markup.button.callback("🇷🇺 Русский", "ru")],
+      ])
+    );
+    return ctx.wizard.next();
   },
 
   // Step 2: выбор типа визита
@@ -304,12 +304,7 @@ async function saveBooking(ctx) {
     await ctx.reply(
       "📱 Grupaga qo'shing",
       Markup.inlineKeyboard([
-        [
-          Markup.button.url(
-            "📌 Grupaga otish",
-            "https://t.me/smartdunyomeet"
-          ),
-        ],
+        [Markup.button.url("📌 Grupaga otish", "https://t.me/smartdunyomeet")],
       ])
     );
   } catch (err) {
