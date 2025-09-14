@@ -34,24 +34,8 @@ const bookingWizard = new Scenes.WizardScene(
 
       if (userRows.length > 0 && userRows[0].phone_number) {
         ctx.wizard.state.phone = userRows[0].phone_number;
-
         await ctx.reply(`🤖 Tartibga rioya qiling!`, Markup.removeKeyboard());
-
-        // Запрашиваем принятие публичной оферты
-        ctx.wizard.state.offerRequested = true;
-        await ctx.reply(
-          "📜 Iltimos, publychnaya ofertani o‘qing va qabul qiling:",
-          Markup.inlineKeyboard([
-            [
-              Markup.button.url(
-                "📖 Ofertani o‘qish",
-                "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
-              ),
-            ],
-            [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
-          ])
-        );
-        return ctx.wizard.next();
+        return ctx.wizard.next(); // Переходим к Step 1 без запроса оферты
       }
 
       // Если номера нет → просим ввести
@@ -71,58 +55,61 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 1: Принимаем только контакт
+  // Step 1: Принимаем только контакт и запрашиваем оферту
   async (ctx) => {
     console.log(`Step 1: User ${ctx.from.id} sent message:`, ctx.message);
 
-    if (!ctx.message?.contact?.phone_number) {
-      ctx.wizard.state.retryCount = (ctx.wizard.state.retryCount || 0) + 1;
+    if (!ctx.wizard.state.phone) {
+      // Если номер ещё не сохранён, проверяем контакт
+      if (!ctx.message?.contact?.phone_number) {
+        ctx.wizard.state.retryCount = (ctx.wizard.state.retryCount || 0) + 1;
 
-      if (ctx.wizard.state.retryCount > 2) {
+        if (ctx.wizard.state.retryCount > 2) {
+          await ctx.reply(
+            "❌ Siz ko‘p marta noto‘g‘ri ma’lumot yubordingiz. Iltimos, /start buyrug‘i bilan qaytadan boshlang.",
+            Markup.removeKeyboard()
+          );
+          return ctx.scene.leave();
+        }
+
         await ctx.reply(
-          "❌ Siz ko‘p marta noto‘g‘ri ma’lumot yubordingiz. Iltimos, /start buyrug‘i bilan qaytadan boshlang.",
-          Markup.removeKeyboard()
+          "📱 Telefon raqamingizni faqat tugma orqali yuboring. Raqamni matn sifatida yozmang:",
+          Markup.keyboard([[Markup.button.contactRequest("📞 Raqamni yuborish")]])
+            .resize()
+            .oneTime()
         );
-        return ctx.scene.leave();
+        return;
       }
 
+      // Успешная отправка контакта
+      ctx.wizard.state.phone = ctx.message.contact.phone_number;
       await ctx.reply(
-        "📱 Telefon raqamingizni faqat tugma orqali yuboring. Raqamni matn sifatida yozmang:",
-        Markup.keyboard([[Markup.button.contactRequest("📞 Raqamni yuborish")]])
-          .resize()
-          .oneTime()
+        "✅ Telefon raqamingiz qabul qilindi.",
+        Markup.removeKeyboard()
       );
-      return;
     }
 
-    // Успешная отправка контакта
-    ctx.wizard.state.phone = ctx.message.contact.phone_number;
-
-    // Очищаем клавиатуру
-    await ctx.reply(
-      "✅ Telefon raqamingiz qabul qilindi.",
-      Markup.removeKeyboard()
-    );
-
-    // Запрашиваем принятие публичной оферты
-    console.log(`Step 1: Requesting offer for user ${ctx.from.id}`);
-    ctx.wizard.state.offerRequested = true;
-    await ctx.reply(
-      "📜 Iltimos, publychnaya ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
-      Markup.inlineKeyboard([
-        [
-          Markup.button.url(
-            "📖 Ofertani o‘qish",
-            "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
-          ),
-        ],
-        [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
-      ])
-    );
+    // Запрашиваем принятие публичной оферты, если ещё не запрашивали
+    if (!ctx.wizard.state.offerRequested) {
+      console.log(`Step 1: Requesting offer for user ${ctx.from.id}`);
+      ctx.wizard.state.offerRequested = true;
+      await ctx.reply(
+        "📜 Iltimos, publychnaya ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
+        Markup.inlineKeyboard([
+          [
+            Markup.button.url(
+              "📖 Ofertani o‘qish",
+              "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
+            ),
+          ],
+          [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
+        ])
+      );
+    }
 
     return ctx.wizard.next();
   },
-  
+
   // Step 2: Принятие публичной оферты
   async (ctx) => {
     console.log(
@@ -162,6 +149,7 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
 
+  // Остальные шаги остаются без изменений
   // Step 3: Выбор колонии
   async (ctx) => {
     console.log(
