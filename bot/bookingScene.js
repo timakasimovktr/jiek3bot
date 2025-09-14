@@ -10,6 +10,16 @@ const bookingWizard = new Scenes.WizardScene(
   async (ctx) => {
     try {
       console.log(`Step 0: Starting for user ${ctx.from.id}`);
+
+      // Проверяем, что ctx.wizard существует
+      if (!ctx.wizard) {
+        console.error(`ctx.wizard is undefined for user ${ctx.from.id}`);
+        await ctx.reply(
+          "❌ Внутренняя ошибка бота. Пожалуйста, попробуйте снова."
+        );
+        return ctx.scene.leave();
+      }
+
       // Сбрасываем состояние сцены
       ctx.wizard.state = {};
 

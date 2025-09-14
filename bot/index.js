@@ -197,11 +197,23 @@ bot.action(["lang_uz", "lang_ru"], async (ctx) => {
   try {
     await ctx.answerCbQuery();
 
-    // Сбрасываем сессию
-    ctx.session = {};
-    ctx.session.language = ctx.match[0] === "lang_uz" ? "uz" : "ru";
+    // Проверяем наличие ctx.wizard
+    if (!ctx.wizard) {
+      console.error(`ctx.wizard is undefined for user ${ctx.from.id}`);
+      await ctx.reply(
+        "❌ Внутренняя ошибка бота. Пожалуйста, попробуйте снова."
+      );
+      return;
+    }
 
-    console.log(`Entering booking-wizard for user ${ctx.from.id} with language ${ctx.session.language}`);
+    // Сбрасываем только данные сцены, если нужно
+    ctx.session = ctx.session || {};
+    ctx.session.language = ctx.match[0] === "lang_uz" ? "uz" : "ru";
+    delete ctx.session.__scenes; // Очищаем данные сцены
+
+    console.log(
+      `Entering booking-wizard for user ${ctx.from.id} with language ${ctx.session.language}`
+    );
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
     console.error(`Error in language selection for user ${ctx.from.id}:`, err);
