@@ -355,7 +355,6 @@ bot.hears("📱 Grupaga otish", async (ctx) => {
         ],
       ])
     );
-    await ctx.reply("🔙 Asosiy menyuga qaytish", buildMainMenu(latestId));
   } catch (err) {
     console.error("Error in Grupaga otish:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
@@ -623,7 +622,6 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
       source: buf,
       filename: `ariza_${latestId}.docx`,
     });
-    await ctx.reply("🔙 Asosiy menyuga qaytish", buildMainMenu(latestId));
   } catch (err) {
     console.error("Error in Ariza nusxasini olish:", err);
     await ctx.reply("❌ Xatolik yuz berdi (печать).");
