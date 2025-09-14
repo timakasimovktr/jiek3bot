@@ -41,7 +41,12 @@ const bookingWizard = new Scenes.WizardScene(
         await ctx.reply(
           "📜 Iltimos, publychnaya ofertani o‘qing va qabul qiling:",
           Markup.inlineKeyboard([
-            [Markup.button.url("📖 Ofertani o‘qish", "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7")],
+            [
+              Markup.button.url(
+                "📖 Ofertani o‘qish",
+                "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
+              ),
+            ],
             [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
           ])
         );
@@ -79,13 +84,39 @@ const bookingWizard = new Scenes.WizardScene(
       await ctx.reply(
         "📜 Iltimos, publychnaya ofertani o‘qing va qabul qiling:",
         Markup.inlineKeyboard([
-          [Markup.button.url("📖 Ofertani o‘qish", "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7")],
+          [
+            Markup.button.url(
+              "📖 Ofertani o‘qish",
+              "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
+            ),
+          ],
           [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
         ])
       );
       return ctx.wizard.next();
     } else {
-      await ctx.reply("❌ Telefon raqamingizni faqat tugma orqali yuboring.");
+      // Initialize retry counter if not set
+      ctx.wizard.state.retryCount = (ctx.wizard.state.retryCount || 0) + 1;
+
+      if (ctx.wizard.state.retryCount > 2) {
+        await ctx.reply(
+          "❌ Iltimos, telefon raqamingizni yuborish uchun quyidagi tugmani bosing. Matn yoki boshqa buyruqlar qabul qilinmaydi.",
+          Markup.keyboard([
+            [Markup.button.contactRequest("📞 Raqamni yuborish")],
+          ])
+            .resize()
+            .oneTime()
+        );
+      } else {
+        await ctx.reply(
+          "❌ Telefon raqamingizni faqat tugma orqali yuboring.",
+          Markup.keyboard([
+            [Markup.button.contactRequest("📞 Raqamni yuborish")],
+          ])
+            .resize()
+            .oneTime()
+        );
+      }
       return;
     }
   },
