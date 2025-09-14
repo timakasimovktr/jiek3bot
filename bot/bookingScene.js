@@ -38,6 +38,7 @@ const bookingWizard = new Scenes.WizardScene(
         await ctx.reply(`🤖 Tartibga rioya qiling!`, Markup.removeKeyboard());
 
         // Запрашиваем принятие публичной оферты
+        ctx.wizard.state.offerRequested = true;
         await ctx.reply(
           "📜 Iltimos, publychnaya ofertani o‘qing va qabul qiling:",
           Markup.inlineKeyboard([
@@ -72,7 +73,7 @@ const bookingWizard = new Scenes.WizardScene(
 
   // Step 1: Принимаем только контакт
   async (ctx) => {
-    console.log("Step 1: Received message:", ctx.message); // Логирование для отладки
+    console.log(`Step 1: User ${ctx.from.id} sent message:`, ctx.message);
 
     if (!ctx.message?.contact?.phone_number) {
       ctx.wizard.state.retryCount = (ctx.wizard.state.retryCount || 0) + 1;
@@ -103,89 +104,100 @@ const bookingWizard = new Scenes.WizardScene(
       Markup.removeKeyboard()
     );
 
-    // Запрашиваем принятие публичной оферты
-    await ctx.reply(
-      "📜 Iltimos, publychnaya ofertani o‘qing va qabul qiling:",
-      Markup.inlineKeyboard([
-        [
-          Markup.button.url(
-            "📖 Ofertani o‘qish",
-            "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
-          ),
-        ],
-        [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
-      ])
-    );
+    // Запрашиваем принятие публичной оферты, если еще не запрошено
+    if (!ctx.wizard.state.offerRequested) {
+      ctx.wizard.state.offerRequested = true;
+      await ctx.reply(
+        "📜 Iltimos, publychnaya ofertani o‘qing va qabul qiling:",
+        Markup.inlineKeyboard([
+          [
+            Markup.button.url(
+              "📖 Ofertani o‘qish",
+              "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
+            ),
+          ],
+          [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
+        ])
+      );
+    }
+
     return ctx.wizard.next();
   },
 
   // Step 2: Принятие публичной оферты
   async (ctx) => {
-    if (ctx.callbackQuery?.data === "accept_offer") {
-      await ctx.answerCbQuery();
-      ctx.wizard.state.offer_accepted = true;
-
-      // Запрашиваем выбор колонии
-      await ctx.reply(
-        "🏛 Iltimos, koloniyani tanlang:",
-        Markup.inlineKeyboard([
-          [Markup.button.callback("1-koloniya", "colony_1")],
-          [Markup.button.callback("2-koloniya", "colony_2")],
-          [Markup.button.callback("3-koloniya", "colony_3")],
-          [Markup.button.callback("4-koloniya", "colony_4")],
-        ])
-      );
-      return ctx.wizard.next();
-    } else {
+    console.log(`Step 2: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}`);
+    if (!ctx.callbackQuery?.data || ctx.callbackQuery.data !== "accept_offer") {
       await ctx.reply("❌ Iltimos, publychnaya ofertani qabul qiling.");
+      return;
     }
+
+    await ctx.answerCbQuery();
+    ctx.wizard.state.offer_accepted = true;
+
+    // Запрашиваем выбор колонии
+    await ctx.reply(
+      "🏛 Iltimos, koloniyani tanlang:",
+      Markup.inlineKeyboard([
+        [Markup.button.callback("1-koloniya", "colony_1")],
+        [Markup.button.callback("2-koloniya", "colony_2")],
+        [Markup.button.callback("3-koloniya", "colony_3")],
+        [Markup.button.callback("4-koloniya", "colony_4")],
+      ])
+    );
+    return ctx.wizard.next();
   },
 
   // Step 3: Выбор колонии
   async (ctx) => {
-    if (ctx.callbackQuery?.data.startsWith("colony_")) {
-      await ctx.answerCbQuery();
-      ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
-
-      // Инициализируем данные
-      ctx.wizard.state.relatives = [];
-      ctx.wizard.state.currentRelative = {};
-      ctx.wizard.state.prisoner_name = null;
-      ctx.wizard.state.visit_type = null;
-
-      await ctx.reply(
-        "📅 Iltimos, uchrashuv turini tanlang:",
-        Markup.inlineKeyboard([
-          [Markup.button.callback("🔵 1-kunlik", "short")],
-          [Markup.button.callback("🟢 2-kunlik", "long")],
-        ])
-      );
-      return ctx.wizard.next();
-    } else {
+    console.log(`Step 3: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}`);
+    if (!ctx.callbackQuery?.data || !ctx.callbackQuery.data.startsWith("colony_")) {
       await ctx.reply("❌ Iltimos, koloniyani tanlang.");
+      return;
     }
+
+    await ctx.answerCbQuery();
+    ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
+
+    // Инициализируем данные
+    ctx.wizard.state.relatives = [];
+    ctx.wizard.state.currentRelative = {};
+    ctx.wizard.state.prisoner_name = null;
+    ctx.wizard.state.visit_type = null;
+
+    await ctx.reply(
+      "📅 Iltimos, uchrashuv turini tanlang:",
+      Markup.inlineKeyboard([
+        [Markup.button.callback("🔵 1-kunlik", "short")],
+        [Markup.button.callback("🟢 2-kunlik", "long")],
+      ])
+    );
+    return ctx.wizard.next();
   },
 
-  // Step 4: выбор типа визита
+  // Step 4: Выбор типа визита
   async (ctx) => {
+    console.log(`Step 4: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}`);
     if (
-      ctx.callbackQuery?.data === "long" ||
-      ctx.callbackQuery?.data === "short"
+      !ctx.callbackQuery?.data ||
+      (ctx.callbackQuery.data !== "long" && ctx.callbackQuery.data !== "short")
     ) {
-      await ctx.answerCbQuery();
-      ctx.wizard.state.visit_type = ctx.callbackQuery.data;
-
-      await ctx.reply(
-        "👤 Iltimos, to‘liq ismingiz va familiyangizni kiriting:"
-      );
-      return ctx.wizard.next();
-    } else {
       await ctx.reply("❌ Iltimos, uchrashuv turini tanlang.");
+      return;
     }
+
+    await ctx.answerCbQuery();
+    ctx.wizard.state.visit_type = ctx.callbackQuery.data;
+
+    await ctx.reply(
+      "👤 Iltimos, to‘liq ismingiz va familiyangizni kiriting:"
+    );
+    return ctx.wizard.next();
   },
 
   // Step 5: Ism va familiya
   async (ctx) => {
+    console.log(`Step 5: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (ctx.message?.text === "❌ Bekor qilish ariza") {
       await ctx.reply(
         "❌ Uchrashuv yozuvi bekor qilindi.",
@@ -220,6 +232,7 @@ const bookingWizard = new Scenes.WizardScene(
 
   // Step 7: Mahbus ismi
   async (ctx) => {
+    console.log(`Step 7: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (!ctx.message?.text) {
       await ctx.reply("❌ Iltimos, mahbusning ismini matn shaklida yuboring.");
       return ctx.wizard.selectStep(7);
@@ -231,6 +244,7 @@ const bookingWizard = new Scenes.WizardScene(
 
   // Step 8: Qo‘shimcha qarindosh yoki yakunlash
   async (ctx) => {
+    console.log(`Step 8: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}`);
     if (ctx.callbackQuery) await ctx.answerCbQuery();
 
     if (ctx.callbackQuery?.data === "add_more") {
@@ -251,6 +265,7 @@ const bookingWizard = new Scenes.WizardScene(
 
   // Step 9: Yakuniy tasdiqlash yoki bekor qilish
   async (ctx) => {
+    console.log(`Step 9: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}`);
     if (ctx.callbackQuery) await ctx.answerCbQuery();
 
     if (ctx.callbackQuery?.data === "confirm") {

@@ -128,6 +128,14 @@ bot.command("cancel", async (ctx) => {
  *  ───────────────────── */
 bot.start(async (ctx) => {
   try {
+    // Проверяем, находится ли пользователь в сцене
+    if (ctx.scene.current) {
+      await ctx.reply(
+        "❌ Siz allaqachon jarayondasiz. Iltimos, joriy jarayonni yakunlang yoki /cancel buyrug‘ini ishlating."
+      );
+      return;
+    }
+
     await resetSessionAndScene(ctx);
 
     const userId = ctx.from.id;
