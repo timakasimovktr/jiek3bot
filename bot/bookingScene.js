@@ -37,20 +37,15 @@ const bookingWizard = new Scenes.WizardScene(
 
         await ctx.reply(`🤖 Tartibga rioya qiling!`, Markup.removeKeyboard());
 
-        // сразу готовим данные
-        ctx.wizard.state.relatives = [];
-        ctx.wizard.state.currentRelative = {};
-        ctx.wizard.state.prisoner_name = null;
-        ctx.wizard.state.visit_type = null;
-
+        // Запрашиваем принятие публичной оферты
         await ctx.reply(
-          "📅 Iltimos, uchrashuv turini tanlang:",
+          "📜 Iltimos, publychnaya ofertani o‘qing va qabul qiling:",
           Markup.inlineKeyboard([
-            [Markup.button.callback("🔵 1-kunlik", "short")],
-            [Markup.button.callback("🟢 2-kunlik", "long")],
+            [Markup.button.url("📖 Ofertani o‘qish", "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7")],
+            [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
           ])
         );
-        return ctx.wizard.selectStep(2); // сразу переходим на Step 2
+        return ctx.wizard.next();
       }
 
       // Если номера нет → просим ввести
@@ -70,17 +65,60 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 1.1: Select language Uzbek or Russian
   // Step 1: Принимаем только контакт
   async (ctx) => {
     if (ctx.message?.contact?.phone_number) {
-      ctx.wizard.state.phone = ctx.message.contact.phone_number; // только сохраняем во временном state
+      ctx.wizard.state.phone = ctx.message.contact.phone_number;
 
       await ctx.reply(
         "✅ Telefon raqamingiz qabul qilindi.",
         Markup.removeKeyboard()
       );
 
+      // Запрашиваем принятие публичной оферты
+      await ctx.reply(
+        "📜 Iltimos, publychnaya ofertani o‘qing va qabul qiling:",
+        Markup.inlineKeyboard([
+          [Markup.button.url("📖 Ofertani o‘qish", "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7")],
+          [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
+        ])
+      );
+      return ctx.wizard.next();
+    } else {
+      await ctx.reply("❌ Telefon raqamingizni faqat tugma orqali yuboring.");
+      return;
+    }
+  },
+
+  // Step 2: Принятие публичной оферты
+  async (ctx) => {
+    if (ctx.callbackQuery?.data === "accept_offer") {
+      await ctx.answerCbQuery();
+      ctx.wizard.state.offer_accepted = true;
+
+      // Запрашиваем выбор колонии
+      await ctx.reply(
+        "🏛 Iltimos, koloniyani tanlang:",
+        Markup.inlineKeyboard([
+          [Markup.button.callback("1-koloniya", "colony_1")],
+          [Markup.button.callback("2-koloniya", "colony_2")],
+          [Markup.button.callback("3-koloniya", "colony_3")],
+          [Markup.button.callback("4-koloniya", "colony_4")],
+        ])
+      );
+      return ctx.wizard.next();
+    } else {
+      await ctx.reply("❌ Iltimos, publychnaya ofertani qabul qiling.");
+    }
+  },
+
+  // Step 3: Выбор колонии
+  async (ctx) => {
+    if (ctx.callbackQuery?.data.startsWith("colony_")) {
+      await ctx.answerCbQuery();
+      ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
+
+      // Инициализируем данные
       ctx.wizard.state.relatives = [];
       ctx.wizard.state.currentRelative = {};
       ctx.wizard.state.prisoner_name = null;
@@ -95,12 +133,11 @@ const bookingWizard = new Scenes.WizardScene(
       );
       return ctx.wizard.next();
     } else {
-      await ctx.reply("❌ Telefon raqamingizni faqat tugma orqali yuboring.");
-      return;
+      await ctx.reply("❌ Iltimos, koloniyani tanlang.");
     }
   },
 
-  // Step 2: выбор типа визита
+  // Step 4: выбор типа визита
   async (ctx) => {
     if (
       ctx.callbackQuery?.data === "long" ||
@@ -118,7 +155,7 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 3: Ism va familiya
+  // Step 5: Ism va familiya
   async (ctx) => {
     if (ctx.message?.text === "❌ Bekor qilish ariza") {
       await ctx.reply(
@@ -130,41 +167,40 @@ const bookingWizard = new Scenes.WizardScene(
 
     if (!ctx.message?.text) {
       await ctx.reply("❌ Iltimos, ism va familiyani matn shaklida yuboring.");
-      return ctx.wizard.selectStep(3);
+      return ctx.wizard.selectStep(5);
     }
 
     ctx.wizard.state.currentRelative.full_name = ctx.message.text.toUpperCase();
     ctx.wizard.state.currentRelative.passport = "AC1234567";
-    ctx.wizard.state.relatives.push(ctx.wizard.state.currentRelative); // Push currentRelative to relatives array
+    ctx.wizard.state.relatives.push(ctx.wizard.state.currentRelative);
 
     if (!ctx.wizard.state.prisoner_name) {
       await ctx.reply(
         "👥 Siz kim bilan uchrashmoqchisiz? Mahbusning to‘liq ismini kiriting:"
       );
-      return ctx.wizard.selectStep(5); // Переходим к Step 5
+      return ctx.wizard.selectStep(7);
     } else {
-      // Если имя заключенного уже есть, переходим к вопросу о добавлении
       return askAddMore(ctx);
     }
   },
 
-  // Step 4: Placeholder (not used)
+  // Step 6: Placeholder (not used)
   async (ctx) => {
     return ctx.wizard.next();
   },
 
-  // Step 5: Mahbus ismi
+  // Step 7: Mahbus ismi
   async (ctx) => {
     if (!ctx.message?.text) {
       await ctx.reply("❌ Iltimos, mahbusning ismini matn shaklida yuboring.");
-      return ctx.wizard.selectStep(5);
+      return ctx.wizard.selectStep(7);
     }
 
     ctx.wizard.state.prisoner_name = ctx.message.text.toUpperCase();
     return askAddMore(ctx);
   },
 
-  // Step 6: Qo‘shimcha qarindosh yoki yakunlash
+  // Step 8: Qo‘shimcha qarindosh yoki yakunlash
   async (ctx) => {
     if (ctx.callbackQuery) await ctx.answerCbQuery();
 
@@ -174,7 +210,7 @@ const bookingWizard = new Scenes.WizardScene(
         await ctx.reply(
           "👤 Yangi qarindoshning ismi va familiyasini kiriting:"
         );
-        return ctx.wizard.selectStep(3);
+        return ctx.wizard.selectStep(5);
       } else {
         await ctx.reply("⚠️ Maksimal 3 ta qarindosh qo‘shildi.");
         return showSummary(ctx);
@@ -184,7 +220,7 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 7: Yakuniy tasdiqlash yoki bekor qilish
+  // Step 9: Yakuniy tasdiqlash yoki bekor qilish
   async (ctx) => {
     if (ctx.callbackQuery) await ctx.answerCbQuery();
 
@@ -212,7 +248,7 @@ async function askAddMore(ctx) {
         [Markup.button.callback("Yo‘q", "done")],
       ])
     );
-    return ctx.wizard.selectStep(6);
+    return ctx.wizard.selectStep(8);
   } else {
     await ctx.reply("⚠️ Maksimal 3 ta qarindosh qo‘shildi.");
     return showSummary(ctx);
@@ -221,8 +257,9 @@ async function askAddMore(ctx) {
 
 // helper: ko‘rsatish summary
 async function showSummary(ctx) {
-  const { prisoner_name, relatives } = ctx.wizard.state;
+  const { prisoner_name, relatives, colony } = ctx.wizard.state;
   let text = "📋 Arizangiz tafsilotlari:\n\n";
+  text += `🏛 Koloniya: ${colony}\n`;
   text += `👥 Mahbus: ${prisoner_name}\n\n`;
   relatives.forEach((r, i) => {
     text += `👤 Qarindosh ${i + 1}:\n- Ism Familiya: ${r.full_name}\n`;
@@ -236,22 +273,23 @@ async function showSummary(ctx) {
       [Markup.button.callback("❌ Bekor qilish ariza", "cancel")],
     ])
   );
-  return ctx.wizard.selectStep(7);
+  return ctx.wizard.selectStep(9);
 }
 
 // helper: save booking to DB
 async function saveBooking(ctx) {
-  const { prisoner_name, relatives, visit_type } = ctx.wizard.state;
+  const { prisoner_name, relatives, visit_type, colony } = ctx.wizard.state;
   const chatId = ctx.chat.id;
   try {
     const [result] = await pool.query(
-      "INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, status, telegram_chat_id) VALUES (?, ?, ?, ?, ?, 'pending', ?)",
+      "INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)",
       [
         ctx.from.id,
         ctx.wizard.state.phone,
         visit_type,
         prisoner_name,
         JSON.stringify(relatives),
+        colony,
         chatId,
       ]
     );
@@ -266,6 +304,7 @@ async function saveBooking(ctx) {
       prisoner: prisoner_name,
       id: bookingId,
       visit_type,
+      colony,
     });
 
     // Получаем позицию в очереди
@@ -307,6 +346,7 @@ async function sendApplicationToAdmin(ctx, application) {
   const firstRelative = application.relatives[0];
   const text = `📌 Yangi ariza. Nomer: ${application.id}
 👤 Arizachi: ${firstRelative ? `${firstRelative.full_name}` : "Noma'lum"}
+🏛 Koloniya: ${application.colony}
 📅 Berilgan sana: ${new Date().toLocaleString("ru-RU", {
     day: "2-digit",
     month: "2-digit",
