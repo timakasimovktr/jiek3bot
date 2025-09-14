@@ -113,10 +113,7 @@ bot.command("cancel", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
-    await ctx.reply(
-      "❌ Jarayon bekor qilindi.",
-      buildMainMenu(latestId)
-    );
+    await ctx.reply("❌ Jarayon bekor qilindi.", buildMainMenu(latestId));
   } catch (err) {
     console.error("Error in /cancel:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
@@ -168,7 +165,12 @@ bot.start(async (ctx) => {
       await ctx.reply(
         "👋 Assalomu alaykum!\nBu platforma orqali siz qamoqxona mahbuslari bilan uchrashuvga yozilishingiz mumkin.",
         Markup.inlineKeyboard([
-          [Markup.button.callback("📅 Uchrashuvga yozilish", "choose_language")],
+          [
+            Markup.button.callback(
+              "📅 Uchrashuvga yozilish",
+              "choose_language"
+            ),
+          ],
         ])
       );
     }
@@ -219,15 +221,21 @@ bot.action("start_booking", async (ctx) => {
       try {
         relatives = JSON.parse(booking.relatives || "[]");
       } catch (err) {
-        console.error(`JSON parse error for booking ${existingBookingId}:`, err);
+        console.error(
+          `JSON parse error for booking ${existingBookingId}:`,
+          err
+        );
         relatives = [];
       }
       const rel1 = relatives[0] || {};
-      const statusText = booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
+      const statusText =
+        booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
 
       await ctx.answerCbQuery();
       return ctx.reply(
-        `❌ Sizda allaqachon ariza mavjud (Nomer: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${rel1.full_name || "Noma'lum"}). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
+        `❌ Sizda allaqachon ariza mavjud (Nomer: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${
+          rel1.full_name || "Noma'lum"
+        }). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
         buildMainMenu(existingBookingId)
       );
     }
@@ -293,8 +301,7 @@ bot.hears("📊 Navbat holati", async (ctx) => {
           year: "numeric",
         })}
 ⌚️ Kelishi sana: ${new Date(
-          new Date(booking.start_datetime).getTime() +
-            1 * 24 * 60 * 60 * 1000
+          new Date(booking.start_datetime).getTime() + 1 * 24 * 60 * 60 * 1000
         ).toLocaleString("ru-RU", {
           day: "2-digit",
           month: "2-digit",
@@ -350,10 +357,7 @@ bot.hears("❌ Yo‘q", async (ctx) => {
 
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
 
-    await ctx.reply(
-      "✅ Ariza bekor qilinmadi.",
-      buildMainMenu(latestId)
-    );
+    await ctx.reply("✅ Ariza bekor qilinmadi.", buildMainMenu(latestId));
   } catch (err) {
     console.error("Error in Yo‘q:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
@@ -467,20 +471,18 @@ bot.hears("✅ Ha", async (ctx) => {
 bot.on("text", async (ctx, next) => {
   try {
     if (ctx.scene && ctx.scene.current) {
-      console.log(`User ${ctx.from.id} in scene ${ctx.scene.current.id}, resetting due to unexpected input`);
-      await resetSessionAndScene(ctx);
-      await ctx.reply(
-        "❌ Jarayon bekor qilindi. Iltimos, /start buyrug‘ini qayta yuboring yoki yangi ariza yuborish uchun tugmani bosing:",
-        Markup.inlineKeyboard([
-          [Markup.button.callback("📅 Uchrashuvga yozilish", "start_booking")],
-        ])
+      console.log(
+        `User ${ctx.from.id} in scene ${ctx.scene.current.id}, ignoring unexpected text: ${ctx.message.text}`
       );
+      // Игнорируем текст, чтобы сцена могла обработать его
       return;
     }
     await next();
   } catch (err) {
     console.error("Error in text handler:", err);
-    await ctx.reply("❌ Xatolik yuz berdi, iltimos, /start buyrug‘ini qayta yuboring.");
+    await ctx.reply(
+      "❌ Xatolik yuz berdi, iltimos, /start buyrug‘ini qayta yuboring."
+    );
   }
 });
 
@@ -492,7 +494,9 @@ bot.catch((err, ctx) => {
   if (err.response && err.response.error_code === 403) {
     console.warn(`⚠️ User ${ctx.from?.id} blocked the bot, skip message`);
   } else {
-    ctx.reply("❌ Xatolik yuz berdi, iltimos, /start buyrug‘ini qayta yuboring.");
+    ctx.reply(
+      "❌ Xatolik yuz berdi, iltimos, /start buyrug‘ini qayta yuboring."
+    );
   }
 });
 
@@ -508,14 +512,20 @@ bot.hears("Yangi ariza yuborish", async (ctx) => {
       try {
         relatives = JSON.parse(booking.relatives || "[]");
       } catch (err) {
-        console.error(`JSON parse error for booking ${existingBookingId}:`, err);
+        console.error(
+          `JSON parse error for booking ${existingBookingId}:`,
+          err
+        );
         relatives = [];
       }
       const rel1 = relatives[0] || {};
-      const statusText = booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
+      const statusText =
+        booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
 
       return ctx.reply(
-        `❌ Sizda allaqachon ariza mavjud (Nomer: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${rel1.full_name || "Noma'lum"}). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
+        `❌ Sizda allaqachon ariza mavjud (Nomer: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${
+          rel1.full_name || "Noma'lum"
+        }). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
         buildMainMenu(existingBookingId)
       );
     }
@@ -554,7 +564,10 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
     try {
       relatives = booking.relatives ? JSON.parse(booking.relatives) : [];
     } catch (e) {
-      console.error(`JSON parse error for booking ${latestId} in document generation:`, e);
+      console.error(
+        `JSON parse error for booking ${latestId} in document generation:`,
+        e
+      );
     }
 
     const rel1 = relatives[0] || {};
@@ -575,9 +588,13 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
       commander: library.commander,
       fullname: rel1.full_name || "",
       // passport: rel1.passport || "",
-      fullname2: rel2.full_name || "____________________________________________________",
+      fullname2:
+        rel2.full_name ||
+        "____________________________________________________",
       // passport2: rel2.passport || "",
-      fullname3: rel3.full_name || "____________________________________________________",
+      fullname3:
+        rel3.full_name ||
+        "____________________________________________________",
       // passport3: rel3.passport || "",
       prisoner: booking.prisoner_name || "",
       arizaNumber: booking.id || "",

@@ -122,13 +122,27 @@ const bookingWizard = new Scenes.WizardScene(
 
     return ctx.wizard.next();
   },
+  
   // Step 2: Принятие публичной оферты
   async (ctx) => {
     console.log(
-      `Step 2: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}`
+      `Step 2: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
     );
+
     if (!ctx.callbackQuery?.data || ctx.callbackQuery.data !== "accept_offer") {
-      await ctx.reply("❌ Iltimos, publychnaya ofertani qabul qiling.");
+      // Игнорируем текстовые сообщения и повторяем запрос на оферту
+      await ctx.reply(
+        "📜 Iltimos, publychnaya ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
+        Markup.inlineKeyboard([
+          [
+            Markup.button.url(
+              "📖 Ofertani o‘qish",
+              "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
+            ),
+          ],
+          [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
+        ])
+      );
       return;
     }
 
