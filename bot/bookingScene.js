@@ -47,7 +47,7 @@ const bookingWizard = new Scenes.WizardScene(
       );
       return ctx.wizard.next();
     } catch (err) {
-      console.error(err);
+      console.error("Error in Step 0:", err);
       await ctx.reply(
         "❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring."
       );
@@ -149,17 +149,24 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
 
-  // Остальные шаги остаются без изменений
   // Step 3: Выбор колонии
   async (ctx) => {
     console.log(
-      `Step 3: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}`
+      `Step 3: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
     );
     if (
       !ctx.callbackQuery?.data ||
       !ctx.callbackQuery.data.startsWith("colony_")
     ) {
-      await ctx.reply("❌ Iltimos, koloniyani tanlang.");
+      await ctx.reply(
+        "❌ Iltimos, koloniyani tanlang:",
+        Markup.inlineKeyboard([
+          [Markup.button.callback("1-koloniya", "colony_1")],
+          [Markup.button.callback("2-koloniya", "colony_2")],
+          [Markup.button.callback("3-koloniya", "colony_3")],
+          [Markup.button.callback("4-koloniya", "colony_4")],
+        ])
+      );
       return;
     }
 
@@ -191,7 +198,13 @@ const bookingWizard = new Scenes.WizardScene(
       !ctx.callbackQuery?.data ||
       (ctx.callbackQuery.data !== "long" && ctx.callbackQuery.data !== "short")
     ) {
-      await ctx.reply("❌ Iltimos, uchrashuv turini tanlang.");
+      await ctx.reply(
+        "❌ Iltimos, uchrashuv turini tanlang:",
+        Markup.inlineKeyboard([
+          [Markup.button.callback("🔵 1-kunlik", "short")],
+          [Markup.button.callback("🟢 2-kunlik", "long")],
+        ])
+      );
       return;
     }
 
@@ -269,13 +282,23 @@ const bookingWizard = new Scenes.WizardScene(
       }
     } else if (ctx.callbackQuery?.data === "done") {
       return showSummary(ctx);
+    } else {
+      // Handle unexpected inputs
+      await ctx.reply(
+        "❌ Iltimos, quyidagi tugmalardan birini bosing:",
+        Markup.inlineKeyboard([
+          [Markup.button.callback("Ha, qo‘shaman", "add_more")],
+          [Markup.button.callback("Yo‘q", "done")],
+        ])
+      );
+      return;
     }
   },
 
   // Step 9: Yakuniy tasdiqlash yoki bekor qilish
   async (ctx) => {
     console.log(
-      `Step 9: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}`
+      `Step 9: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
     );
     if (ctx.callbackQuery) await ctx.answerCbQuery();
 
@@ -289,6 +312,16 @@ const bookingWizard = new Scenes.WizardScene(
         ])
       );
       return ctx.scene.leave();
+    } else {
+      // Handle unexpected inputs (e.g., text messages)
+      await ctx.reply(
+        "❌ Iltimos, quyidagi tugmalardan birini bosing:",
+        Markup.inlineKeyboard([
+          [Markup.button.callback("✅ Tasdiqlash", "confirm")],
+          [Markup.button.callback("❌ Bekor qilish ariza", "cancel")],
+        ])
+      );
+      return;
     }
   }
 );
@@ -391,7 +424,7 @@ async function saveBooking(ctx) {
       ])
     );
   } catch (err) {
-    console.error(err);
+    console.error("Error in saveBooking:", err);
     await ctx.reply("❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring.");
   }
 }
@@ -410,8 +443,16 @@ async function sendApplicationToAdmin(ctx, application) {
 ⏲️ Turi: ${application.visit_type === "long" ? "2-kunlik" : "1-kunlik"}
 🟡 Holat: Tekshiruvni kutish`;
 
-  await ctx.reply(text);
-  await ctx.telegram.sendMessage(adminChatId, text, { parse_mode: "Markdown" });
+  try {
+    await ctx.reply(text);
+    await ctx.telegram.sendMessage(adminChatId, text, { parse_mode: "Markdown" });
+  } catch (err) {
+    if (err.response && err.response.error_code === 403) {
+      console.warn(`⚠️ Admin chat ${adminChatId} blocked the bot, message not sent`);
+    } else {
+      console.error("Error sending to admin:", err);
+    }
+  }
 }
 
 module.exports = bookingWizard;
