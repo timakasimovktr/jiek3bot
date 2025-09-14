@@ -181,6 +181,14 @@ bot.start(async (ctx) => {
           [Markup.button.callback("📅 Uchrashuvga yozilish", "start_booking")],
         ])
       );
+
+      await ctx.reply(
+        "🌐 Iltimos, tilni tanlang:",
+        Markup.inlineKeyboard([
+          [Markup.button.callback("🇺🇿 O‘zbekcha", "uz")],
+          [Markup.button.callback("🇷🇺 Русский", "ru")],
+        ])
+      );
     }
   } catch (err) {
     console.error("Error in /start:", err);

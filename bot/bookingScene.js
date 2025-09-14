@@ -100,17 +100,6 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  async (ctx) => {
-    await ctx.reply(
-      "🌐 Iltimos, tilni tanlang:",
-      Markup.inlineKeyboard([
-        [Markup.button.callback("🇺🇿 O‘zbekcha", "uz")],
-        [Markup.button.callback("🇷🇺 Русский", "ru")],
-      ])
-    );
-    return ctx.wizard.next();
-  },
-
   // Step 2: выбор типа визита
   async (ctx) => {
     if (
