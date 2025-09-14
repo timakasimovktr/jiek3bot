@@ -15,6 +15,13 @@ const Docxtemplater = require("docxtemplater");
 bot.use(session());
 bot.use(stage.middleware());
 
+bot.use((ctx, next) => {
+  console.log(
+    `Middleware: user ${ctx.from?.id}, ctx.wizard exists: ${!!ctx.wizard}, scene: ${ctx.scene?.current?.id || 'none'}`
+  );
+  return next();
+});
+
 /** ─────────────────────
  *  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
  *  ───────────────────── */
@@ -90,16 +97,14 @@ async function getQueuePosition(bookingId) {
  *  ───────────────────── */
 async function resetSessionAndScene(ctx) {
   try {
-    console.log(`Resetting session and scene for user ${ctx.from?.id}`); // Лог для отладки
+    console.log(`Resetting session and scene for user ${ctx.from?.id}`);
     if (ctx.scene && ctx.scene.current) {
       console.log(`Leaving scene: ${ctx.scene.current.id}`);
       await ctx.scene.leave();
     }
-    ctx.session = {}; // Очищаем сессию
-    if (ctx.wizard) {
-      ctx.wizard.state = {}; // Очищаем состояние сцены
-    }
-    console.log(`Session after reset:`, ctx.session); // Лог для отладки
+    ctx.session = ctx.session || {};
+    delete ctx.session.__scenes; // Очищаем только данные сцены
+    console.log(`Session after reset:`, ctx.session);
   } catch (err) {
     console.error("Error in resetSessionAndScene:", err);
     throw err;
@@ -181,13 +186,14 @@ bot.start(async (ctx) => {
 });
 
 // Кнопка "Uchrashuvga yozilish" → выбор языка
+// Кнопка "Uchrashuvga yozilish" → выбор языка
 bot.action("choose_language", async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.reply(
     "🌐 Iltimos, tilni tanlang:",
     Markup.inlineKeyboard([
       [Markup.button.callback("🇺🇿 O‘zbekcha", "lang_uz")],
-      [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
+      [Markup.button.callback("🇷🇺 Русский", "lang_ru")], // Исправлено с "laang_ru" на "lang_ru"
     ])
   );
 });
@@ -197,10 +203,15 @@ bot.action(["lang_uz", "lang_ru"], async (ctx) => {
   try {
     await ctx.answerCbQuery();
 
+    // Отключаем кнопку, чтобы предотвратить повторные нажатия
+    await ctx.editMessageReplyMarkup({
+      reply_markup: { inline_keyboard: [] },
+    });
+
     // Инициализируем сессию, если она ещё не существует
     ctx.session = ctx.session || {};
     ctx.session.language = ctx.match[0] === "lang_uz" ? "uz" : "ru";
-    delete ctx.session.__scenes; // Очищаем данные сцены, если нужно
+    delete ctx.session.__scenes; // Очищаем данные сцены
 
     console.log(
       `Entering booking-wizard for user ${ctx.from.id} with language ${ctx.session.language}`
