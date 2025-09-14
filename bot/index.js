@@ -128,7 +128,6 @@ bot.command("cancel", async (ctx) => {
  *  ───────────────────── */
 bot.start(async (ctx) => {
   try {
-    console.log(`Processing /start for user ${ctx.from.id}`); // Лог для отладки
     await resetSessionAndScene(ctx);
 
     const userId = ctx.from.id;
@@ -140,7 +139,6 @@ bot.start(async (ctx) => {
       try {
         relatives = JSON.parse(latestBooking.relatives || "[]");
       } catch (err) {
-        console.error(`JSON parse error for booking ${latestId}:`, err);
         relatives = [];
       }
       const rel1 = relatives[0] || {};
@@ -148,29 +146,13 @@ bot.start(async (ctx) => {
       if (latestBooking.status === "approved") {
         await ctx.reply(
           `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
-👤 Arizachi: ${rel1.full_name || "Noma'lum"}
-📅 Berilgan sana: ${new Date(latestBooking.created_at).toLocaleString("ru-RU", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          })}
-⌚️ Kelishi sana: ${new Date(
-            new Date(latestBooking.start_datetime).getTime() +
-              1 * 24 * 60 * 60 * 1000
-          ).toLocaleString("ru-RU", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          })}
-🟢 Holat: Tasdiqlangan`,
+👤 Arizachi: ${rel1.full_name || "Noma'lum"}`,
           buildMainMenu(latestId)
         );
       } else if (latestBooking.status === "pending") {
         const pos = await getQueuePosition(latestId);
         await ctx.reply(
-          pos
-            ? `📊 Sizning navbatingiz: ${pos}`
-            : "❌ Navbat topilmadi.",
+          pos ? `📊 Sizning navbatingiz: ${pos}` : "❌ Navbat topilmadi.",
           buildMainMenu(latestId)
         );
       }
@@ -178,16 +160,17 @@ bot.start(async (ctx) => {
       await ctx.reply(
         "👋 Assalomu alaykum!\nBu platforma orqali siz qamoqxona mahbuslari bilan uchrashuvga yozilishingiz mumkin.",
         Markup.inlineKeyboard([
-          [Markup.button.callback("📅 Uchrashuvga yozilish", "start_booking")],
+          [Markup.button.callback("📅 Uchrashuvga yozilish", "choose_language")],
         ])
       );
     }
   } catch (err) {
     console.error("Error in /start:", err);
-    await ctx.reply("❌ Xatolik yuz berdi, iltimos, qayta urinib ko‘ring.");
+    await ctx.reply("❌ Xatolik yuz berdi, qayta urinib ko‘ring.");
   }
 });
 
+// Кнопка "Uchrashuvga yozilish" → выбор языка
 bot.action("choose_language", async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.reply(
@@ -213,6 +196,7 @@ bot.action(["lang_uz", "lang_ru"], async (ctx) => {
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
+
 
 /** ─────────────────────
  *  ЗАПУСК СЦЕНЫ
