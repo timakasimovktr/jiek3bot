@@ -86,7 +86,7 @@ const bookingWizard = new Scenes.WizardScene(
       }
 
       await ctx.reply(
-        "❌ Telefon raqamingizni faqat tugma orqali yuboring. Raqamni matn sifatida yozmang:",
+        "📱 Telefon raqamingizni faqat tugma orqali yuboring. Raqamni matn sifatida yozmang:",
         Markup.keyboard([[Markup.button.contactRequest("📞 Raqamni yuborish")]])
           .resize()
           .oneTime()
