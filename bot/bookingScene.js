@@ -9,6 +9,7 @@ const bookingWizard = new Scenes.WizardScene(
   // Step 0: Проверка и запрос телефона
   async (ctx) => {
     try {
+      console.log(`Step 0: Starting for user ${ctx.from.id}`);
       // Сбрасываем состояние сцены
       ctx.wizard.state = {};
 
@@ -17,6 +18,7 @@ const bookingWizard = new Scenes.WizardScene(
         "SELECT * FROM bookings WHERE user_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1",
         [ctx.from.id]
       );
+      console.log(`Step 0: Pending bookings for user ${ctx.from.id}:`, rows);
 
       if (rows.length > 0) {
         await ctx.reply(
@@ -34,12 +36,21 @@ const bookingWizard = new Scenes.WizardScene(
         "SELECT phone_number FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
         [ctx.from.id]
       );
-      console.log(`Step 0: User ${ctx.from.id} phone query result:`, userRows);
+      console.log(
+        `Step 0: Phone query result for user ${ctx.from.id}:`,
+        userRows
+      );
 
       if (userRows.length > 0 && userRows[0].phone_number) {
         ctx.wizard.state.phone = userRows[0].phone_number;
         ctx.wizard.state.offerRequested = false;
-        await ctx.reply(`🤖 Tartibga rioya qiling!`, Markup.removeKeyboard());
+        await ctx.reply(
+          `✅ Telefon raqamingiz saqlangan. Ofertani qabul qiling.`,
+          Markup.removeKeyboard()
+        );
+        console.log(
+          `Step 0: Moving to Step 1 for user ${ctx.from.id} with phone ${ctx.wizard.state.phone}`
+        );
         return ctx.wizard.next();
       }
 
@@ -50,9 +61,10 @@ const bookingWizard = new Scenes.WizardScene(
           .resize()
           .oneTime()
       );
+      console.log(`Step 0: Requesting phone number for user ${ctx.from.id}`);
       return ctx.wizard.next();
     } catch (err) {
-      console.error("Error in Step 0:", err);
+      console.error(`Error in Step 0 for user ${ctx.from.id}:`, err);
       await ctx.reply(
         "❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring."
       );
@@ -62,9 +74,14 @@ const bookingWizard = new Scenes.WizardScene(
 
   // Step 1: Принимаем только контакт и запрашиваем оферту
   async (ctx) => {
-    console.log(`Step 1: User ${ctx.from.id} sent message:`, ctx.message);
-
     try {
+      console.log(
+        `Step 1: Starting for user ${ctx.from.id}, message:`,
+        ctx.message,
+        `wizard state:`,
+        ctx.wizard.state
+      );
+
       if (!ctx.wizard.state.phone) {
         // Если номер ещё не сохранён, проверяем контакт
         if (!ctx.message?.contact?.phone_number) {
@@ -75,6 +92,7 @@ const bookingWizard = new Scenes.WizardScene(
               "❌ Siz ko‘p marta noto‘g‘ri ma’lumot yubordingiz. Iltimos, /start buyrug‘i bilan qaytadan boshlang.",
               Markup.removeKeyboard()
             );
+            console.log(`Step 1: Too many retries for user ${ctx.from.id}`);
             return ctx.scene.leave();
           }
 
@@ -86,6 +104,7 @@ const bookingWizard = new Scenes.WizardScene(
               .resize()
               .oneTime()
           );
+          console.log(`Step 1: Requesting phone retry for user ${ctx.from.id}`);
           return;
         }
 
@@ -95,10 +114,12 @@ const bookingWizard = new Scenes.WizardScene(
           "✅ Telefon raqamingiz qabul qilindi.",
           Markup.removeKeyboard()
         );
+        console.log(
+          `Step 1: Phone received for user ${ctx.from.id}: ${ctx.wizard.state.phone}`
+        );
       }
 
       // Запрашиваем принятие публичной оферты
-      console.log(`Step 1: Requesting offer for user ${ctx.from.id}`);
       ctx.wizard.state.offerRequested = true;
       await ctx.reply(
         "📜 Iltimos, publychnaya ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
@@ -112,10 +133,11 @@ const bookingWizard = new Scenes.WizardScene(
           [Markup.button.callback("✅ Qabul qilaman", "accept_offer")],
         ])
       );
+      console.log(`Step 1: Offer requested for user ${ctx.from.id}`);
 
       return ctx.wizard.next();
     } catch (err) {
-      console.error("Error in Step 1:", err);
+      console.error(`Error in Step 1 for user ${ctx.from.id}:`, err);
       await ctx.reply(
         "❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring."
       );
