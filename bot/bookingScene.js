@@ -113,8 +113,8 @@ const bookingWizard = new Scenes.WizardScene(
 
       ctx.wizard.state.offerRequested = false;
       await ctx.reply(
-        "📲 Iltimos, telefon raqamingizni yuboring:",
-        Markup.keyboard([[Markup.button.contactRequest("📞 Raqamni yuborish")]])
+        "📲 Iltimos, telefon raqamingizni tugma orqali yuboring:",
+        Markup.keyboard([[Markup.button.contactRequest("🟢➡️ 📞 Raqamni yuborish ⬅️🟢")]])
           .resize()
           .oneTime()
       );
