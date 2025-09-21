@@ -17,14 +17,15 @@ bot.use(stage.middleware());
 
 bot.use((ctx, next) => {
   console.log(
-    `Middleware: user ${ctx.from?.id}, ctx.wizard exists: ${!!ctx.wizard}, scene: ${ctx.scene?.current?.id || 'none'}`
+    `Middleware: user ${
+      ctx.from?.id
+    }, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
+      ctx.scene?.current?.id || "none"
+    }`
   );
   return next();
 });
 
-/** ─────────────────────
- *  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
- *  ───────────────────── */
 async function getLatestPendingOrApprovedId(userId) {
   try {
     const [rows] = await pool.query(
@@ -34,17 +35,17 @@ async function getLatestPendingOrApprovedId(userId) {
     return rows.length ? rows[0].id : null;
   } catch (err) {
     console.error("Error in getLatestPendingOrApprovedId:", err);
-    throw err; // Пробрасываем ошибку для обработки выше
+    throw err;
   }
 }
 
 async function getLatestPendingIdWithoutStatus(userId) {
   try {
     const [rows] = await pool.query(
-      "SELECT id FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+      "SELECT id, colony FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
       [userId]
     );
-    return rows.length ? rows[0].id : null;
+    return rows.length ? rows[0] : null;
   } catch (err) {
     console.error("Error in getLatestPendingIdWithoutStatus:", err);
     throw err;
@@ -92,9 +93,6 @@ async function getQueuePosition(bookingId) {
   }
 }
 
-/** ─────────────────────
- *  СБРОС СЕССИИ И СЦЕНЫ ПРИ ЛЮБОМ ВЗАИМОДЕЙСТВИИ
- *  ───────────────────── */
 async function resetSessionAndScene(ctx) {
   try {
     console.log(`Resetting session and scene for user ${ctx.from?.id}`);
@@ -103,7 +101,7 @@ async function resetSessionAndScene(ctx) {
       await ctx.scene.leave();
     }
     ctx.session = ctx.session || {};
-    delete ctx.session.__scenes; // Очищаем только данные сцены
+    delete ctx.session.__scenes;
     console.log(`Session after reset:`, ctx.session);
   } catch (err) {
     console.error("Error in resetSessionAndScene:", err);
@@ -111,9 +109,6 @@ async function resetSessionAndScene(ctx) {
   }
 }
 
-/** ─────────────────────
- *  ГЛОБАЛЬНАЯ КОМАНДА /cancel
- *  ───────────────────── */
 bot.command("cancel", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
@@ -125,12 +120,8 @@ bot.command("cancel", async (ctx) => {
   }
 });
 
-/** ─────────────────────
- *  СТАРТ
- *  ───────────────────── */
 bot.start(async (ctx) => {
   try {
-    // Проверяем, находится ли пользователь в сцене
     if (ctx.scene.current) {
       await ctx.reply(
         "❌ Siz allaqachon jarayondasiz. Iltimos, joriy jarayonni yakunlang yoki /cancel buyrug‘ini ishlating."
@@ -185,33 +176,27 @@ bot.start(async (ctx) => {
   }
 });
 
-// Кнопка "Uchrashuvga yozilish" → выбор языка
-// Кнопка "Uchrashuvga yozilish" → выбор языка
 bot.action("choose_language", async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.reply(
     "🌐 Iltimos, tilni tanlang:",
     Markup.inlineKeyboard([
       [Markup.button.callback("🇺🇿 O‘zbekcha", "lang_uz")],
-      [Markup.button.callback("🇷🇺 Русский", "lang_ru")], // Исправлено с "laang_ru" на "lang_ru"
+      [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
     ])
   );
 });
 
-// После выбора языка запускаем booking-wizard
 bot.action(["lang_uz", "lang_ru"], async (ctx) => {
   try {
     await ctx.answerCbQuery();
-
-    // Отключаем кнопку, чтобы предотвратить повторные нажатия
     await ctx.editMessageReplyMarkup({
       reply_markup: { inline_keyboard: [] },
     });
 
-    // Инициализируем сессию, если она ещё не существует
     ctx.session = ctx.session || {};
     ctx.session.language = ctx.match[0] === "lang_uz" ? "uz" : "ru";
-    delete ctx.session.__scenes; // Очищаем данные сцены
+    delete ctx.session.__scenes;
 
     console.log(
       `Entering booking-wizard for user ${ctx.from.id} with language ${ctx.session.language}`
@@ -223,9 +208,6 @@ bot.action(["lang_uz", "lang_ru"], async (ctx) => {
   }
 });
 
-/** ─────────────────────
- *  ЗАПУСК СЦЕНЫ
- *  ───────────────────── */
 bot.action("start_booking", async (ctx) => {
   try {
     const userId = ctx.from.id;
@@ -266,9 +248,6 @@ bot.action("start_booking", async (ctx) => {
   }
 });
 
-/** ─────────────────────
- *  ВНУТРИСЦЕНОВАЯ ОТМЕНА ЧЕРНОВИКА (inline "cancel")
- *  ───────────────────── */
 bot.action("cancel", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
@@ -284,9 +263,6 @@ bot.action("cancel", async (ctx) => {
   }
 });
 
-/** ─────────────────────
- *  NAVBAT HOLATI
- *  ───────────────────── */
 bot.hears("📊 Navbat holati", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
@@ -343,17 +319,14 @@ bot.hears("📊 Navbat holati", async (ctx) => {
 bot.hears("📱 Grupaga otish", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
-    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+    const latestBooking = await getLatestPendingIdWithoutStatus(ctx.from.id);
+    let groupUrl = "https://t.me/+qWg7Qh3t_OIxMDBi";
+    if (latestBooking && latestBooking.colony === "5") {
+      groupUrl = "https://t.me/SmartJIEK5";
+    }
     await ctx.reply(
       "📱 Tugmasini bosing:",
-      Markup.inlineKeyboard([
-        [
-          Markup.button.url(
-            "📌 Grupaga otish",
-            "https://t.me/+qWg7Qh3t_OIxMDBi"
-          ),
-        ],
-      ])
+      Markup.inlineKeyboard([[Markup.button.url("📌 Grupaga otish", groupUrl)]])
     );
   } catch (err) {
     console.error("Error in Grupaga otish:", err);
@@ -361,9 +334,6 @@ bot.hears("📱 Grupaga otish", async (ctx) => {
   }
 });
 
-/** ─────────────────────
- *  «НЕ ОТМЕНЯТЬ» (отказ от отмены существующей заявки)
- *  ───────────────────── */
 bot.hears("❌ Yo‘q", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
@@ -379,9 +349,6 @@ bot.hears("❌ Yo‘q", async (ctx) => {
   }
 });
 
-/** ─────────────────────
- *  ЗАПРОС ОТМЕНЫ (с ID или без ID — единый обработчик)
- *  ───────────────────── */
 bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
@@ -409,9 +376,6 @@ bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
   }
 });
 
-/** ─────────────────────
- *  ПОДТВЕРЖДЕНИЕ ОТМЕНЫ СУЩЕСТВУЮЩЕЙ ЗАЯВКИ
- *  ───────────────────── */
 bot.hears("✅ Ha", async (ctx) => {
   try {
     const bookingId = ctx.session.confirmCancelId;
@@ -480,16 +444,12 @@ bot.hears("✅ Ha", async (ctx) => {
   }
 });
 
-/** ─────────────────────
- *  ГЛОБАЛЬНЫЙ ПЕРЕХВАТ ТЕКСТА ДЛЯ СБРОСА ПРИ НЕОЖИДАННОМ ВВОДЕ
- *  ───────────────────── */
 bot.on("text", async (ctx, next) => {
   try {
     if (ctx.scene && ctx.scene.current) {
       console.log(
         `User ${ctx.from.id} in scene ${ctx.scene.current.id}, ignoring unexpected text: ${ctx.message.text}`
       );
-      // Игнорируем текст, чтобы сцена могла обработать его
       return;
     }
     await next();
@@ -501,9 +461,6 @@ bot.on("text", async (ctx, next) => {
   }
 });
 
-/** ─────────────────────
- *  ГЛОБАЛЬНЫЙ ПЕРЕХВАТ ОШИБОК
- *  ───────────────────── */
 bot.catch((err, ctx) => {
   console.error("Global error:", err);
   if (err.response && err.response.error_code === 403) {
@@ -602,15 +559,12 @@ bot.hears("🖨️ Ariza nusxasini olish", async (ctx) => {
       placeNumber: library.placeNumber,
       commander: library.commander,
       fullname: rel1.full_name || "",
-      // passport: rel1.passport || "",
       fullname2:
         rel2.full_name ||
         "____________________________________________________",
-      // passport2: rel2.passport || "",
       fullname3:
         rel3.full_name ||
         "____________________________________________________",
-      // passport3: rel3.passport || "",
       prisoner: booking.prisoner_name || "",
       arizaNumber: booking.id || "",
       today: new Date().toLocaleDateString("uz-UZ"),

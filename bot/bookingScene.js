@@ -98,12 +98,11 @@ const bookingWizard = new Scenes.WizardScene(
 
       if (userRows.length > 0 && userRows[0].phone_number) {
         ctx.wizard.state.phone = userRows[0].phone_number;
-        ctx.wizard.state.offerRequested = true; // Устанавливаем флаг, чтобы избежать повторного запроса
+        ctx.wizard.state.offerRequested = true;
         await ctx.reply(
           `✅ Telefon raqamingiz saqlangan. Ofertani qabul qiling.`,
           Markup.removeKeyboard()
         );
-        // Явно отправляем запрос на принятие оферты
         await ctx.reply(
           "📜 Iltimos, publychnaya ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
           Markup.inlineKeyboard([
@@ -119,11 +118,10 @@ const bookingWizard = new Scenes.WizardScene(
         console.log(
           `Step 0: Moving to Step 2 for user ${ctx.from.id} with phone ${ctx.wizard.state.phone}`
         );
-        return ctx.wizard.selectStep(2); // Пропускаем шаг 1, так как номер уже есть
+        return ctx.wizard.selectStep(2);
       }
 
-      // Если номера нет → просим ввести
-      ctx.wizard.state.offerRequested = false; // Сбрасываем флаг для новых пользователей
+      ctx.wizard.state.offerRequested = false;
       await ctx.reply(
         "📲 Iltimos, telefon raqamingizni yuboring:",
         Markup.keyboard([[Markup.button.contactRequest("📞 Raqamni yuborish")]])
@@ -151,7 +149,6 @@ const bookingWizard = new Scenes.WizardScene(
         ctx.wizard.state
       );
 
-      // Проверяем, что пользователь отправил контакт
       if (!ctx.message?.contact?.phone_number) {
         ctx.wizard.state.retryCount = (ctx.wizard.state.retryCount || 0) + 1;
 
@@ -176,9 +173,8 @@ const bookingWizard = new Scenes.WizardScene(
         return;
       }
 
-      // Успешная отправка контакта
       ctx.wizard.state.phone = ctx.message.contact.phone_number;
-      ctx.wizard.state.offerRequested = true; // Устанавливаем флаг
+      ctx.wizard.state.offerRequested = true;
       await ctx.reply(
         "✅ Telefon raqamingiz qabul qilindi.",
         Markup.removeKeyboard()
@@ -187,7 +183,6 @@ const bookingWizard = new Scenes.WizardScene(
         `Step 1: Phone received for user ${ctx.from.id}: ${ctx.wizard.state.phone}`
       );
 
-      // Запрашиваем принятие публичной оферты
       await ctx.reply(
         "📜 Iltimos, publychnaya ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
         Markup.inlineKeyboard([
@@ -218,7 +213,6 @@ const bookingWizard = new Scenes.WizardScene(
     );
 
     if (!ctx.callbackQuery?.data || ctx.callbackQuery.data !== "accept_offer") {
-      // Игнорируем текстовые сообщения и повторяем запрос на оферту
       await ctx.reply(
         "📜 Iltimos, publychnaya ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
         Markup.inlineKeyboard([
@@ -236,9 +230,8 @@ const bookingWizard = new Scenes.WizardScene(
 
     await ctx.answerCbQuery();
     ctx.wizard.state.offer_accepted = true;
-    ctx.wizard.state.page = 0; // Инициализируем страницу для пагинации
+    ctx.wizard.state.page = 0;
 
-    // Запрашиваем выбор колонии с пагинацией
     await ctx.reply(
       "🏛 Iltimos, koloniyani tanlang:",
       generateColonyKeyboard(ctx.wizard.state.page)
@@ -247,33 +240,34 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
 
-  // Остальные шаги остаются без изменений
   // Step 3: Выбор колонии
   async (ctx) => {
     console.log(
       `Step 3: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
     );
 
-    ctx.wizard.state.page = ctx.wizard.state.page || 0; // На случай, если page не установлен
+    ctx.wizard.state.page = ctx.wizard.state.page || 0;
 
     const data = ctx.callbackQuery?.data;
 
     if (data === "prev_colony") {
       ctx.wizard.state.page = Math.max(0, ctx.wizard.state.page - 1);
-      await ctx.editMessageReplyMarkup({
-        reply_markup: generateColonyKeyboard(ctx.wizard.state.page)
-          .reply_markup,
-      });
+      await ctx.editMessageText(
+        "🏛 Iltimos, koloniyani tanlang:",
+        generateColonyKeyboard(ctx.wizard.state.page)
+      );
+      await ctx.answerCbQuery();
       return;
     }
 
     if (data === "next_colony") {
       const maxPage = Math.ceil(colonies.length / 6) - 1;
       ctx.wizard.state.page = Math.min(maxPage, ctx.wizard.state.page + 1);
-      await ctx.editMessageReplyMarkup({
-        reply_markup: generateColonyKeyboard(ctx.wizard.state.page)
-          .reply_markup,
-      });
+      await ctx.editMessageText(
+        "🏛 Iltimos, koloniyani tanlang:",
+        generateColonyKeyboard(ctx.wizard.state.page)
+      );
+      await ctx.answerCbQuery();
       return;
     }
 
@@ -291,7 +285,6 @@ const bookingWizard = new Scenes.WizardScene(
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
 
-    // Инициализируем данные
     ctx.wizard.state.relatives = [];
     ctx.wizard.state.currentRelative = {};
     ctx.wizard.state.prisoner_name = null;
@@ -401,7 +394,6 @@ const bookingWizard = new Scenes.WizardScene(
     } else if (ctx.callbackQuery?.data === "done") {
       return showSummary(ctx);
     } else {
-      // Handle unexpected inputs
       await ctx.reply(
         "❌ Iltimos, quyidagi tugmalardan birini bosing:",
         Markup.inlineKeyboard([
@@ -431,7 +423,6 @@ const bookingWizard = new Scenes.WizardScene(
       );
       return ctx.scene.leave();
     } else {
-      // Handle unexpected inputs (e.g., text messages)
       await ctx.reply(
         "❌ Iltimos, quyidagi tugmalardan birini bosing:",
         Markup.inlineKeyboard([
@@ -444,7 +435,6 @@ const bookingWizard = new Scenes.WizardScene(
   }
 );
 
-// helper: qo‘shish yoki yakunlash
 async function askAddMore(ctx) {
   if (ctx.wizard.state.relatives.length < MAX_RELATIVES) {
     await ctx.reply(
@@ -461,7 +451,6 @@ async function askAddMore(ctx) {
   }
 }
 
-// helper: ko‘rsatish summary
 async function showSummary(ctx) {
   const { prisoner_name, relatives, colony } = ctx.wizard.state;
   let text = "📋 Arizangiz tafsilotlari:\n\n";
@@ -482,7 +471,6 @@ async function showSummary(ctx) {
   return ctx.wizard.selectStep(9);
 }
 
-// helper: save booking to DB
 async function saveBooking(ctx) {
   const { prisoner_name, relatives, visit_type, colony } = ctx.wizard.state;
   const chatId = ctx.chat.id;
@@ -504,7 +492,6 @@ async function saveBooking(ctx) {
 
     await ctx.scene.leave();
 
-    // Отправка в админ-группу
     await sendApplicationToAdmin(ctx, {
       relatives,
       prisoner: prisoner_name,
@@ -513,7 +500,6 @@ async function saveBooking(ctx) {
       colony,
     });
 
-    // Получаем позицию в очереди
     const [rows] = await pool.query(
       "SELECT * FROM bookings WHERE status = 'pending' ORDER BY id ASC"
     );
