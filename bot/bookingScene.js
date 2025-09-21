@@ -196,7 +196,13 @@ const bookingWizard = new Scenes.WizardScene(
     await ctx.reply(
       "🏛 Iltimos, koloniyani tanlang:",
       Markup.inlineKeyboard([
-        [Markup.button.callback("1-koloniya", "colony_1")],
+        [Markup.button.callback("1-son JIEK", "colony_1"), Markup.button.callback("2-son JIEK", "colony_2"), Markup.button.callback("3-son JIEK", "colony_3")],
+        [Markup.button.callback("4-son JIEK", "colony_4"), Markup.button.callback("5-son JIEK", "colony_5"), Markup.button.callback("6-son JIEK", "colony_6")],
+        [Markup.button.callback("7-son JIEK", "colony_7"), Markup.button.callback("8-son JIEK", "colony_8"), Markup.button.callback("9-son JIEK", "colony_9")],
+        [Markup.button.callback("10-son JIEK", "colony_10"), Markup.button.callback("11-son JIEK", "colony_11"), Markup.button.callback("12-son JIEK", "colony_12")],
+        [Markup.button.callback("13-son JIEK", "colony_13"), Markup.button.callback("14-son JIEK", "colony_14"), Markup.button.callback("15-son JIEK", "colony_15")],
+        [Markup.button.callback("16-son JIEK", "colony_16"), Markup.button.callback("17-son JIEK", "colony_17"), Markup.button.callback("18-son JIEK", "colony_18")],
+        [Markup.button.callback("19-son JIEK", "colony_19"), Markup.button.callback("20-son JIEK", "colony_20")],
       ])
     );
     console.log(`Step 2: Moving to colony selection for user ${ctx.from.id}`);
@@ -216,7 +222,13 @@ const bookingWizard = new Scenes.WizardScene(
       await ctx.reply(
         "❌ Iltimos, koloniyani tanlang:",
         Markup.inlineKeyboard([
-          [Markup.button.callback("1-koloniya", "colony_1")],
+          [Markup.button.callback("1-son JIEK", "colony_1"), Markup.button.callback("2-son JIEK", "colony_2"), Markup.button.callback("3-son JIEK", "colony_3")],
+          [Markup.button.callback("4-son JIEK", "colony_4"), Markup.button.callback("5-son JIEK", "colony_5"), Markup.button.callback("6-son JIEK", "colony_6")],
+          [Markup.button.callback("7-son JIEK", "colony_7"), Markup.button.callback("8-son JIEK", "colony_8"), Markup.button.callback("9-son JIEK", "colony_9")],
+          [Markup.button.callback("10-son JIEK", "colony_10"), Markup.button.callback("11-son JIEK", "colony_11"), Markup.button.callback("12-son JIEK", "colony_12")],
+          [Markup.button.callback("13-son JIEK", "colony_13"), Markup.button.callback("14-son JIEK", "colony_14"), Markup.button.callback("15-son JIEK", "colony_15")],
+          [Markup.button.callback("16-son JIEK", "colony_16"), Markup.button.callback("17-son JIEK", "colony_17"), Markup.button.callback("18-son JIEK", "colony_18")],
+          [Markup.button.callback("19-son JIEK", "colony_19"), Markup.button.callback("20-son JIEK", "colony_20")],
         ])
       );
       return;
@@ -469,10 +481,15 @@ async function saveBooking(ctx) {
         .oneTime(false)
     );
 
+    let groupUrl = "https://t.me/smartdunyomeet";
+    if (colony === "5") {
+      groupUrl = "https://t.me/SmartJIEK5";
+    }
+
     await ctx.reply(
       "📱 Grupaga qo'shing",
       Markup.inlineKeyboard([
-        [Markup.button.url("📌 Grupaga otish", "https://t.me/smartdunyomeet")],
+        [Markup.button.url("📌 Grupaga otish", groupUrl)],
       ])
     );
   } catch (err) {
