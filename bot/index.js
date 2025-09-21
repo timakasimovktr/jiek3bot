@@ -418,8 +418,25 @@ bot.hears("✅ Ha", async (ctx) => {
     ctx.session.confirmCancel = false;
     ctx.session.confirmCancelId = null;
 
+    // Определяем таблицу на основе колонии
+    const [booking] = await pool.query(
+      `SELECT colony FROM (
+         SELECT id, colony FROM bookings WHERE id = ?
+         UNION
+         SELECT id, colony FROM bookings5 WHERE id = ?
+       ) AS combined`,
+      [bookingId, bookingId]
+    );
+
+    if (!booking.length) {
+      await resetSessionAndScene(ctx);
+      return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
+    }
+
+    const tableName = booking[0].colony === "5" ? "bookings5" : "bookings";
+
     const [result] = await pool.query(
-      "UPDATE bookings SET status = 'canceled' WHERE id = ? AND user_id = ? ",
+      `UPDATE ${tableName} SET status = 'canceled' WHERE id = ? AND user_id = ? `,
       [bookingId, ctx.from.id]
     );
 
@@ -429,7 +446,7 @@ bot.hears("✅ Ha", async (ctx) => {
     }
 
     const [rows] = await pool.query(
-      "SELECT relatives FROM bookings WHERE id = ?",
+      `SELECT relatives FROM ${tableName} WHERE id = ?`,
       [bookingId]
     );
     let bookingName = "Noma'lum";

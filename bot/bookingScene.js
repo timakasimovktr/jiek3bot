@@ -26,26 +26,14 @@ const colonies = [
   "24",
 ];
 
-function generateColonyKeyboard(page) {
-  const perPage = 6;
-  const start = page * perPage;
-  const end = start + perPage;
-  const pageColonies = colonies.slice(start, end);
-
+function generateColonyKeyboard() {
   let keyboard = [];
-  for (let i = 0; i < pageColonies.length; i += 3) {
-    let row = pageColonies
-      .slice(i, i + 3)
+  for (let i = 0; i < colonies.length; i += 2) {
+    let row = colonies
+      .slice(i, i + 2)
       .map((c) => Markup.button.callback(`${c}-сон JIEK`, `colony_${c}`));
     keyboard.push(row);
   }
-
-  let navRow = [];
-  if (page > 0) navRow.push(Markup.button.callback("Oldingi", "prev_colony"));
-  if (end < colonies.length)
-    navRow.push(Markup.button.callback("Keyingi", "next_colony"));
-
-  if (navRow.length > 0) keyboard.push(navRow);
 
   return Markup.inlineKeyboard(keyboard);
 }
@@ -232,11 +220,10 @@ const bookingWizard = new Scenes.WizardScene(
 
     await ctx.answerCbQuery();
     ctx.wizard.state.offer_accepted = true;
-    ctx.wizard.state.page = 0;
 
     await ctx.reply(
       "🏛 Iltimos, koloniyani tanlang:",
-      generateColonyKeyboard(ctx.wizard.state.page)
+      generateColonyKeyboard()
     );
     console.log(`Step 2: Moving to colony selection for user ${ctx.from.id}`);
     return ctx.wizard.next();
@@ -248,30 +235,7 @@ const bookingWizard = new Scenes.WizardScene(
       `Step 3: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
     );
 
-    ctx.wizard.state.page = ctx.wizard.state.page || 0;
-
     const data = ctx.callbackQuery?.data;
-
-    if (data === "prev_colony") {
-      ctx.wizard.state.page = Math.max(0, ctx.wizard.state.page - 1);
-      await ctx.editMessageText(
-        "🏛 Iltimos, koloniyani tanlang:",
-        generateColonyKeyboard(ctx.wizard.state.page)
-      );
-      await ctx.answerCbQuery();
-      return;
-    }
-
-    if (data === "next_colony") {
-      const maxPage = Math.ceil(colonies.length / 6) - 1;
-      ctx.wizard.state.page = Math.min(maxPage, ctx.wizard.state.page + 1);
-      await ctx.editMessageText(
-        "🏛 Iltimos, koloniyani tanlang:",
-        generateColonyKeyboard(ctx.wizard.state.page)
-      );
-      await ctx.answerCbQuery();
-      return;
-    }
 
     if (
       !ctx.callbackQuery?.data ||
@@ -279,7 +243,7 @@ const bookingWizard = new Scenes.WizardScene(
     ) {
       await ctx.reply(
         "❌ Iltimos, koloniyani tanlang:",
-        generateColonyKeyboard(ctx.wizard.state.page)
+        generateColonyKeyboard()
       );
       return;
     }
