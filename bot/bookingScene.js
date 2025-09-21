@@ -1,3 +1,5 @@
+//bookingScene.js
+
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const pool = require("../db");
 
@@ -436,19 +438,20 @@ const bookingWizard = new Scenes.WizardScene(
 );
 
 async function askAddMore(ctx) {
-  if (ctx.wizard.state.relatives.length < MAX_RELATIVES) {
-    await ctx.reply(
-      "➕ Yana qarindosh qo‘shishni xohlaysizmi? (maksimal 3 ta)",
-      Markup.inlineKeyboard([
-        [Markup.button.callback("Ha, qo‘shaman", "add_more")],
-        [Markup.button.callback("Yo‘q", "done")],
-      ])
-    );
-    return ctx.wizard.selectStep(8);
-  } else {
-    await ctx.reply("⚠️ Maksimal 3 ta qarindosh qo‘shildi.");
-    return showSummary(ctx);
-  }
+  // if (ctx.wizard.state.relatives.length < MAX_RELATIVES) {
+  //   await ctx.reply(
+  //     "➕ Yana qarindosh qo‘shishni xohlaysizmi? (maksimal 3 ta)",
+  //     Markup.inlineKeyboard([
+  //       [Markup.button.callback("Ha, qo‘shaman", "add_more")],
+  //       [Markup.button.callback("Yo‘q", "done")],
+  //     ])
+  //   );
+  //   return ctx.wizard.selectStep(8);
+  // } else {
+  //   await ctx.reply("⚠️ Maksimal 3 ta qarindosh qo‘shildi.");
+  //   return showSummary(ctx);
+  // }
+  return showSummary(ctx);
 }
 
 async function showSummary(ctx) {
