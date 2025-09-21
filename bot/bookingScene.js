@@ -552,9 +552,9 @@ async function sendApplicationToAdmin(ctx, application) {
 
   try {
     await ctx.reply(text);
-    await ctx.telegram.sendMessage(adminChatId, text, {
-      parse_mode: "Markdown",
-    });
+    // await ctx.telegram.sendMessage(adminChatId, text, {
+    //   parse_mode: "Markdown",
+    // });
   } catch (err) {
     if (err.response && err.response.error_code === 403) {
       console.warn(
