@@ -30,9 +30,15 @@ bot.use((ctx, next) => {
 
 async function getLatestPendingOrApprovedId(userId) {
   try {
+    // Проверяем обе таблицы: bookings и bookings5
     const [rows] = await pool.query(
-      "SELECT id FROM bookings WHERE status IN ('pending', 'approved') AND user_id = ? ORDER BY id DESC LIMIT 1",
-      [userId]
+      `SELECT id, colony FROM (
+         SELECT id, colony FROM bookings WHERE status IN ('pending', 'approved') AND user_id = ?
+         UNION
+         SELECT id, colony FROM bookings5 WHERE status IN ('pending', 'approved') AND user_id = ?
+       ) AS combined
+       ORDER BY id DESC LIMIT 1`,
+      [userId, userId]
     );
     return rows.length ? rows[0].id : null;
   } catch (err) {
@@ -44,8 +50,13 @@ async function getLatestPendingOrApprovedId(userId) {
 async function getLatestBooking(userId) {
   try {
     const [rows] = await pool.query(
-      "SELECT * FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-      [userId]
+      `SELECT * FROM (
+         SELECT id, user_id, prisoner_name, colony, relatives, status, created_at FROM bookings WHERE user_id = ?
+         UNION
+         SELECT id, user_id, prisoner_name, colony, relatives, status, created_at FROM bookings5 WHERE user_id = ?
+       ) AS combined
+       ORDER BY id DESC LIMIT 1`,
+      [userId, userId]
     );
     return rows.length ? rows[0] : null;
   } catch (err) {
@@ -74,8 +85,24 @@ function buildMainMenu(latestPendingId) {
 
 async function getQueuePosition(bookingId) {
   try {
+    // Проверяем, из какой таблицы bookingId
+    const [booking] = await pool.query(
+      `SELECT colony FROM (
+         SELECT id, colony FROM bookings WHERE id = ?
+         UNION
+         SELECT id, colony FROM bookings5 WHERE id = ?
+       ) AS combined`,
+      [bookingId, bookingId]
+    );
+
+    if (!booking.length) {
+      return null;
+    }
+
+    const tableName = booking[0].colony === "5" ? "bookings5" : "bookings";
+
     const [rows] = await pool.query(
-      "SELECT id FROM bookings WHERE status = 'pending' ORDER BY id ASC"
+      `SELECT id FROM ${tableName} WHERE status = 'pending' ORDER BY id ASC`
     );
     const ids = rows.map((row) => row.id);
     const position = ids.indexOf(bookingId);
@@ -285,13 +312,18 @@ bot.hears("📊 Navbat holati", async (ctx) => {
           month: "2-digit",
           year: "numeric",
         })}
-⌚️ Kelishi sana: ${latestBooking.start_datetime ? new Date(
-          new Date(latestBooking.start_datetime).getTime() + 1 * 24 * 60 * 60 * 1000
-        ).toLocaleString("ru-RU", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }) : "Belgilangan emas"}
+⌚️ Kelishi sana: ${
+          latestBooking.start_datetime
+            ? new Date(
+                new Date(latestBooking.start_datetime).getTime() +
+                  1 * 24 * 60 * 60 * 1000
+              ).toLocaleString("ru-RU", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })
+            : "Belgilangan emas"
+        }
 🟢 Holat: Tasdiqlangan`,
         buildMainMenu(latestId)
       );
