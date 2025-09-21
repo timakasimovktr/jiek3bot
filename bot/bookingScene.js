@@ -537,7 +537,6 @@ async function saveBooking(ctx) {
 }
 
 async function sendApplicationToAdmin(ctx, application) {
-  const adminChatId = process.env.ADMIN_CHAT_ID;
   const firstRelative = application.relatives[0];
   const text = `📌 Yangi ariza. Nomer: ${application.id}
 👤 Arizachi: ${firstRelative ? `${firstRelative.full_name}` : "Noma'lum"}
@@ -551,18 +550,9 @@ async function sendApplicationToAdmin(ctx, application) {
 🟡 Holat: Tekshiruvni kutish`;
 
   try {
-    await ctx.reply(text);
-    await ctx.telegram.sendMessage(adminChatId, text, {
-      parse_mode: "Markdown",
-    });
+    await ctx.reply(text); // Отправляем сообщение только пользователю в боте
   } catch (err) {
-    if (err.response && err.response.error_code === 403) {
-      console.warn(
-        `⚠️ Admin chat ${adminChatId} blocked the bot, message not sent`
-      );
-    } else {
-      console.error("Error sending to admin:", err);
-    }
+    console.error("Error sending to user:", err);
   }
 }
 

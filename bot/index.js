@@ -423,19 +423,6 @@ bot.hears("✅ Ha", async (ctx) => {
 
     await resetSessionAndScene(ctx);
 
-    try {
-      await ctx.telegram.sendMessage(
-        adminChatId,
-        `❌ Ariza bekor qilindi. Nomer: ${bookingId}\n🧑 Arizachi: ${bookingName}`
-      );
-    } catch (err) {
-      if (err.response && err.response.error_code === 403) {
-        console.warn("⚠️ Admin botni bloklagan, xabar yuborilmadi");
-      } else {
-        console.error("Telegram API error:", err);
-      }
-    }
-
     await ctx.reply(
       "🔄 Yangi uchrashuvga yozilish uchun quyidagi tugmani bosing:",
       Markup.inlineKeyboard([
