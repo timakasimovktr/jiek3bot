@@ -285,18 +285,13 @@ bot.hears("📊 Navbat holati", async (ctx) => {
           month: "2-digit",
           year: "numeric",
         })}
-⌚️ Kelishi sana: ${
-          latestBooking.start_datetime
-            ? new Date(
-                new Date(latestBooking.start_datetime).getTime() +
-                  1 * 24 * 60 * 60 * 1000
-              ).toLocaleString("ru-RU", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })
-            : "Belgilangan emas"
-        }
+⌚️ Kelishi sana: ${latestBooking.start_datetime ? new Date(
+          new Date(latestBooking.start_datetime).getTime() + 1 * 24 * 60 * 60 * 1000
+        ).toLocaleString("ru-RU", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }) : "Belgilangan emas"}
 🟢 Holat: Tasdiqlangan`,
         buildMainMenu(latestId)
       );
@@ -422,6 +417,19 @@ bot.hears("✅ Ha", async (ctx) => {
     });
 
     await resetSessionAndScene(ctx);
+
+    try {
+      await ctx.telegram.sendMessage(
+        adminChatId,
+        `❌ Ariza bekor qilindi. Nomer: ${bookingId}\n🧑 Arizachi: ${bookingName}`
+      );
+    } catch (err) {
+      if (err.response && err.response.error_code === 403) {
+        console.warn("⚠️ Admin botni bloklagan, xabar yuborilmadi");
+      } else {
+        console.error("Telegram API error:", err);
+      }
+    }
 
     await ctx.reply(
       "🔄 Yangi uchrashuvga yozilish uchun quyidagi tugmani bosing:",
