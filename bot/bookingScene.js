@@ -3,6 +3,51 @@ const pool = require("../db");
 
 const MAX_RELATIVES = 3;
 
+const colonies = [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "10",
+  "11",
+  "12",
+  "13",
+  "14",
+  "17",
+  "20",
+  "21",
+  "22",
+  "23",
+  "24",
+];
+
+function generateColonyKeyboard(page) {
+  const perPage = 6;
+  const start = page * perPage;
+  const end = start + perPage;
+  const pageColonies = colonies.slice(start, end);
+
+  let keyboard = [];
+  for (let i = 0; i < pageColonies.length; i += 3) {
+    let row = pageColonies
+      .slice(i, i + 3)
+      .map((c) => Markup.button.callback(`${c}-сон JIEK`, `colony_${c}`));
+    keyboard.push(row);
+  }
+
+  let navRow = [];
+  if (page > 0) navRow.push(Markup.button.callback("Oldingi", "prev_colony"));
+  if (end < colonies.length)
+    navRow.push(Markup.button.callback("Keyingi", "next_colony"));
+
+  if (navRow.length > 0) keyboard.push(navRow);
+
+  return Markup.inlineKeyboard(keyboard);
+}
+
 const bookingWizard = new Scenes.WizardScene(
   "booking-wizard",
 
@@ -191,19 +236,12 @@ const bookingWizard = new Scenes.WizardScene(
 
     await ctx.answerCbQuery();
     ctx.wizard.state.offer_accepted = true;
+    ctx.wizard.state.page = 0; // Инициализируем страницу для пагинации
 
-    // Запрашиваем выбор колонии
+    // Запрашиваем выбор колонии с пагинацией
     await ctx.reply(
       "🏛 Iltimos, koloniyani tanlang:",
-      Markup.inlineKeyboard([
-        [Markup.button.callback("1-son JIEK", "colony_1"), Markup.button.callback("2-son JIEK", "colony_2"), Markup.button.callback("3-son JIEK", "colony_3")],
-        [Markup.button.callback("4-son JIEK", "colony_4"), Markup.button.callback("5-son JIEK", "colony_5"), Markup.button.callback("6-son JIEK", "colony_6")],
-        [Markup.button.callback("7-son JIEK", "colony_7"), Markup.button.callback("8-son JIEK", "colony_8"), Markup.button.callback("9-son JIEK", "colony_9")],
-        [Markup.button.callback("10-son JIEK", "colony_10"), Markup.button.callback("11-son JIEK", "colony_11"), Markup.button.callback("12-son JIEK", "colony_12")],
-        [Markup.button.callback("13-son JIEK", "colony_13"), Markup.button.callback("14-son JIEK", "colony_14"), Markup.button.callback("15-son JIEK", "colony_15")],
-        [Markup.button.callback("16-son JIEK", "colony_16"), Markup.button.callback("17-son JIEK", "colony_17"), Markup.button.callback("18-son JIEK", "colony_18")],
-        [Markup.button.callback("19-son JIEK", "colony_19"), Markup.button.callback("20-son JIEK", "colony_20")],
-      ])
+      generateColonyKeyboard(ctx.wizard.state.page)
     );
     console.log(`Step 2: Moving to colony selection for user ${ctx.from.id}`);
     return ctx.wizard.next();
@@ -215,21 +253,37 @@ const bookingWizard = new Scenes.WizardScene(
     console.log(
       `Step 3: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
     );
+
+    ctx.wizard.state.page = ctx.wizard.state.page || 0; // На случай, если page не установлен
+
+    const data = ctx.callbackQuery?.data;
+
+    if (data === "prev_colony") {
+      ctx.wizard.state.page = Math.max(0, ctx.wizard.state.page - 1);
+      await ctx.editMessageReplyMarkup({
+        reply_markup: generateColonyKeyboard(ctx.wizard.state.page)
+          .reply_markup,
+      });
+      return;
+    }
+
+    if (data === "next_colony") {
+      const maxPage = Math.ceil(colonies.length / 6) - 1;
+      ctx.wizard.state.page = Math.min(maxPage, ctx.wizard.state.page + 1);
+      await ctx.editMessageReplyMarkup({
+        reply_markup: generateColonyKeyboard(ctx.wizard.state.page)
+          .reply_markup,
+      });
+      return;
+    }
+
     if (
       !ctx.callbackQuery?.data ||
       !ctx.callbackQuery.data.startsWith("colony_")
     ) {
       await ctx.reply(
         "❌ Iltimos, koloniyani tanlang:",
-        Markup.inlineKeyboard([
-          [Markup.button.callback("1-son JIEK", "colony_1"), Markup.button.callback("2-son JIEK", "colony_2"), Markup.button.callback("3-son JIEK", "colony_3")],
-          [Markup.button.callback("4-son JIEK", "colony_4"), Markup.button.callback("5-son JIEK", "colony_5"), Markup.button.callback("6-son JIEK", "colony_6")],
-          [Markup.button.callback("7-son JIEK", "colony_7"), Markup.button.callback("8-son JIEK", "colony_8"), Markup.button.callback("9-son JIEK", "colony_9")],
-          [Markup.button.callback("10-son JIEK", "colony_10"), Markup.button.callback("11-son JIEK", "colony_11"), Markup.button.callback("12-son JIEK", "colony_12")],
-          [Markup.button.callback("13-son JIEK", "colony_13"), Markup.button.callback("14-son JIEK", "colony_14"), Markup.button.callback("15-son JIEK", "colony_15")],
-          [Markup.button.callback("16-son JIEK", "colony_16"), Markup.button.callback("17-son JIEK", "colony_17"), Markup.button.callback("18-son JIEK", "colony_18")],
-          [Markup.button.callback("19-son JIEK", "colony_19"), Markup.button.callback("20-son JIEK", "colony_20")],
-        ])
+        generateColonyKeyboard(ctx.wizard.state.page)
       );
       return;
     }
@@ -488,9 +542,7 @@ async function saveBooking(ctx) {
 
     await ctx.reply(
       "📱 Grupaga qo'shing",
-      Markup.inlineKeyboard([
-        [Markup.button.url("📌 Grupaga otish", groupUrl)],
-      ])
+      Markup.inlineKeyboard([[Markup.button.url("📌 Grupaga otish", groupUrl)]])
     );
   } catch (err) {
     console.error("Error in saveBooking:", err);
