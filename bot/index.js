@@ -287,12 +287,12 @@ bot.hears("📊 Navbat holati", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
     const latestBooking = await getLatestBooking(ctx.from.id);
-    if (!latestBooking || latestBooking.status === "canceled") {
-      return ctx.reply(
-        "❌ Sizda hozirda kutayotgan ariza yo‘q.",
-        buildMainMenu(null)
-      );
-    }
+    // if (!latestBooking || latestBooking.status === "canceled") {
+    //   return ctx.reply(
+    //     "❌ Sizda hozirda kutayotgan ariza yo‘q.",
+    //     buildMainMenu(null)
+    //   );
+    // }
     const latestId = latestBooking.id;
     let relatives = [];
     try {
