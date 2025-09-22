@@ -283,7 +283,6 @@ bot.action("cancel", async (ctx) => {
   }
 });
 
-
 bot.hears("📊 Navbat holati", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
@@ -308,8 +307,19 @@ bot.hears("📊 Navbat holati", async (ctx) => {
       await ctx.reply(
         `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
 👤 Arizachi: ${rel1.full_name || "Noma'lum"}
-📅 Berilgan sana: ${latestBooking.created_at}
-⌚️ Kelishi sana: ${latestBooking.start_datetime}
+📅 Berilgan sana: ${new Date(latestBooking.created_at).toLocaleString("ru-RU", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })}
+⌚️ Kelishi sana: ${latestBooking.start_datetime
+          .toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })
+          .split("/")
+          .join("-")}
 🟢 Holat: Tasdiqlangan`,
         buildMainMenu(latestId)
       );
