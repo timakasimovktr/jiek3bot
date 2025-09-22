@@ -314,15 +314,17 @@ bot.hears("📊 Navbat holati", async (ctx) => {
         })}
 ⌚️ Kelishi sana: ${
           latestBooking.start_datetime
-            ? new Date(
-                new Date(latestBooking.start_datetime).getTime() +
-                  1 * 24 * 60 * 60 * 1000
-              ).toLocaleString("ru-RU", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })
-            : "Belgilangan emas"
+            ? (() => {
+                const date = new Date(latestBooking.start_datetime);
+                return isNaN(date.getTime())
+                  ? "Неизвестно"
+                  : date.toLocaleString("ru-RU", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    });
+              })()
+            : "Неизвестно"
         }
 🟢 Holat: Tasdiqlangan`,
         buildMainMenu(latestId)
