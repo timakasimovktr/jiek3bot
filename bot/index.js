@@ -312,14 +312,12 @@ bot.hears("📊 Navbat holati", async (ctx) => {
           month: "2-digit",
           year: "numeric",
         })}
-⌚️ Kelishi sana: ${new Date(latestBooking.start_datetime).toLocaleString(
-          "ru-RU",
-          {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          }
-        )}
+⌚️ Kelishi sana: ${latestBooking.start_datetime.toLocaleString("uz-UZ", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          timeZone: "Asia/Tashkent",
+        })}
 🟢 Holat: Tasdiqlangan`,
         buildMainMenu(latestId)
       );
