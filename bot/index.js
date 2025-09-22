@@ -300,9 +300,6 @@ function formatDate(dateString, locale = "ru-RU", timeZone = "Asia/Tashkent") {
   });
 }
 
-console.log(`📅 Berilgan sana: ${formatDate(latestBooking.created_at)}`);
-console.log(`⌚️ Kelishi sana: ${formatDate(latestBooking.start_datetime)}`);
-
 bot.hears("📊 Navbat holati", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
@@ -323,12 +320,15 @@ bot.hears("📊 Navbat holati", async (ctx) => {
     }
     const rel1 = relatives[0] || {};
 
+    const formattedCreatedAt = formatDate(latestBooking.created_at);
+    const formattedStartDate = formatDate(latestBooking.start_datetime);
+
     if (latestBooking.status === "approved") {
       await ctx.reply(
         `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
 👤 Arizachi: ${rel1.full_name || "Noma'lum"}
-📅 Berilgan sana: ${formatDate(latestBooking.created_at)}
-⌚️ Kelishi sana:  ${formatDate(latestBooking.start_datetime)}
+📅 Berilgan sana: ${formattedCreatedAt}
+⌚️ Kelishi sana: ${formattedStartDate}
 🟢 Holat: Tasdiqlangan`,
         buildMainMenu(latestId)
       );
