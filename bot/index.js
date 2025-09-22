@@ -283,6 +283,18 @@ bot.action("cancel", async (ctx) => {
   }
 });
 
+function formatDate(dateString, locale = "ru-RU", timeZone = "Asia/Tashkent") {
+  const date = new Date(dateString);
+  return isNaN(date.getTime())
+    ? "Invalid Date"
+    : date.toLocaleDateString(locale, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone,
+      });
+}
+
 bot.hears("📊 Navbat holati", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
@@ -303,21 +315,15 @@ bot.hears("📊 Navbat holati", async (ctx) => {
     }
     const rel1 = relatives[0] || {};
 
+    const formattedCreatedAt = formatDate(latestBooking.created_at);
+    const formattedStartDate = formatDate(latestBooking.start_datetime);
+
     if (latestBooking.status === "approved") {
       await ctx.reply(
         `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
 👤 Arizachi: ${rel1.full_name || "Noma'lum"}
-📅 Berilgan sana: ${new Date(latestBooking.created_at).toLocaleString("ru-RU", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        })}
-📅 Berilgan sana: ${new Date(latestBooking.created_at).toLocaleString("ru-RU", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        })}
-
+📅 Berilgan sana: ${formattedCreatedAt}
+⌚️ Kelishi sana: ${formattedStartDate}
 🟢 Holat: Tasdiqlangan`,
         buildMainMenu(latestId)
       );
