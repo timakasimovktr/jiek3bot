@@ -313,10 +313,11 @@ bot.hears("📊 Navbat holati", async (ctx) => {
       await ctx.reply(
         `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
 👤 Arizachi: ${rel1.full_name || "Noma'lum"}
-📅 Berilgan sana: ${new Date(latestBooking.created_at).toLocaleString("ru-RU", {
+📅 Berilgan sana: ${new Date(latestBooking.created_at).toLocaleString("uz-UZ", {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
+          timeZone: "Asia/Tashkent",
         })}
 ⌚️ Kelishi sana: ${start.toLocaleString("uz-UZ", {
           day: "2-digit",
