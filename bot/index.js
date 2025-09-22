@@ -312,7 +312,7 @@ bot.hears("📊 Navbat holati", async (ctx) => {
           month: "2-digit",
           year: "numeric",
         })}
-⌚️ Kelishi sana: ${latestBooking.start_datetime
+⌚️ Kelishi sana: ${new Date(latestBooking.created_at)
           .toLocaleDateString("en-GB", {
             day: "2-digit",
             month: "2-digit",
