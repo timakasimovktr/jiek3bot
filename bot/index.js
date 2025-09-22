@@ -303,6 +303,12 @@ bot.hears("📊 Navbat holati", async (ctx) => {
     }
     const rel1 = relatives[0] || {};
 
+    const createdDate = new Date(latestBooking.created_at);
+    const minDate = new Date(createdDate);
+    minDate.setDate(minDate.getDate() + 10);
+    minDate.setHours(0, 0, 0, 0);
+    const start = new Date(minDate);
+
     if (latestBooking.status === "approved") {
       await ctx.reply(
         `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
@@ -312,16 +318,12 @@ bot.hears("📊 Navbat holati", async (ctx) => {
           month: "2-digit",
           year: "numeric",
         })}
-⌚️ Kelishi sana: ${
-          new Date(latestBooking.start_datetime)
-            .toLocaleDateString("en-GB", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            })
-            .split("/")
-            .join("-") || "Invalid Date"
-        }
+⌚️ Kelishi sana: ${start.toLocaleString("uz-UZ", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          timeZone: "Asia/Tashkent",
+        })}
 🟢 Holat: Tasdiqlangan`,
         buildMainMenu(latestId)
       );
