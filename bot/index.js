@@ -436,8 +436,9 @@ bot.hears("✅ Ha", async (ctx) => {
 
     const tableName = booking[0].colony === "5" ? "bookings5" : "bookings";
 
+    // Удаляем запись из базы данных
     const [result] = await pool.query(
-      `UPDATE ${tableName} SET status = 'canceled' WHERE id = ? AND user_id = ? `,
+      `DELETE FROM ${tableName} WHERE id = ? AND user_id = ?`,
       [bookingId, ctx.from.id]
     );
 
