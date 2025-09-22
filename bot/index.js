@@ -314,17 +314,12 @@ bot.hears("📊 Navbat holati", async (ctx) => {
         })}
 ⌚️ Kelishi sana: ${
           latestBooking.start_datetime
-            ? (() => {
-                const date = new Date(latestBooking.start_datetime);
-                return isNaN(date.getTime())
-                  ? "Неизвестно"
-                  : date.toLocaleString("ru-RU", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    });
-              })()
-            : "Неизвестно"
+            ? new Date(latestBooking.start_datetime).toLocaleString("ru-RU", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })
+            : "Noma'lum"
         }
 🟢 Holat: Tasdiqlangan`,
         buildMainMenu(latestId)
