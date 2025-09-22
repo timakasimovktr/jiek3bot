@@ -93,7 +93,7 @@ const bookingWizard = new Scenes.WizardScene(
           Markup.removeKeyboard()
         );
         await ctx.reply(
-          "📜 Iltimos, omaviy ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
+          "📜 Iltimos, OMAVIY OFERTANI o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
           Markup.inlineKeyboard([
             [
               Markup.button.url(
@@ -173,7 +173,7 @@ const bookingWizard = new Scenes.WizardScene(
       );
 
       await ctx.reply(
-        "📜 Iltimos, omaviy ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
+        "📜 Iltimos, OMAVIY OFERTANI o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
         Markup.inlineKeyboard([
           [
             Markup.button.url(
@@ -203,7 +203,7 @@ const bookingWizard = new Scenes.WizardScene(
 
     if (!ctx.callbackQuery?.data || ctx.callbackQuery.data !== "accept_offer") {
       await ctx.reply(
-        "📜 Iltimos, omaviy ofertani o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
+        "📜 Iltimos, OMAVIY OFERTANI o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
         Markup.inlineKeyboard([
           [
             Markup.button.url(
