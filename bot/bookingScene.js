@@ -221,7 +221,7 @@ const bookingWizard = new Scenes.WizardScene(
     ctx.wizard.state.offer_accepted = true;
 
     await ctx.reply(
-      "🏛 Iltimos, koloniyani tanlang:",
+      "🏛 Iltimos, koloniyani tanlang:            .",
       generateColonyKeyboard()
     );
     console.log(`Step 2: Moving to colony selection for user ${ctx.from.id}`);
@@ -510,7 +510,7 @@ async function saveBooking(ctx) {
 async function sendApplicationToAdmin(ctx, application) {
   const adminChatId = process.env.ADMIN_CHAT_ID;
   const firstRelative = application.relatives[0];
-  const text = `📌 Yangi ariza. Nomer: ${application.id}
+  const text = `📌 Yangi ariza. №: ${application.id}
 👤 Arizachi: ${firstRelative ? `${firstRelative.full_name}` : "Noma'lum"}
 🏛 Koloniya: ${application.colony}
 📅 Berilgan sana: ${new Date().toLocaleString("ru-RU", {

@@ -166,7 +166,7 @@ bot.start(async (ctx) => {
 
       if (latestBooking.status === "approved") {
         await ctx.reply(
-          `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
+          `🎉 Ariza tasdiqlangan. №: ${latestId}
 👤 Arizachi: ${rel1.full_name || "Noma'lum"}`,
           buildMainMenu(latestId)
         );
@@ -251,7 +251,7 @@ bot.action("start_booking", async (ctx) => {
 
       await ctx.answerCbQuery();
       return ctx.reply(
-        `❌ Sizda allaqachon ariza mavjud (Nomer: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${
+        `❌ Sizda allaqachon ariza mavjud (№: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${
           rel1.full_name || "Noma'lum"
         }). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
         buildMainMenu(existingBookingId)
@@ -311,7 +311,7 @@ bot.hears("📊 Navbat holati", async (ctx) => {
 
     if (latestBooking.status === "approved") {
       await ctx.reply(
-        `🎉 Ariza tasdiqlangan. Nomer: ${latestId}
+        `🎉 Ariza tasdiqlangan. №: ${latestId}
 👤 Arizachi: ${rel1.full_name || "Noma'lum"}
 📅 Berilgan sana: ${new Date(latestBooking.created_at).toLocaleString("uz-UZ", {
           day: "2-digit",
@@ -545,7 +545,7 @@ bot.hears("Yangi ariza yuborish", async (ctx) => {
         booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
 
       return ctx.reply(
-        `❌ Sizda allaqachon ariza mavjud (Nomer: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${
+        `❌ Sizda allaqachon ariza mavjud (№: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${
           rel1.full_name || "Noma'lum"
         }). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
         buildMainMenu(existingBookingId)
