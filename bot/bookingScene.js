@@ -449,10 +449,7 @@ async function saveBooking(ctx) {
   const { prisoner_name, relatives, visit_type, colony } = ctx.wizard.state;
   const chatId = ctx.chat.id;
   try {
-    // Выбираем таблицу в зависимости от колонии
     const tableName = colony === "5" ? "bookings5" : "bookings";
-
-    // Вставляем запись в соответствующую таблицу
     const [result] = await pool.query(
       `INSERT INTO ?? (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
