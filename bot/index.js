@@ -303,9 +303,9 @@ bot.hears("📊 Navbat holati", async (ctx) => {
     }
     const rel1 = relatives[0] || {};
 
-    const createdDate = new Date(latestBooking.created_at);
+    const createdDate = new Date(latestBooking.start_datetime);
     const minDate = new Date(createdDate);
-    minDate.setDate(minDate.getDate() + 10);
+    minDate.setDate(minDate.getDate());
     minDate.setHours(0, 0, 0, 0);
     const start = new Date(minDate);
 
