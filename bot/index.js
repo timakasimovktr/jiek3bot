@@ -94,15 +94,23 @@ async function getQueuePosition(bookingId) {
     );
 
     if (!booking.length) {
+      console.log(`getQueuePosition: No booking found for ID ${bookingId}`);
       return null;
     }
 
     const tableName =
       String(booking[0].colony) === "5" ? "bookings5" : "bookings";
+    console.log(
+      `getQueuePosition: tableName=${tableName}, bookingId=${bookingId}, colony=${booking[0].colony}`
+    );
 
     const [rows] = await pool.query(
       `SELECT id FROM ${tableName} WHERE status = 'pending' ORDER BY id ASC`
     );
+    console.log(
+      `getQueuePosition: Fetched ${rows.length} pending bookings for table ${tableName}`
+    );
+
     const ids = rows.map((row) => row.id);
     const position = ids.indexOf(bookingId);
     return position !== -1 ? position + 1 : null;
@@ -303,6 +311,18 @@ bot.hears("📊 Navbat holati", async (ctx) => {
     const rel1 = relatives[0] || {};
 
     if (latestBooking.status === "approved") {
+      const visitDate = latestBooking.start_datetime
+        ? new Date(
+            new Date(latestBooking.start_datetime).setDate(
+              new Date(latestBooking.start_datetime).getDate() + 1
+            )
+          ).toLocaleString("uz-UZ", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            timeZone: "Asia/Tashkent",
+          })
+        : "Noma'lum";
       await ctx.reply(
         `🎉 Ariza tasdiqlangan. №: ${latestId}
 👤 Arizachi: ${rel1.full_name || "Noma'lum"}
@@ -312,16 +332,7 @@ bot.hears("📊 Navbat holati", async (ctx) => {
           year: "numeric",
           timeZone: "Asia/Tashkent",
         })}
-⌚️ Kelishi sana: ${new Date(
-          new Date(latestBooking.start_datetime).setDate(
-            new Date(latestBooking.start_datetime).getDate() + 1
-          )
-        ).toLocaleString("uz-UZ", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          timeZone: "Asia/Tashkent",
-        })}
+⌚️ Kelishi sana: ${visitDate}
 🟢 Holat: Tasdiqlangan`,
         buildMainMenu(latestId)
       );
@@ -416,7 +427,7 @@ bot.hears("✅ Ha", async (ctx) => {
     ctx.session.confirmCancel = false;
     ctx.session.confirmCancelId = null;
 
-    // Определяем таблицу на основе колонии
+    // Fetch booking details
     const [booking] = await pool.query(
       `SELECT colony FROM (
          SELECT id, colony FROM bookings WHERE id = ?
@@ -433,7 +444,13 @@ bot.hears("✅ Ha", async (ctx) => {
 
     const tableName =
       String(booking[0].colony) === "5" ? "bookings5" : "bookings";
+    console.log(
+      `Deletion: tableName=${tableName}, bookingId=${bookingId}, colony=${
+        booking[0].colony
+      } (type: ${typeof booking[0].colony})`
+    );
 
+    // Fetch relatives before deletion
     const [relRows] = await pool.query(
       `SELECT relatives FROM ${tableName} WHERE id = ?`,
       [bookingId]
@@ -450,13 +467,16 @@ bot.hears("✅ Ha", async (ctx) => {
       }
     }
 
-    // Удаляем запись из базы данных
+    // Delete the booking
     const [result] = await pool.query(
       `DELETE FROM ${tableName} WHERE id = ? AND user_id = ?`,
       [bookingId, ctx.from.id]
     );
 
     if (result.affectedRows === 0) {
+      console.log(
+        `Deletion failed: No rows affected for bookingId=${bookingId}, user_id=${ctx.from.id}, table=${tableName}`
+      );
       await resetSessionAndScene(ctx);
       return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
     }
@@ -467,6 +487,7 @@ bot.hears("✅ Ha", async (ctx) => {
 
     await resetSessionAndScene(ctx);
 
+    // Uncomment if admin notification is needed
     // try {
     //   await ctx.telegram.sendMessage(
     //     adminChatId,

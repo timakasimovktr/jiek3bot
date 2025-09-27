@@ -45,7 +45,6 @@ const bookingWizard = new Scenes.WizardScene(
     try {
       console.log(`Step 0: Starting for user ${ctx.from.id}`);
 
-      // Проверяем, что ctx.wizard существует
       if (!ctx.wizard) {
         console.error(`ctx.wizard is undefined for user ${ctx.from.id}`);
         await ctx.reply(
@@ -54,17 +53,15 @@ const bookingWizard = new Scenes.WizardScene(
         return ctx.scene.leave();
       }
 
-      // Сбрасываем состояние сцены
       ctx.wizard.state = {};
 
-      // Проверяем активные заявки
-      // Проверяем активные заявки
+      // Check for active bookings in both tables
       const [rows] = await pool.query(
         `SELECT * FROM (
-          SELECT * FROM bookings WHERE user_id = ? AND status = 'pending'
-          UNION
-          SELECT * FROM bookings5 WHERE user_id = ? AND status = 'pending'
-        ) AS combined ORDER BY created_at DESC LIMIT 1`,
+        SELECT id, status, created_at FROM bookings WHERE user_id = ? AND status = 'pending'
+        UNION
+        SELECT id, status, created_at FROM bookings5 WHERE user_id = ? AND status = 'pending'
+      ) AS combined ORDER BY created_at DESC LIMIT 1`,
         [ctx.from.id, ctx.from.id]
       );
       console.log(`Step 0: Pending bookings for user ${ctx.from.id}:`, rows);
@@ -80,13 +77,13 @@ const bookingWizard = new Scenes.WizardScene(
         return ctx.scene.leave();
       }
 
-      // Проверяем, есть ли сохранённый номер телефона
+      // Check for saved phone number
       const [userRows] = await pool.query(
         `SELECT phone_number FROM (
-    SELECT phone_number, created_at FROM bookings WHERE user_id = ?
-    UNION
-    SELECT phone_number, created_at FROM bookings5 WHERE user_id = ?
-  ) AS combined ORDER BY created_at DESC LIMIT 1`,
+        SELECT phone_number, created_at FROM bookings WHERE user_id = ?
+        UNION
+        SELECT phone_number, created_at FROM bookings5 WHERE user_id = ?
+      ) AS combined ORDER BY created_at DESC LIMIT 1`,
         [ctx.from.id, ctx.from.id]
       );
       console.log(
