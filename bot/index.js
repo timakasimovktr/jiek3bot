@@ -51,9 +51,9 @@ async function getLatestBooking(userId) {
   try {
     const [rows] = await pool.query(
       `SELECT * FROM (
-         SELECT id, user_id, prisoner_name, colony, relatives, status, created_at FROM bookings WHERE user_id = ?
+         SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime FROM bookings WHERE user_id = ?
          UNION
-         SELECT id, user_id, prisoner_name, colony, relatives, status, created_at FROM bookings5 WHERE user_id = ?
+         SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime FROM bookings5 WHERE user_id = ?
        ) AS combined
        ORDER BY id DESC LIMIT 1`,
       [userId, userId]
@@ -303,12 +303,6 @@ bot.hears("📊 Navbat holati", async (ctx) => {
     }
     const rel1 = relatives[0] || {};
 
-    const createdDate = new Date(latestBooking.start_datetime);
-    const minDate = new Date(createdDate);
-    minDate.setDate(minDate.getDate() + 10);
-    minDate.setHours(0, 0, 0, 0);
-    const start = new Date(minDate);
-
     if (latestBooking.status === "approved") {
       await ctx.reply(
         `🎉 Ariza tasdiqlangan. №: ${latestId}
@@ -319,7 +313,7 @@ bot.hears("📊 Navbat holati", async (ctx) => {
           year: "numeric",
           timeZone: "Asia/Tashkent",
         })}
-⌚️ Kelishi sana: ${start.toLocaleString("uz-UZ", {
+⌚️ Kelishi sana: ${latestBooking.start_datetime.toLocaleString("uz-UZ", {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
