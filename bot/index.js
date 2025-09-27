@@ -85,7 +85,6 @@ function buildMainMenu(latestPendingId) {
 
 async function getQueuePosition(bookingId) {
   try {
-    // Проверяем, из какой таблицы bookingId
     const [booking] = await pool.query(
       `SELECT colony FROM (
          SELECT id, colony FROM bookings WHERE id = ?
@@ -99,7 +98,7 @@ async function getQueuePosition(bookingId) {
       return null;
     }
 
-    const tableName = booking[0].colony === "5" ? "bookings5" : "bookings";
+    const tableName = booking[0].colony == "5" ? "bookings5" : "bookings";  // Changed === to ==
 
     const [rows] = await pool.query(
       `SELECT id FROM ${tableName} WHERE status = 'pending' ORDER BY id ASC`
