@@ -433,17 +433,6 @@ bot.hears("✅ Ha", async (ctx) => {
 
     const tableName = booking[0].colony === "5" ? "bookings5" : "bookings";
 
-    // Удаляем запись из базы данных
-    const [result] = await pool.query(
-      `DELETE FROM ${tableName} WHERE id = ? AND user_id = ?`,
-      [bookingId, ctx.from.id]
-    );
-
-    if (result.affectedRows === 0) {
-      await resetSessionAndScene(ctx);
-      return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
-    }
-
     const [relRows] = await pool.query(
       `SELECT relatives FROM ${tableName} WHERE id = ?`,
       [bookingId]
@@ -458,6 +447,17 @@ bot.hears("✅ Ha", async (ctx) => {
       } catch (e) {
         console.error("JSON parse error for booking cancellation:", e);
       }
+    }
+
+    // Удаляем запись из базы данных
+    const [result] = await pool.query(
+      `DELETE FROM ${tableName} WHERE id = ? AND user_id = ?`,
+      [bookingId, ctx.from.id]
+    );
+
+    if (result.affectedRows === 0) {
+      await resetSessionAndScene(ctx);
+      return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
     }
 
     await ctx.reply("❌ Sizning arizangiz bekor qilindi.", {
