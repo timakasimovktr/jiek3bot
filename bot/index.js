@@ -30,14 +30,13 @@ bot.use((ctx, next) => {
 
 async function getLatestPendingOrApprovedId(userId) {
   try {
-    // Проверяем обе таблицы: bookings и bookings5
     const [rows] = await pool.query(
       `SELECT id, colony FROM (
-         SELECT id, colony FROM bookings WHERE status IN ('pending', 'approved') AND user_id = ?
+         SELECT id, colony, created_at FROM bookings WHERE status IN ('pending', 'approved') AND user_id = ?
          UNION
-         SELECT id, colony FROM bookings5 WHERE status IN ('pending', 'approved') AND user_id = ?
+         SELECT id, colony, created_at FROM bookings5 WHERE status IN ('pending', 'approved') AND user_id = ?
        ) AS combined
-       ORDER BY id DESC LIMIT 1`,
+       ORDER BY created_at DESC LIMIT 1`,
       [userId, userId]
     );
     return rows.length ? rows[0].id : null;
@@ -55,7 +54,7 @@ async function getLatestBooking(userId) {
          UNION
          SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime FROM bookings5 WHERE user_id = ?
        ) AS combined
-       ORDER BY id DESC LIMIT 1`,
+       ORDER BY created_at DESC LIMIT 1`,
       [userId, userId]
     );
     return rows.length ? rows[0] : null;
@@ -98,7 +97,8 @@ async function getQueuePosition(bookingId) {
       return null;
     }
 
-    const tableName = String(booking[0].colony) === "5" ? "bookings5" : "bookings";
+    const tableName =
+      String(booking[0].colony) === "5" ? "bookings5" : "bookings";
 
     const [rows] = await pool.query(
       `SELECT id FROM ${tableName} WHERE status = 'pending' ORDER BY id ASC`
@@ -444,14 +444,14 @@ bot.hears("✅ Ha", async (ctx) => {
       return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
     }
 
-    const [rows] = await pool.query(
+    const [relRows] = await pool.query(
       `SELECT relatives FROM ${tableName} WHERE id = ?`,
       [bookingId]
     );
     let bookingName = "Noma'lum";
-    if (rows.length && rows[0].relatives) {
+    if (relRows.length && relRows[0].relatives) {
       try {
-        const relatives = JSON.parse(rows[0].relatives);
+        const relatives = JSON.parse(relRows[0].relatives);
         if (Array.isArray(relatives) && relatives.length > 0) {
           bookingName = relatives[0].full_name || "Noma'lum";
         }
