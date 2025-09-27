@@ -303,7 +303,7 @@ bot.hears("📊 Navbat holati", async (ctx) => {
     }
     const rel1 = relatives[0] || {};
 
-    const createdDate = new Date(latestBooking.start_datetime);
+    // const createdDate = new Date(latestBooking.start_datetime);
     // const minDate = new Date(createdDate);
     // minDate.setDate(minDate.getDate() + 10);
     // minDate.setHours(0, 0, 0, 0);
@@ -319,7 +319,7 @@ bot.hears("📊 Navbat holati", async (ctx) => {
           year: "numeric",
           timeZone: "Asia/Tashkent",
         })}
-⌚️ Kelishi sana: ${createdDate.toLocaleString("uz-UZ", {
+⌚️ Kelishi sana: ${new Date(latestBooking.start_datetime).toLocaleString("uz-UZ", {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
