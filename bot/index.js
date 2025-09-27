@@ -39,7 +39,7 @@ async function getLatestPendingOrApprovedId(userId) {
        ORDER BY created_at DESC LIMIT 1`,
       [userId, userId]
     );
-    return rows.length ? rows[0].id : null;
+    return rows.length ? { id: rows[0].id, colony: rows[0].colony } : null;
   } catch (err) {
     console.error("Error in getLatestPendingOrApprovedId:", err);
     throw err;
@@ -68,13 +68,17 @@ async function getUserBookingStatus(userId) {
   return await getLatestBooking(userId); // Reuse the function
 }
 
-function buildMainMenu(latestPendingId) {
+function buildMainMenu(latest) {
   const rows = [
     ["📊 Navbat holati", "📱 Grupaga otish", "🖨️ Ariza nusxasini olish"],
   ];
 
-  if (latestPendingId) {
-    rows.push([`❌ Arizani bekor qilish #${latestPendingId}`]);
+  if (latest) {
+    const cancelText =
+      latest.colony === "5"
+        ? `❌ Arizani bekor qilish #5-${latest.id}`
+        : `❌ Arizani bekor qilish #${latest.id}`;
+    rows.push([cancelText]);
   } else {
     rows.push(["❌ Arizani bekor qilish"]);
   }
@@ -82,41 +86,36 @@ function buildMainMenu(latestPendingId) {
   return Markup.keyboard(rows).resize();
 }
 
-async function getQueuePosition(bookingId) {
+async function getQueuePosition(bookingId, colony) {
   try {
-    const [bookingsRows] = await pool.query(
-      "SELECT colony FROM bookings WHERE id = ?",
-      [bookingId]
-    );
-    const [bookings5Rows] = await pool.query(
-      "SELECT colony FROM bookings5 WHERE id = ?",
-      [bookingId]
-    );
+    const tableName = colony === "5" ? "bookings5" : "bookings";
 
-    let tableName, colony;
-    if (bookingsRows.length && bookings5Rows.length) {
-      console.error(`Collision: ID ${bookingId} exists in both tables!`);
-      return null; // Or handle as needed (e.g., error reply)
-    } else if (bookingsRows.length) {
-      tableName = "bookings";
-      colony = bookingsRows[0].colony;
-    } else if (bookings5Rows.length) {
-      tableName = "bookings5";
-      colony = bookings5Rows[0].colony;
-    } else {
-      console.log(`getQueuePosition: No booking found for ID ${bookingId}`);
+    const [checkRows] = await pool.query("SELECT colony FROM ?? WHERE id = ?", [
+      tableName,
+      bookingId,
+    ]);
+
+    if (checkRows.length === 0) {
+      console.log(
+        `getQueuePosition: No booking found for ID ${bookingId} in table ${tableName}`
+      );
       return null;
     }
 
+    const actualColony = checkRows[0].colony;
+
     // Optional consistency check
-    if (tableName === "bookings5" && String(colony) !== "5") {
-      console.error(`Inconsistency: bookings5 has non-5 colony ${colony}`);
-    } else if (tableName === "bookings" && String(colony) === "5") {
+    if (tableName === "bookings5" && String(actualColony) !== "5") {
+      console.error(
+        `Inconsistency: bookings5 has non-5 colony ${actualColony}`
+      );
+    } else if (tableName === "bookings" && String(actualColony) === "5") {
       console.error(`Inconsistency: bookings has colony 5`);
     }
 
     const [rows] = await pool.query(
-      `SELECT id FROM ${tableName} WHERE status = 'pending' ORDER BY id ASC`
+      `SELECT id FROM ?? WHERE status = 'pending' ORDER BY id ASC`,
+      [tableName]
     );
     console.log(
       `getQueuePosition: Fetched ${rows.length} pending bookings for table ${tableName}`
@@ -150,8 +149,8 @@ async function resetSessionAndScene(ctx) {
 bot.command("cancel", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
-    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
-    await ctx.reply("❌ Jarayon bekor qilindi.", buildMainMenu(latestId));
+    const latest = await getLatestPendingOrApprovedId(ctx.from.id);
+    await ctx.reply("❌ Jarayon bekor qilindi.", buildMainMenu(latest));
   } catch (err) {
     console.error("Error in /cancel:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
@@ -173,7 +172,7 @@ bot.start(async (ctx) => {
     const latestBooking = await getLatestBooking(userId);
 
     if (latestBooking && latestBooking.status !== "canceled") {
-      const latestId = latestBooking.id;
+      const latest = { id: latestBooking.id, colony: latestBooking.colony };
       let relatives = [];
       try {
         relatives = JSON.parse(latestBooking.relatives || "[]");
@@ -184,15 +183,18 @@ bot.start(async (ctx) => {
 
       if (latestBooking.status === "approved") {
         await ctx.reply(
-          `🎉 Ariza tasdiqlangan. №: ${latestId}
+          `🎉 Ariza tasdiqlangan. №: ${latest.id}
 👤 Arizachi: ${rel1.full_name || "Noma'lum"}`,
-          buildMainMenu(latestId)
+          buildMainMenu(latest)
         );
       } else if (latestBooking.status === "pending") {
-        const pos = await getQueuePosition(latestId);
+        const pos = await getQueuePosition(
+          latestBooking.id,
+          latestBooking.colony
+        );
         await ctx.reply(
           pos ? `📊 Sizning navbatingiz: ${pos}` : "❌ Navbat topilmadi.",
-          buildMainMenu(latestId)
+          buildMainMenu(latest)
         );
       }
     } else {
@@ -249,18 +251,15 @@ bot.action(["lang_uz", "lang_ru"], async (ctx) => {
 bot.action("start_booking", async (ctx) => {
   try {
     const userId = ctx.from.id;
-    const existingBookingId = await getLatestPendingOrApprovedId(userId);
+    const existing = await getLatestPendingOrApprovedId(userId);
 
-    if (existingBookingId) {
+    if (existing) {
       const booking = await getLatestBooking(userId);
       let relatives = [];
       try {
         relatives = JSON.parse(booking.relatives || "[]");
       } catch (err) {
-        console.error(
-          `JSON parse error for booking ${existingBookingId}:`,
-          err
-        );
+        console.error(`JSON parse error for booking ${existing.id}:`, err);
         relatives = [];
       }
       const rel1 = relatives[0] || {};
@@ -269,10 +268,12 @@ bot.action("start_booking", async (ctx) => {
 
       await ctx.answerCbQuery();
       return ctx.reply(
-        `❌ Sizda allaqachon ariza mavjud (№: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${
+        `❌ Sizda allaqachon ariza mavjud (№: ${
+          existing.id
+        }, Holat: ${statusText}, Arizachi: ${
           rel1.full_name || "Noma'lum"
         }). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
-        buildMainMenu(existingBookingId)
+        buildMainMenu(existing)
       );
     }
 
@@ -289,11 +290,11 @@ bot.action("start_booking", async (ctx) => {
 bot.action("cancel", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
-    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+    const latest = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.answerCbQuery();
     await ctx.reply(
       "❌ Uchrashuv yozuvi bekor qilindi.",
-      buildMainMenu(latestId)
+      buildMainMenu(latest)
     );
   } catch (err) {
     console.error("Error in cancel action:", err);
@@ -311,12 +312,12 @@ bot.hears("📊 Navbat holati", async (ctx) => {
         buildMainMenu(null)
       );
     }
-    const latestId = latestBooking.id;
+    const latest = { id: latestBooking.id, colony: latestBooking.colony };
     let relatives = [];
     try {
       relatives = JSON.parse(latestBooking.relatives || "[]");
     } catch (err) {
-      console.error(`JSON parse error for booking ${latestId}:`, err);
+      console.error(`JSON parse error for booking ${latest.id}:`, err);
       relatives = [];
     }
     const rel1 = relatives[0] || {};
@@ -335,7 +336,7 @@ bot.hears("📊 Navbat holati", async (ctx) => {
           })
         : "Noma'lum";
       await ctx.reply(
-        `🎉 Ariza tasdiqlangan. №: ${latestId}
+        `🎉 Ariza tasdiqlangan. №: ${latest.id}
 👤 Arizachi: ${rel1.full_name || "Noma'lum"}
 📅 Berilgan sana: ${new Date(latestBooking.created_at).toLocaleString("uz-UZ", {
           day: "2-digit",
@@ -345,17 +346,20 @@ bot.hears("📊 Navbat holati", async (ctx) => {
         })}
 ⌚️ Kelishi sana: ${visitDate}
 🟢 Holat: Tasdiqlangan`,
-        buildMainMenu(latestId)
+        buildMainMenu(latest)
       );
       return;
     } else if (latestBooking.status === "pending") {
-      const pos = await getQueuePosition(latestId);
+      const pos = await getQueuePosition(
+        latestBooking.id,
+        latestBooking.colony
+      );
       await ctx.reply(
         pos ? `📊 Sizning navbatingiz: ${pos}` : "❌ Navbat topilmadi.",
-        buildMainMenu(latestId)
+        buildMainMenu(latest)
       );
     } else {
-      await ctx.reply("❌ Ariza holati noma'lum.", buildMainMenu(latestId));
+      await ctx.reply("❌ Ariza holati noma'lum.", buildMainMenu(latest));
     }
   } catch (err) {
     console.error("Error in Navbat holati:", err);
@@ -389,33 +393,51 @@ bot.hears("❌ Yo‘q", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
     ctx.session.confirmCancel = false;
-    ctx.session.confirmCancelId = null;
+    ctx.session.confirmCancelBooking = null;
 
-    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+    const latest = await getLatestPendingOrApprovedId(ctx.from.id);
 
-    await ctx.reply("✅ Ariza bekor qilinmadi.", buildMainMenu(latestId));
+    await ctx.reply("✅ Ariza bekor qilinmadi.", buildMainMenu(latest));
   } catch (err) {
     console.error("Error in Yo‘q:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
 
-bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
+bot.hears(/^❌ Arizani bekor qilish(?:\s*#(5-)?(\d+))?$/i, async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
-    const explicitId = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
-    const latestId =
-      explicitId || (await getLatestPendingOrApprovedId(ctx.from.id));
+    const match = ctx.match;
+    const prefix = match[1]; // '5-' or undefined
+    const explicitIdStr = match[2];
+    const explicitId = explicitIdStr ? Number(explicitIdStr) : null;
+    let booking;
 
-    if (!latestId) {
-      return ctx.reply(
-        "❌ Sizda bekor qilish uchun ariza topilmadi.",
-        buildMainMenu(null)
+    if (explicitId) {
+      const tableName = prefix ? "bookings5" : "bookings";
+      const [rows] = await pool.query(
+        `SELECT id, colony FROM ?? WHERE id = ? AND user_id = ?`,
+        [tableName, explicitId, ctx.from.id]
       );
+      if (rows.length === 0) {
+        return ctx.reply(
+          "❌ Bekor qilish uchun ariza topilmadi.",
+          buildMainMenu(null)
+        );
+      }
+      booking = { id: rows[0].id, colony: rows[0].colony };
+    } else {
+      booking = await getLatestPendingOrApprovedId(ctx.from.id);
+      if (!booking) {
+        return ctx.reply(
+          "❌ Sizda bekor qilish uchun ariza topilmadi.",
+          buildMainMenu(null)
+        );
+      }
     }
 
     ctx.session.confirmCancel = true;
-    ctx.session.confirmCancelId = latestId;
+    ctx.session.confirmCancelBooking = booking;
 
     await ctx.reply(
       "❓ Arizani bekor qilmoqchimisiz?",
@@ -429,50 +451,30 @@ bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
 
 bot.hears("✅ Ha", async (ctx) => {
   try {
-    const bookingId = ctx.session.confirmCancelId;
-    if (!ctx.session.confirmCancel || !bookingId) {
+    const booking = ctx.session.confirmCancelBooking;
+    if (!ctx.session.confirmCancel || !booking) {
       await resetSessionAndScene(ctx);
       return ctx.reply("❌ Hozir bekor qilish uchun ariza topilmadi.");
     }
 
     ctx.session.confirmCancel = false;
-    ctx.session.confirmCancelId = null;
+    ctx.session.confirmCancelBooking = null;
 
-    // Fetch from both tables separately
-    const [bookingsRows] = await pool.query(
-      "SELECT colony FROM bookings WHERE id = ?",
-      [bookingId]
-    );
-    const [bookings5Rows] = await pool.query(
-      "SELECT colony FROM bookings5 WHERE id = ?",
-      [bookingId]
-    );
+    const tableName = booking.colony === "5" ? "bookings5" : "bookings";
+    const bookingId = booking.id;
 
-    let tableName, colony;
-    if (bookingsRows.length && bookings5Rows.length) {
-      console.error(`Collision: ID ${bookingId} exists in both tables!`);
-      await resetSessionAndScene(ctx);
-      return ctx.reply(
-        "❌ Ariza ikkala jadvalda mavjud (xatolik). Admin bilan bog‘laning."
-      );
-    } else if (bookingsRows.length) {
-      tableName = "bookings";
-      colony = bookingsRows[0].colony;
-    } else if (bookings5Rows.length) {
-      tableName = "bookings5";
-      colony = bookings5Rows[0].colony;
-    } else {
+    // Fetch relatives before deletion
+    const [relRows] = await pool.query(
+      `SELECT relatives FROM ?? WHERE id = ? AND user_id = ?`,
+      [tableName, bookingId, ctx.from.id]
+    );
+    if (relRows.length === 0) {
       await resetSessionAndScene(ctx);
       return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
     }
 
-    // Fetch relatives before deletion (adjust tableName)
-    const [relRows] = await pool.query(
-      `SELECT relatives FROM ${tableName} WHERE id = ?`,
-      [bookingId]
-    );
     let bookingName = "Noma'lum";
-    if (relRows.length && relRows[0].relatives) {
+    if (relRows[0].relatives) {
       try {
         const relatives = JSON.parse(relRows[0].relatives);
         if (Array.isArray(relatives) && relatives.length > 0) {
@@ -485,8 +487,8 @@ bot.hears("✅ Ha", async (ctx) => {
 
     // Delete the booking
     const [result] = await pool.query(
-      `DELETE FROM ${tableName} WHERE id = ? AND user_id = ?`,
-      [bookingId, ctx.from.id]
+      `DELETE FROM ?? WHERE id = ? AND user_id = ?`,
+      [tableName, bookingId, ctx.from.id]
     );
 
     if (result.affectedRows === 0) {
@@ -561,18 +563,15 @@ bot.hears("Yangi ariza yuborish", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
     const userId = ctx.from.id;
-    const existingBookingId = await getLatestPendingOrApprovedId(userId);
+    const existing = await getLatestPendingOrApprovedId(userId);
 
-    if (existingBookingId) {
+    if (existing) {
       const booking = await getLatestBooking(userId);
       let relatives = [];
       try {
         relatives = JSON.parse(booking.relatives || "[]");
       } catch (err) {
-        console.error(
-          `JSON parse error for booking ${existingBookingId}:`,
-          err
-        );
+        console.error(`JSON parse error for booking ${existing.id}:`, err);
         relatives = [];
       }
       const rel1 = relatives[0] || {};
@@ -580,10 +579,12 @@ bot.hears("Yangi ariza yuborish", async (ctx) => {
         booking.status === "approved" ? "tasdiqlangan" : "kutmoqda";
 
       return ctx.reply(
-        `❌ Sizda allaqachon ariza mavjud (№: ${existingBookingId}, Holat: ${statusText}, Arizachi: ${
+        `❌ Sizda allaqachon ariza mavjud (№: ${
+          existing.id
+        }, Holat: ${statusText}, Arizachi: ${
           rel1.full_name || "Noma'lum"
         }). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.`,
-        buildMainMenu(existingBookingId)
+        buildMainMenu(existing)
       );
     }
 
