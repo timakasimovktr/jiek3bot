@@ -98,7 +98,7 @@ async function getQueuePosition(bookingId) {
       return null;
     }
 
-    const tableName = booking[0].colony == "5" ? "bookings5" : "bookings";  // Changed === to ==
+    const tableName = String(booking[0].colony) === "5" ? "bookings5" : "bookings";
 
     const [rows] = await pool.query(
       `SELECT id FROM ${tableName} WHERE status = 'pending' ORDER BY id ASC`
@@ -350,7 +350,7 @@ bot.hears("📱 Grupaga otish", async (ctx) => {
       return;
     }
     let groupUrl = "https://t.me/+qWg7Qh3t_OIxMDBi";
-    if (latestBooking.colony === "5") {
+    if (latestBooking.colony == "5") {
       groupUrl = "https://t.me/SmartJIEK5";
     }
     await ctx.reply(
