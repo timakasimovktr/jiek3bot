@@ -84,25 +84,36 @@ function buildMainMenu(latestPendingId) {
 
 async function getQueuePosition(bookingId) {
   try {
-    const [booking] = await pool.query(
-      `SELECT colony FROM (
-         SELECT id, colony FROM bookings WHERE id = ?
-         UNION
-         SELECT id, colony FROM bookings5 WHERE id = ?
-       ) AS combined`,
-      [bookingId, bookingId]
+    const [bookingsRows] = await pool.query(
+      "SELECT colony FROM bookings WHERE id = ?",
+      [bookingId]
+    );
+    const [bookings5Rows] = await pool.query(
+      "SELECT colony FROM bookings5 WHERE id = ?",
+      [bookingId]
     );
 
-    if (!booking.length) {
+    let tableName, colony;
+    if (bookingsRows.length && bookings5Rows.length) {
+      console.error(`Collision: ID ${bookingId} exists in both tables!`);
+      return null; // Or handle as needed (e.g., error reply)
+    } else if (bookingsRows.length) {
+      tableName = "bookings";
+      colony = bookingsRows[0].colony;
+    } else if (bookings5Rows.length) {
+      tableName = "bookings5";
+      colony = bookings5Rows[0].colony;
+    } else {
       console.log(`getQueuePosition: No booking found for ID ${bookingId}`);
       return null;
     }
 
-    const tableName =
-      String(booking[0].colony) === "5" ? "bookings5" : "bookings";
-    console.log(
-      `getQueuePosition: tableName=${tableName}, bookingId=${bookingId}, colony=${booking[0].colony}`
-    );
+    // Optional consistency check
+    if (tableName === "bookings5" && String(colony) !== "5") {
+      console.error(`Inconsistency: bookings5 has non-5 colony ${colony}`);
+    } else if (tableName === "bookings" && String(colony) === "5") {
+      console.error(`Inconsistency: bookings has colony 5`);
+    }
 
     const [rows] = await pool.query(
       `SELECT id FROM ${tableName} WHERE status = 'pending' ORDER BY id ASC`
@@ -427,30 +438,35 @@ bot.hears("✅ Ha", async (ctx) => {
     ctx.session.confirmCancel = false;
     ctx.session.confirmCancelId = null;
 
-    // Fetch booking details
-    const [booking] = await pool.query(
-      `SELECT colony FROM (
-         SELECT id, colony FROM bookings WHERE id = ?
-         UNION
-         SELECT id, colony FROM bookings5 WHERE id = ?
-       ) AS combined`,
-      [bookingId, bookingId]
+    // Fetch from both tables separately
+    const [bookingsRows] = await pool.query(
+      "SELECT colony FROM bookings WHERE id = ?",
+      [bookingId]
+    );
+    const [bookings5Rows] = await pool.query(
+      "SELECT colony FROM bookings5 WHERE id = ?",
+      [bookingId]
     );
 
-    if (!booking.length) {
+    let tableName, colony;
+    if (bookingsRows.length && bookings5Rows.length) {
+      console.error(`Collision: ID ${bookingId} exists in both tables!`);
+      await resetSessionAndScene(ctx);
+      return ctx.reply(
+        "❌ Ariza ikkala jadvalda mavjud (xatolik). Admin bilan bog‘laning."
+      );
+    } else if (bookingsRows.length) {
+      tableName = "bookings";
+      colony = bookingsRows[0].colony;
+    } else if (bookings5Rows.length) {
+      tableName = "bookings5";
+      colony = bookings5Rows[0].colony;
+    } else {
       await resetSessionAndScene(ctx);
       return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
     }
 
-    const tableName =
-      String(booking[0].colony) === "5" ? "bookings5" : "bookings";
-    console.log(
-      `Deletion: tableName=${tableName}, bookingId=${bookingId}, colony=${
-        booking[0].colony
-      } (type: ${typeof booking[0].colony})`
-    );
-
-    // Fetch relatives before deletion
+    // Fetch relatives before deletion (adjust tableName)
     const [relRows] = await pool.query(
       `SELECT relatives FROM ${tableName} WHERE id = ?`,
       [bookingId]
