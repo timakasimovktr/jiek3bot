@@ -313,7 +313,11 @@ bot.hears("📊 Navbat holati", async (ctx) => {
           year: "numeric",
           timeZone: "Asia/Tashkent",
         })}
-⌚️ Kelishi sana: ${latestBooking.start_datetime.toLocaleString("uz-UZ", {
+⌚️ Kelishi sana: ${new Date(
+          new Date(latestBooking.start_datetime).setDate(
+            new Date(latestBooking.start_datetime).getDate() + 1
+          )
+        ).toLocaleString("uz-UZ", {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
