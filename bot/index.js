@@ -431,7 +431,8 @@ bot.hears("✅ Ha", async (ctx) => {
       return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
     }
 
-    const tableName = booking[0].colony === "5" ? "bookings5" : "bookings";
+    const tableName =
+      String(booking[0].colony) === "5" ? "bookings5" : "bookings";
 
     const [relRows] = await pool.query(
       `SELECT relatives FROM ${tableName} WHERE id = ?`,

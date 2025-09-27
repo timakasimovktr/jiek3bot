@@ -29,9 +29,9 @@ const colonies = [
 function generateColonyKeyboard() {
   const keyboard = [];
   for (let i = 0; i < colonies.length; i += 2) {
-    const row = colonies.slice(i, i + 2).map((c) =>
-      Markup.button.callback(`🏛 ${c}-сон JIEK`, `colony_${c}`)
-    );
+    const row = colonies
+      .slice(i, i + 2)
+      .map((c) => Markup.button.callback(`🏛 ${c}-сон JIEK`, `colony_${c}`));
     keyboard.push(row);
   }
   return Markup.inlineKeyboard(keyboard);
@@ -58,9 +58,14 @@ const bookingWizard = new Scenes.WizardScene(
       ctx.wizard.state = {};
 
       // Проверяем активные заявки
+      // Проверяем активные заявки
       const [rows] = await pool.query(
-        "SELECT * FROM bookings WHERE user_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1",
-        [ctx.from.id]
+        `SELECT * FROM (
+          SELECT * FROM bookings WHERE user_id = ? AND status = 'pending'
+          UNION
+          SELECT * FROM bookings5 WHERE user_id = ? AND status = 'pending'
+        ) AS combined ORDER BY created_at DESC LIMIT 1`,
+        [ctx.from.id, ctx.from.id]
       );
       console.log(`Step 0: Pending bookings for user ${ctx.from.id}:`, rows);
 
@@ -77,8 +82,12 @@ const bookingWizard = new Scenes.WizardScene(
 
       // Проверяем, есть ли сохранённый номер телефона
       const [userRows] = await pool.query(
-        "SELECT phone_number FROM bookings WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-        [ctx.from.id]
+        `SELECT phone_number FROM (
+    SELECT phone_number, created_at FROM bookings WHERE user_id = ?
+    UNION
+    SELECT phone_number, created_at FROM bookings5 WHERE user_id = ?
+  ) AS combined ORDER BY created_at DESC LIMIT 1`,
+        [ctx.from.id, ctx.from.id]
       );
       console.log(
         `Step 0: Phone query result for user ${ctx.from.id}:`,
@@ -113,7 +122,9 @@ const bookingWizard = new Scenes.WizardScene(
       ctx.wizard.state.offerRequested = false;
       await ctx.reply(
         "📲 Iltimos, telefon raqamingizni tugma orqali yuboring:",
-        Markup.keyboard([[Markup.button.contactRequest("🟢➡️ 📞 Raqamni yuborish ⬅️🟢")]])
+        Markup.keyboard([
+          [Markup.button.contactRequest("🟢➡️ 📞 Raqamni yuborish ⬅️🟢")],
+        ])
           .resize()
           .oneTime()
       );
