@@ -1,4 +1,4 @@
-// bookingScene.js
+//bookingScene.js
 
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const pool = require("../db");
@@ -449,9 +449,12 @@ async function saveBooking(ctx) {
   const { prisoner_name, relatives, visit_type, colony } = ctx.wizard.state;
   const chatId = ctx.chat.id;
   try {
+    // Выбираем таблицу в зависимости от колонии
     const tableName = colony === "5" ? "bookings5" : "bookings";
+
+    // Вставляем запись в соответствующую таблицу
     const [result] = await pool.query(
-      `INSERT INTO ?? (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      `INSERT INTO ${tableName} (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
         ctx.from.id,
         ctx.wizard.state.phone,
@@ -477,8 +480,7 @@ async function saveBooking(ctx) {
 
     // Проверяем позицию в очереди в соответствующей таблице
     const [rows] = await pool.query(
-      `SELECT * FROM ?? WHERE status = 'pending' ORDER BY id ASC`,
-      [tableName]
+      `SELECT * FROM ${tableName} WHERE status = 'pending' ORDER BY id ASC`
     );
     const myIndex = rows.findIndex((b) => b.id === bookingId);
     if (myIndex === -1) {
@@ -488,14 +490,12 @@ async function saveBooking(ctx) {
     }
     const position = myIndex + 1;
 
-    const cancelButton =
-      colony === "5"
-        ? `❌ Arizani bekor qilish #5-${bookingId}`
-        : `❌ Arizani bekor qilish #${bookingId}`;
-
     await ctx.reply(
       `✅ Uchrashuv muvaffaqiyatli bron qilindi!\n\n📊 Sizning navbatingiz: ${position}`,
-      Markup.keyboard([["📊 Navbat holati"], [cancelButton]])
+      Markup.keyboard([
+        ["📊 Navbat holati"],
+        [`❌ Arizani bekor qilish #${bookingId}`],
+      ])
         .resize()
         .oneTime(false)
     );
