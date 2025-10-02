@@ -392,7 +392,7 @@ bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
     const explicitId = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestId =
       explicitId || (await getLatestPendingOrApprovedId(ctx.from.id));
-      
+
     if (!latestId) {
       await ctx.reply(
         "👋 Assalomu alaykum!\nBu platforma orqali siz qamoqxona mahbuslari bilan uchrashuvga yozilishingiz mumkin.",
@@ -406,10 +406,7 @@ bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
         ])
       );
 
-      return ctx.reply(
-        "❌ Sizda bekor qilish uchun ariza topilmadi.",
-        buildMainMenu(null)
-      );
+      return;
     }
 
     ctx.session.confirmCancel = true;
