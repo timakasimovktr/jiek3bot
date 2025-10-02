@@ -55,14 +55,13 @@ const bookingWizard = new Scenes.WizardScene(
 
       ctx.wizard.state = {};
 
-      // Check for active bookings in both tables
+      // Check for active bookings only in bookings
       const [rows] = await pool.query(
-        `SELECT * FROM (
-        SELECT id, status, created_at FROM bookings WHERE user_id = ? AND status = 'pending'
-        UNION
-        SELECT id, status, created_at FROM bookings5 WHERE user_id = ? AND status = 'pending'
-      ) AS combined ORDER BY created_at DESC LIMIT 1`,
-        [ctx.from.id, ctx.from.id]
+        `SELECT id, status, created_at
+       FROM bookings
+       WHERE user_id = ? AND status = 'pending'
+       ORDER BY created_at DESC LIMIT 1`,
+        [ctx.from.id]
       );
       console.log(`Step 0: Pending bookings for user ${ctx.from.id}:`, rows);
 
@@ -77,14 +76,13 @@ const bookingWizard = new Scenes.WizardScene(
         return ctx.scene.leave();
       }
 
-      // Check for saved phone number
+      // Check for saved phone number only in bookings
       const [userRows] = await pool.query(
-        `SELECT phone_number FROM (
-        SELECT phone_number, created_at FROM bookings WHERE user_id = ?
-        UNION
-        SELECT phone_number, created_at FROM bookings5 WHERE user_id = ?
-      ) AS combined ORDER BY created_at DESC LIMIT 1`,
-        [ctx.from.id, ctx.from.id]
+        `SELECT phone_number
+       FROM bookings
+       WHERE user_id = ?
+       ORDER BY created_at DESC LIMIT 1`,
+        [ctx.from.id]
       );
       console.log(
         `Step 0: Phone query result for user ${ctx.from.id}:`,

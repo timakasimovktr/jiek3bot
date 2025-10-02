@@ -30,15 +30,27 @@ bot.use((ctx, next) => {
 
 async function getLatestPendingOrApprovedId(userId) {
   try {
-    const [rows] = await pool.query(
-      `SELECT id, colony FROM (
-         SELECT id, colony, created_at FROM bookings WHERE status IN ('pending', 'approved') AND user_id = ?
-         UNION
-         SELECT id, colony, created_at FROM bookings5 WHERE status IN ('pending', 'approved') AND user_id = ?
-       ) AS combined
-       ORDER BY created_at DESC LIMIT 1`,
-      [userId, userId]
+    const [bookingsRows] = await pool.query(
+      "SELECT colony FROM bookings WHERE id = ?",
+      [bookingId]
     );
+
+    if (!bookingsRows.length) {
+      console.log(`getQueuePosition: No booking found for ID ${bookingId}`);
+      return null;
+    }
+
+    const colony = bookingsRows[0].colony;
+
+    const [rows] = await pool.query(
+      `SELECT id, colony, created_at
+       FROM bookings
+       WHERE status IN ('pending', 'approved') AND user_id = ? AND colony = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [userId, colony]
+    );
+
     return rows.length ? rows[0].id : null;
   } catch (err) {
     console.error("Error in getLatestPendingOrApprovedId:", err);
@@ -48,15 +60,27 @@ async function getLatestPendingOrApprovedId(userId) {
 
 async function getLatestBooking(userId) {
   try {
-    const [rows] = await pool.query(
-      `SELECT * FROM (
-         SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime FROM bookings WHERE user_id = ?
-         UNION
-         SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime FROM bookings5 WHERE user_id = ?
-       ) AS combined
-       ORDER BY created_at DESC LIMIT 1`,
-      [userId, userId]
+    const [bookingsRows] = await pool.query(
+      "SELECT colony FROM bookings WHERE id = ?",
+      [bookingId]
     );
+
+    if (!bookingsRows.length) {
+      console.log(`getQueuePosition: No booking found for ID ${bookingId}`);
+      return null;
+    }
+
+    const colony = bookingsRows[0].colony;
+
+    const [rows] = await pool.query(
+      `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime
+       FROM bookings
+       WHERE user_id = ? AND colony = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [userId, colony]
+    );
+
     return rows.length ? rows[0] : null;
   } catch (err) {
     console.error("Error in getLatestBooking:", err);
