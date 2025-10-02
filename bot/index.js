@@ -391,7 +391,7 @@ bot.hears("📍 Koloniya lokatsiyasi", async (ctx) => {
     }
 
     const { longitude, latitude } = coordRows[0];
-    await ctx.replyWithLocation(latitude, longitude);
+    await ctx.replyWithLocation(longitude, latitude);
     await ctx.reply(`🏛 ${colony}-son JIEK lokatsiyasi`, buildMainMenu(latestBooking.id));
   } catch (err) {
     console.error("Error in Koloniya lokatsiyasi:", err);
