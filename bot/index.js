@@ -395,7 +395,7 @@ bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
 
     if (!latestId) {
       await ctx.reply(
-        "👋 Assalomu alaykum!\nBu platforma orqali siz qamoqxona mahbuslari bilan uchrashuvga yozilishingiz mumkin.",
+        "🔄 Yangi uchrashuvga yozilish uchun quyidagi tugmani bosing:",
         Markup.inlineKeyboard([
           [
             Markup.button.callback(
