@@ -371,7 +371,7 @@ bot.hears("📱 Grupaga otish", async (ctx) => {
   }
 });
 
-bot.hears("📍 Koloniya lokatsiyasi", async (ctx) => {
+bot.hears("🏛️ Koloniya lokatsiyasi", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
     const latestBooking = await getLatestBooking(ctx.from.id);
