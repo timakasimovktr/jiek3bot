@@ -74,8 +74,7 @@ function buildMainMenu(latestPendingId) {
   ];
 
   if (latestPendingId) {
-    rows.push(["📍 Koloniya lokatsiyasi"]);
-    rows.push([`❌ Arizani bekor qilish #${latestPendingId}`]);
+    rows.push(["🏛️ Koloniya lokatsiyasi", `❌ Arizani bekor qilish #${latestPendingId}`]);
   } else {
     rows.push(["❌ Arizani bekor qilish"]);
   }
