@@ -88,38 +88,24 @@ async function getQueuePosition(bookingId) {
       "SELECT colony FROM bookings WHERE id = ?",
       [bookingId]
     );
-    const [bookings5Rows] = await pool.query(
-      "SELECT colony FROM bookings5 WHERE id = ?",
-      [bookingId]
-    );
 
-    let tableName, colony;
-    if (bookingsRows.length && bookings5Rows.length) {
-      console.error(`Collision: ID ${bookingId} exists in both tables!`);
-      return null; // Or handle as needed (e.g., error reply)
-    } else if (bookingsRows.length) {
-      tableName = "bookings";
-      colony = bookingsRows[0].colony;
-    } else if (bookings5Rows.length) {
-      tableName = "bookings5";
-      colony = bookings5Rows[0].colony;
-    } else {
+    if (!bookingsRows.length) {
       console.log(`getQueuePosition: No booking found for ID ${bookingId}`);
       return null;
     }
 
-    // Optional consistency check
-    if (tableName === "bookings5" && String(colony) !== "5") {
-      console.error(`Inconsistency: bookings5 has non-5 colony ${colony}`);
-    } else if (tableName === "bookings" && String(colony) === "5") {
+    const colony = bookingsRows[0].colony;
+
+    // Опциональная проверка на колонию (если нужно оставить)
+    if (String(colony) === "5") {
       console.error(`Inconsistency: bookings has colony 5`);
     }
 
     const [rows] = await pool.query(
-      `SELECT id FROM ${tableName} WHERE status = 'pending' ORDER BY id ASC`
+      "SELECT id FROM bookings WHERE status = 'pending' ORDER BY id ASC"
     );
     console.log(
-      `getQueuePosition: Fetched ${rows.length} pending bookings for table ${tableName}`
+      `getQueuePosition: Fetched ${rows.length} pending bookings from bookings`
     );
 
     const ids = rows.map((row) => row.id);
@@ -438,43 +424,23 @@ bot.hears("✅ Ha", async (ctx) => {
     ctx.session.confirmCancel = false;
     ctx.session.confirmCancelId = null;
 
-    // Fetch from both tables separately
+    // Fetch booking only from bookings
     const [bookingsRows] = await pool.query(
-      "SELECT colony FROM bookings WHERE id = ?",
-      [bookingId]
-    );
-    const [bookings5Rows] = await pool.query(
-      "SELECT colony FROM bookings5 WHERE id = ?",
-      [bookingId]
+      "SELECT colony, relatives FROM bookings WHERE id = ? AND user_id = ?",
+      [bookingId, ctx.from.id]
     );
 
-    let tableName, colony;
-    if (bookingsRows.length && bookings5Rows.length) {
-      console.error(`Collision: ID ${bookingId} exists in both tables!`);
-      await resetSessionAndScene(ctx);
-      return ctx.reply(
-        "❌ Ariza ikkala jadvalda mavjud (xatolik). Admin bilan bog‘laning."
-      );
-    } else if (bookingsRows.length) {
-      tableName = "bookings";
-      colony = bookingsRows[0].colony;
-    } else if (bookings5Rows.length) {
-      tableName = "bookings5";
-      colony = bookings5Rows[0].colony;
-    } else {
+    if (!bookingsRows.length) {
       await resetSessionAndScene(ctx);
       return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
     }
 
-    // Fetch relatives before deletion (adjust tableName)
-    const [relRows] = await pool.query(
-      `SELECT relatives FROM ${tableName} WHERE id = ?`,
-      [bookingId]
-    );
+    const colony = bookingsRows[0].colony;
     let bookingName = "Noma'lum";
-    if (relRows.length && relRows[0].relatives) {
+
+    if (bookingsRows[0].relatives) {
       try {
-        const relatives = JSON.parse(relRows[0].relatives);
+        const relatives = JSON.parse(bookingsRows[0].relatives);
         if (Array.isArray(relatives) && relatives.length > 0) {
           bookingName = relatives[0].full_name || "Noma'lum";
         }
@@ -485,13 +451,13 @@ bot.hears("✅ Ha", async (ctx) => {
 
     // Delete the booking
     const [result] = await pool.query(
-      `DELETE FROM ${tableName} WHERE id = ? AND user_id = ?`,
+      "DELETE FROM bookings WHERE id = ? AND user_id = ?",
       [bookingId, ctx.from.id]
     );
 
     if (result.affectedRows === 0) {
       console.log(
-        `Deletion failed: No rows affected for bookingId=${bookingId}, user_id=${ctx.from.id}, table=${tableName}`
+        `Deletion failed: No rows affected for bookingId=${bookingId}, user_id=${ctx.from.id}`
       );
       await resetSessionAndScene(ctx);
       return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
@@ -503,19 +469,21 @@ bot.hears("✅ Ha", async (ctx) => {
 
     await resetSessionAndScene(ctx);
 
-    // Uncomment if admin notification is needed
-    // try {
-    //   await ctx.telegram.sendMessage(
-    //     adminChatId,
-    //     `❌ Ariza bekor qilindi. Nomer: ${bookingId}\n🧑 Arizachi: ${bookingName}`
-    //   );
-    // } catch (err) {
-    //   if (err.response && err.response.error_code === 403) {
-    //     console.warn("⚠️ Admin botni bloklagan, xabar yuborilmadi");
-    //   } else {
-    //     console.error("Telegram API error:", err);
-    //   }
-    // }
+    // Если нужно уведомление админу, можно вернуть этот блок
+    /*
+    try {
+      await ctx.telegram.sendMessage(
+        adminChatId,
+        `❌ Ariza bekor qilindi. Nomer: ${bookingId}\n🧑 Arizachi: ${bookingName}`
+      );
+    } catch (err) {
+      if (err.response && err.response.error_code === 403) {
+        console.warn("⚠️ Admin botni bloklagan, xabar yuborilmadi");
+      } else {
+        console.error("Telegram API error:", err);
+      }
+    }
+    */
 
     await ctx.reply(
       "🔄 Yangi uchrashuvga yozilish uchun quyidagi tugmani bosing:",
@@ -528,6 +496,7 @@ bot.hears("✅ Ha", async (ctx) => {
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
+
 
 bot.on("text", async (ctx, next) => {
   try {
