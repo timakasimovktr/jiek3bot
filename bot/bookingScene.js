@@ -478,7 +478,8 @@ async function saveBooking(ctx) {
 
     // Проверяем позицию в очереди в соответствующей таблице
     const [rows] = await pool.query(
-      `SELECT * FROM bookings WHERE status = 'pending' ORDER BY id ASC`
+      `SELECT * FROM bookings WHERE status = 'pending' AND colony = ? ORDER BY id ASC`,
+      [colony]
     );
     const myIndex = rows.findIndex((b) => b.id === bookingId);
     if (myIndex === -1) {

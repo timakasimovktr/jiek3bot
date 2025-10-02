@@ -30,25 +30,13 @@ bot.use((ctx, next) => {
 
 async function getLatestPendingOrApprovedId(userId) {
   try {
-    const [bookingsRows] = await pool.query(
-      "SELECT colony FROM bookings WHERE id = ?",
-      [bookingId]
-    );
-
-    if (!bookingsRows.length) {
-      console.log(`getQueuePosition: No booking found for ID ${bookingId}`);
-      return null;
-    }
-
-    const colony = bookingsRows[0].colony;
-
     const [rows] = await pool.query(
-      `SELECT id, colony, created_at
+      `SELECT id
        FROM bookings
-       WHERE status IN ('pending', 'approved') AND user_id = ? AND colony = ?
+       WHERE status IN ('pending', 'approved') AND user_id = ?
        ORDER BY created_at DESC
        LIMIT 1`,
-      [userId, colony]
+      [userId]
     );
 
     return rows.length ? rows[0].id : null;
@@ -60,25 +48,13 @@ async function getLatestPendingOrApprovedId(userId) {
 
 async function getLatestBooking(userId) {
   try {
-    const [bookingsRows] = await pool.query(
-      "SELECT colony FROM bookings WHERE id = ?",
-      [bookingId]
-    );
-
-    if (!bookingsRows.length) {
-      console.log(`getQueuePosition: No booking found for ID ${bookingId}`);
-      return null;
-    }
-
-    const colony = bookingsRows[0].colony;
-
     const [rows] = await pool.query(
       `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime
        FROM bookings
-       WHERE user_id = ? AND colony = ?
+       WHERE user_id = ?
        ORDER BY created_at DESC
        LIMIT 1`,
-      [userId, colony]
+      [userId]
     );
 
     return rows.length ? rows[0] : null;
@@ -127,10 +103,11 @@ async function getQueuePosition(bookingId) {
     }
 
     const [rows] = await pool.query(
-      "SELECT id FROM bookings WHERE status = 'pending' ORDER BY id ASC"
+      "SELECT id FROM bookings WHERE status = 'pending' AND colony = ? ORDER BY id ASC",
+      [colony]
     );
     console.log(
-      `getQueuePosition: Fetched ${rows.length} pending bookings from bookings`
+      `getQueuePosition: Fetched ${rows.length} pending bookings from bookings for colony ${colony}`
     );
 
     const ids = rows.map((row) => row.id);
