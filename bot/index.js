@@ -74,6 +74,7 @@ function buildMainMenu(latestPendingId) {
   ];
 
   if (latestPendingId) {
+    rows.push(["📍 Koloniya lokatsiyasi"]);
     rows.push([`❌ Arizani bekor qilish #${latestPendingId}`]);
   } else {
     rows.push(["❌ Arizani bekor qilish"]);
@@ -367,6 +368,33 @@ bot.hears("📱 Grupaga otish", async (ctx) => {
     );
   } catch (err) {
     console.error("Error in Grupaga otish:", err);
+    await ctx.reply("❌ Xatolik yuz berdi.");
+  }
+});
+
+bot.hears("📍 Koloniya lokatsiyasi", async (ctx) => {
+  try {
+    await resetSessionAndScene(ctx);
+    const latestBooking = await getLatestBooking(ctx.from.id);
+    if (!latestBooking || latestBooking.status === "canceled") {
+      return ctx.reply("❌ Sizda hozirda faol ariza yo‘q.", buildMainMenu(null));
+    }
+
+    const colony = latestBooking.colony;
+    const [coordRows] = await pool.query(
+      "SELECT longitude, latitude FROM coordinates WHERE id = ?",
+      [colony]
+    );
+
+    if (!coordRows.length) {
+      return ctx.reply("❌ Koloniya koordinatalari topilmadi.");
+    }
+
+    const { longitude, latitude } = coordRows[0];
+    await ctx.replyWithLocation(latitude, longitude);
+    await ctx.reply(`🏛 ${colony}-son JIEK lokatsiyasi`, buildMainMenu(latestBooking.id));
+  } catch (err) {
+    console.error("Error in Koloniya lokatsiyasi:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
