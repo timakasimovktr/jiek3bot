@@ -360,8 +360,61 @@ bot.hears("📱 Grupaga otish", async (ctx) => {
       return;
     }
     let groupUrl = "https://t.me/+qWg7Qh3t_OIxMDBi";
-    if (latestBooking.colony == "5") {
-      groupUrl = "https://t.me/SmartJIEK5";
+    switch (colony) {
+      case "1":
+        groupUrl = "https://t.me/SmartJIEK1";
+        break;
+      case "2":
+        groupUrl = "https://t.me/SmartJIEK2";
+        break;
+      case "3":
+        groupUrl = "https://t.me/SmartJIEK3";
+        break;
+      case "4":
+        groupUrl = "https://t.me/SmartJIEK4";
+        break;
+      case "5":
+        groupUrl = "https://t.me/SmartJIEK5";
+        break;
+      case "6":
+        groupUrl = "https://t.me/SmartJIEK6";
+        break;
+      case "7":
+        groupUrl = "https://t.me/SmartJIEK7";
+        break;
+      case "10":
+        groupUrl = "https://t.me/SmartJIEK8";
+        break;
+      case "11":
+        groupUrl = "https://t.me/SmartJIEK9";
+        break;
+      case "12":
+        groupUrl = "https://t.me/SmartJIEK10";
+        break;
+      case "13":
+        groupUrl = "https://t.me/SmartJIEK11";
+        break;
+      case "14":
+        groupUrl = "https://t.me/SmartJIEK12";
+        break;
+      case "17":
+        groupUrl = "https://t.me/SmartJIEK17";
+        break;
+      case "20":
+        groupUrl = "https://t.me/SmartJIEK20";
+        break;
+      case "21":
+        groupUrl = "https://t.me/SmartJIEK21";
+        break;
+      case "22":
+        groupUrl = "https://t.me/SmartJIEK22";
+        break;
+      case "23":
+        groupUrl = "https://t.me/SmartJIEK23";
+        break;
+      case "24":
+        groupUrl = "https://t.me/SmartJIEK24";
+        break;
     }
     await ctx.reply(
       "📱 Tugmasini bosing:",

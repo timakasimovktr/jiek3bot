@@ -500,9 +500,6 @@ async function saveBooking(ctx) {
     );
 
     let groupUrl = "https://t.me/smartdunyomeet";
-    // if (colony === "1") {
-    //   groupUrl = "https://t.me/SmartJIEK1";
-    // }
 
     switch (colony) {
       case "1":
