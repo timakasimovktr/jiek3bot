@@ -70,11 +70,12 @@ async function getUserBookingStatus(userId) {
 
 function buildMainMenu(latestPendingId) {
   const rows = [
-    ["📊 Navbat holati", "📱 Grupaga otish", "🖨️ Ariza nusxasini olish"],
+    ["📊 Navbat holati", "📱 Grupaga otish"],
+    ["🖨️ Ariza nusxasini olish", "🏛️ Koloniya lokatsiyasi"],
   ];
 
   if (latestPendingId) {
-    rows.push(["🏛️ Koloniya lokatsiyasi", `❌ Arizani bekor qilish #${latestPendingId}`]);
+    rows.push([`❌ Arizani bekor qilish #${latestPendingId}`]);
   } else {
     rows.push(["❌ Arizani bekor qilish"]);
   }
@@ -376,7 +377,10 @@ bot.hears("🏛️ Koloniya lokatsiyasi", async (ctx) => {
     await resetSessionAndScene(ctx);
     const latestBooking = await getLatestBooking(ctx.from.id);
     if (!latestBooking || latestBooking.status === "canceled") {
-      return ctx.reply("❌ Sizda hozirda faol ariza yo‘q.", buildMainMenu(null));
+      return ctx.reply(
+        "❌ Sizda hozirda faol ariza yo‘q.",
+        buildMainMenu(null)
+      );
     }
 
     const colony = latestBooking.colony;
@@ -391,7 +395,10 @@ bot.hears("🏛️ Koloniya lokatsiyasi", async (ctx) => {
 
     const { longitude, latitude } = coordRows[0];
     await ctx.replyWithLocation(longitude, latitude);
-    await ctx.reply(`🏛 ${colony}-son JIEK lokatsiyasi`, buildMainMenu(latestBooking.id));
+    await ctx.reply(
+      `🏛 ${colony}-son JIEK lokatsiyasi`,
+      buildMainMenu(latestBooking.id)
+    );
   } catch (err) {
     console.error("Error in Koloniya lokatsiyasi:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
