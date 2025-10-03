@@ -320,7 +320,8 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
 
     if (!ctx.wizard.state.prisoner_name) {
       await ctx.reply(
-        "👥 Siz kim bilan uchrashmoqchisiz? Mahbusning to‘liq ismini kiriting:"
+        `👥 Siz kim bilan uchrashmoqchisiz? 
+Mahbusning to‘liq ismini kiriting: (FAMILIYA ISM SHARIFI)`
       );
       return ctx.wizard.selectStep(7);
     } else {
