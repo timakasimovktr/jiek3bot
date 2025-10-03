@@ -72,7 +72,7 @@ function buildMainMenu(latestPendingId) {
   const rows = [
     ["📊 Navbat holati", "🫂 Grupaga otish"],
     ["🖨️ Ariza nusxasini olish", "📃 Tashrif buyuruvchilar uchun eslatma"],
-    ["📗 Qo‘shimcha ma’lumot", "🏛️ Koloniya lokatsiyasi"]
+    ["📗 Qo‘shimcha ma’lumot", "🏛️ Koloniya lokatsiyasi"],
   ];
 
   if (latestPendingId) {
@@ -360,7 +360,10 @@ bot.hears("🫂 Grupaga otish", async (ctx) => {
       await ctx.reply("❌ Hozirda ariza topilmadi.");
       return;
     }
+
+    const colony = latestBooking.colony; // <-- Взяли колонию из записи
     let groupUrl = "https://t.me/+qWg7Qh3t_OIxMDBi";
+
     switch (colony) {
       case "1":
         groupUrl = "https://t.me/SmartJIEK1";
