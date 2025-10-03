@@ -71,7 +71,7 @@ async function getUserBookingStatus(userId) {
 function buildMainMenu(latestPendingId) {
   const rows = [
     ["📊 Navbat holati", "🫂 Grupaga otish","🖨️ Ariza nusxasini olish"],
-    ["📃 Tashrif buyuruvchilar uchun eslatma", "📗 Qo‘shimcha ma’lumot","🏛️ Koloniya lokatsiyasi"],
+    ["📃 Tashrif uchun eslatma", "📗 Qo‘shimcha ma’lumot","🏛️ Koloniya lokatsiyasi"],
   ];
 
   if (latestPendingId) {
