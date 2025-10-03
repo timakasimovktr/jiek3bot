@@ -76,6 +76,7 @@ const texts = {
     admin_status: "🟡 Статус: Ожидает проверки",
     error: "❌ Произошла ошибка. Пожалуйста, попробуйте позже.",
     not_found: "❌ Ошибка: Ваша заявка не найдена.",
+    book_meeting: "📅 Записаться на встречу",
   },
   uz: { // Uzbek Cyrillic
     internal_error: "❌ Ботнинг ички хатоси. Илтимос, қайта уриниб кўринг.",
@@ -126,6 +127,7 @@ const texts = {
     admin_status: "🟡 Ҳолат: Текширувни кутиш",
     error: "❌ Хатолик юз берди. Илтимос, кейинроқ уриниб кўринг.",
     not_found: "❌ Хатолик: Аризангиз топилмади.",
+    book_meeting: "📅 Учрашувга ёзилиш",
   },
   uzl: { // Uzbek Latin (original)
     internal_error: "❌ Botning ichki xatosi. Iltimos, qayta urinib ko‘ring.",
@@ -176,6 +178,7 @@ const texts = {
     admin_status: "🟡 Holat: Tekshiruvni kutish",
     error: "❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring.",
     not_found: "❌ Xatolik: Arizangiz topilmadi.",
+    book_meeting: "📅 Uchrashuvga yozilish",
   }
 };
 
@@ -464,7 +467,7 @@ const bookingWizard = new Scenes.WizardScene(
           [
             Markup.button.callback(
               texts[lang].book_meeting,
-              "choose_language"
+              "start_booking"
             ),
           ],
         ])
