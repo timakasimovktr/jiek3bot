@@ -294,7 +294,7 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
     await ctx.answerCbQuery();
     ctx.wizard.state.visit_type = ctx.callbackQuery.data;
 
-    await ctx.reply("👤 Iltimos, to‘liq ismingiz va familiyangizni kiriting:");
+    await ctx.reply("👤 Iltimos, to‘liq ismingizni kiriting: (FAMILIYA ISM SHARIFI)");
     return ctx.wizard.next();
   },
 
@@ -427,11 +427,12 @@ async function askAddMore(ctx) {
 
 async function showSummary(ctx) {
   const { prisoner_name, relatives, colony } = ctx.wizard.state;
-  let text = "📋 Arizangiz tafsilotlari:\n\n";
-  text += `🏛 Koloniya: ${colony}\n`;
-  text += `👥 Mahbus: ${prisoner_name}\n\n`;
+  let text = "📋 Arizangiz tafsilotlari:\n";
+  text += `🏛 Koloniya: ${colony} ${colony === "23" ? "(MUIK)" : "(JIEK)"}\n`;
+  text += `👥 Mahbus:\n 
+${prisoner_name}\n`;
   relatives.forEach((r, i) => {
-    text += `👤 Qarindosh ${i + 1}:\n- Ism Familiya: ${r.full_name}\n`;
+    text += `👤 Qarindosh ${i + 1}:\n${r.full_name}\n`;
   });
   text += "❓ Ushbu ma’lumotlarni tasdiqlaysizmi?";
 
