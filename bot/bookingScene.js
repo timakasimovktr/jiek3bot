@@ -31,7 +31,7 @@ function generateColonyKeyboard() {
   for (let i = 0; i < colonies.length; i += 2) {
     const row = colonies
       .slice(i, i + 2)
-      .map((c) => Markup.button.callback(`🏛 ${c}-сон ${c === "23" ? "MUIK" : "JIEK"}`, `colony_${c}`));
+      .map((c) => Markup.button.callback(`🏛 ${c}-сон ${c === "23" ? "MUIK" : "JIEK"}          `, `colony_${c}`));
     keyboard.push(row);
   }
   return Markup.inlineKeyboard(keyboard);
