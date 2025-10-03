@@ -79,6 +79,7 @@ function buildMainMenu(latestPendingId) {
   if (latestPendingId) {
     rows.push([`❌ Arizani bekor qilish #${latestPendingId}`]);
   } else {
+    rows.length = 0;  
     rows.push(["📅 Uchrashuvga yozilish"]);
   }
 
