@@ -493,7 +493,7 @@ async function saveBooking(ctx) {
     const position = myIndex + 1;
 
     await ctx.reply(
-      `✅ Uchrashuv muvaffaqiyatli bron qilindi!\n\n📊 Sizning navbatingiz: ${position}`,
+      `✅ Uchrashuv arizani berish uchun yuborildi!\n📊 Sizning navbatingiz: ${position}`,
       Markup.keyboard([
         ["📊 Navbat holati"],
         [`❌ Arizani bekor qilish #${bookingId}`],
@@ -562,7 +562,7 @@ async function saveBooking(ctx) {
     }
 
     await ctx.reply(
-      "📱 Grupaga qo'shing",
+      "🫂 Grupaga qo'shing",
       Markup.inlineKeyboard([[Markup.button.url("📌 Grupaga otish", groupUrl)]])
     );
   } catch (err) {
@@ -575,7 +575,7 @@ async function sendApplicationToAdmin(ctx, application) {
   const adminChatId = process.env.ADMIN_CHAT_ID;
   const firstRelative = application.relatives[0];
   const text = `📌 Yangi ariza. №: ${application.id}
-👤 Arizachi: ${firstRelative ? `${firstRelative.full_name}` : "Noma'lum"}
+👥 Arizachi: ${firstRelative ? `${firstRelative.full_name}` : "Noma'lum"}
 🏛 Koloniya: ${application.colony}
 📅 Berilgan sana: ${new Date().toLocaleString("ru-RU", {
     day: "2-digit",

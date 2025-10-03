@@ -70,8 +70,8 @@ async function getUserBookingStatus(userId) {
 
 function buildMainMenu(latestPendingId) {
   const rows = [
-    ["📊 Navbat holati", "📱 Grupaga otish"],
-    ["🖨️ Ariza nusxasini olish", "🏛️ Koloniya lokatsiyasi"],
+    ["📊 Navbat holati", "🫂 Grupaga otish","🖨️ Ariza nusxasini olish"],
+    ["📃 Tashrif buyuruvchilar uchun eslatma", "📗 Qo‘shimcha ma’lumot ","🏛️ Koloniya lokatsiyasi"],
   ];
 
   if (latestPendingId) {
@@ -351,7 +351,7 @@ bot.hears("📊 Navbat holati", async (ctx) => {
   }
 });
 
-bot.hears("📱 Grupaga otish", async (ctx) => {
+bot.hears("🫂 Grupaga otish", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
     const latestBooking = await getLatestBooking(ctx.from.id);
