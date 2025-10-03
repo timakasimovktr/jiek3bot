@@ -4,6 +4,7 @@ const { Telegraf, Scenes, session, Markup } = require("telegraf");
 require("dotenv").config();
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
+const { message } = require("telegraf/filters");
 const adminChatId = process.env.ADMIN_CHAT_ID;
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
