@@ -71,8 +71,8 @@ async function getUserBookingStatus(userId) {
 function buildMainMenu(latestPendingId) {
   const rows = [
     ["📊 Navbat holati", "🫂 Grupaga otish"],
-    ["🖨️ Ariza nusxasini olish", "📃 Tashrif buyuruvchilar uchun eslatma"],
-    ["📗 Qo‘shimcha ma’lumot", "🏛️ Koloniya lokatsiyasi"],
+    ["🖨️ Ariza nusxasini olish", "📗 Qo‘shimcha ma’lumot"],
+    ["📃 Tashrif buyuruvchilar uchun eslatma", "🏛️ Koloniya lokatsiyasi"],
   ];
 
   if (latestPendingId) {
@@ -600,6 +600,8 @@ bot.hears("✅ Ha", async (ctx) => {
 
 bot.on("text", async (ctx, next) => {
   try {
+    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+    buildMainMenu(latestId);
     if (ctx.scene && ctx.scene.current) {
       console.log(
         `User ${ctx.from.id} in scene ${ctx.scene.current.id}, ignoring unexpected text: ${ctx.message.text}`
