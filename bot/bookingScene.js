@@ -230,7 +230,7 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
     ctx.wizard.state.offer_accepted = true;
 
     await ctx.reply(
-      "🏛 Iltimos, koloniyani tanlang:",
+      "🏛 Iltimos, KOLONIYANI tanlang:",
       generateColonyKeyboard()
     );
     console.log(`Step 2: Moving to colony selection for user ${ctx.from.id}`);
@@ -250,7 +250,7 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
       !ctx.callbackQuery.data.startsWith("colony_")
     ) {
       await ctx.reply(
-        "❌ Iltimos, koloniyani tanlang:",
+        "❌ Iltimos, KOLONIYANI tanlang:",
         generateColonyKeyboard()
       );
       return;
