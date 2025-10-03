@@ -28,10 +28,10 @@ const colonies = [
 
 function generateColonyKeyboard() {
   const keyboard = [];
-  for (let i = 0; i < colonies.length; i += 2) {
+  for (let i = 0; i < colonies.length; i += 3) {
     const row = colonies
-      .slice(i, i + 2)
-      .map((c) => Markup.button.callback(`🏛 ${c}-сон ${c === "23" ? "MUIK               " : "JIEK               "}`, `colony_${c}`));
+      .slice(i, i + 3)
+      .map((c) => Markup.button.callback(`🏛 ${c}-сон ${c === "23" ? "MUIK" : "JIEK"}`, `colony_${c}`));
     keyboard.push(row);
   }
   return Markup.inlineKeyboard(keyboard);
