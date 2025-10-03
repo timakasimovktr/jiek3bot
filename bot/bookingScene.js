@@ -267,8 +267,7 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
     await ctx.reply(
       "📅 Iltimos, uchrashuv turini tanlang:",
       Markup.inlineKeyboard([
-        [Markup.button.callback("🔵 1-kunlik", "short")],
-        [Markup.button.callback("🟢 2-kunlik", "long")],
+        [Markup.button.callback("🔵 1-kunlik", "short"), Markup.button.callback("🟢 2-kunlik", "long")]
       ])
     );
     return ctx.wizard.next();
@@ -286,8 +285,7 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
       await ctx.reply(
         "❌ Iltimos, uchrashuv turini tanlang:",
         Markup.inlineKeyboard([
-          [Markup.button.callback("🔵 1-kunlik", "short")],
-          [Markup.button.callback("🟢 2-kunlik", "long")],
+          [Markup.button.callback("🔵 1-kunlik", "short"), Markup.button.callback("🟢 2-kunlik", "long")]
         ])
       );
       return;
