@@ -421,7 +421,7 @@ bot.hears("🫂 Grupaga otish", async (ctx) => {
         break;
     }
     await ctx.reply(
-      "📱 Tugmasini bosing:",
+      "🫂 Tugmasini bosing:",
       Markup.inlineKeyboard([[Markup.button.url("📌 Grupaga otish", groupUrl)]])
     );
   } catch (err) {
