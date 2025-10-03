@@ -31,7 +31,12 @@ function generateColonyKeyboard() {
   for (let i = 0; i < colonies.length; i += 3) {
     const row = colonies
       .slice(i, i + 3)
-      .map((c) => Markup.button.callback(`🏛 ${c}-сон ${c === "23" ? "MUIK" : "JIEK"}`, `colony_${c}`));
+      .map((c) =>
+        Markup.button.callback(
+          `🏛 ${c}-сон ${c === "23" ? "MUIK" : "JIEK"}`,
+          `colony_${c}`
+        )
+      );
     keyboard.push(row);
   }
   return Markup.inlineKeyboard(keyboard);
@@ -229,10 +234,7 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
     await ctx.answerCbQuery();
     ctx.wizard.state.offer_accepted = true;
 
-    await ctx.reply(
-      "🏛 Iltimos, KOLONIYANI tanlang:",
-      generateColonyKeyboard()
-    );
+    await ctx.reply("🏛 Iltimos, KOLONIYANI tanlang:", generateColonyKeyboard());
     console.log(`Step 2: Moving to colony selection for user ${ctx.from.id}`);
     return ctx.wizard.next();
   },
@@ -267,7 +269,10 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
     await ctx.reply(
       "⏲️ Iltimos, UCHRASHUV turini tanlang:",
       Markup.inlineKeyboard([
-        [Markup.button.callback("🔵 1-kunlik", "short"), Markup.button.callback("🟢 2-kunlik", "long")]
+        [
+          Markup.button.callback("🔵 1-kunlik", "short"),
+          Markup.button.callback("🟢 2-kunlik", "long"),
+        ],
       ])
     );
     return ctx.wizard.next();
@@ -285,7 +290,10 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
       await ctx.reply(
         "❌ Iltimos, UCHRASHUV turini tanlang:",
         Markup.inlineKeyboard([
-          [Markup.button.callback("🔵 1-kunlik", "short"), Markup.button.callback("🟢 2-kunlik", "long")]
+          [
+            Markup.button.callback("🔵 1-kunlik", "short"),
+            Markup.button.callback("🟢 2-kunlik", "long"),
+          ],
         ])
       );
       return;
@@ -294,7 +302,9 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
     await ctx.answerCbQuery();
     ctx.wizard.state.visit_type = ctx.callbackQuery.data;
 
-    await ctx.reply("👤 Iltimos, to‘liq ismingizni kiriting: (FAMILIYA ISM SHARIFI)");
+    await ctx.reply(
+      "👤 Iltimos, to‘liq ismingizni kiriting: (FAMILIYA ISM SHARIFI)"
+    );
     return ctx.wizard.next();
   },
 
@@ -303,8 +313,15 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
     console.log(`Step 5: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (ctx.message?.text === "❌ Bekor qilish ariza") {
       await ctx.reply(
-        "❌ Uchrashuv yozuvi bekor qilindi.",
-        Markup.keyboard([["📅 Uchrashuvga yozilish"]]).resize()
+        "🔄 Uchrashuv yozuvi bekor qilindi. Yangi uchrashuvga yozilish uchun quyidagi tugmani bosing:",
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "📅 Uchrashuvga yozilish",
+              "choose_language"
+            ),
+          ],
+        ])
       );
       return ctx.scene.leave();
     }
@@ -576,7 +593,9 @@ async function sendApplicationToAdmin(ctx, application) {
   const firstRelative = application.relatives[0];
   const text = `📌 Yangi ariza. №: ${application.id}
 👥 Arizachi: ${firstRelative ? `${firstRelative.full_name}` : "Noma'lum"}
-🏛 Koloniya: ${application.colony}-son ${application.colony === "23" ? "MUIK" : "JIEK"}
+🏛 Koloniya: ${application.colony}-son ${
+    application.colony === "23" ? "MUIK" : "JIEK"
+  }
 📅 Berilgan sana: ${new Date().toLocaleString("ru-RU", {
     day: "2-digit",
     month: "2-digit",
