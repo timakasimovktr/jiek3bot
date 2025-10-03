@@ -265,7 +265,7 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
     ctx.wizard.state.visit_type = null;
 
     await ctx.reply(
-      "📅 Iltimos, UCHRASHUV turini tanlang:",
+      "⏲️ Iltimos, UCHRASHUV turini tanlang:",
       Markup.inlineKeyboard([
         [Markup.button.callback("🔵 1-kunlik", "short"), Markup.button.callback("🟢 2-kunlik", "long")]
       ])
