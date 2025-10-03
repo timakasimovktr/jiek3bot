@@ -148,6 +148,17 @@ bot.command("cancel", async (ctx) => {
   }
 });
 
+bot.command("menu", async (ctx) => {
+  try {
+    await resetSessionAndScene(ctx);
+    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+    await ctx.reply("Asosiy menu:", buildMainMenu(latestId));
+  } catch (err) {
+    console.error("Error in /menu:", err);
+    await ctx.reply("❌ Xatolik yuz berdi.");
+  }
+});
+
 bot.start(async (ctx) => {
   try {
     if (ctx.scene.current) {
@@ -565,9 +576,9 @@ bot.hears("✅ Ha", async (ctx) => {
       return ctx.reply("❌ Ariza topilmadi yoki allaqachon bekor qilingan.");
     }
 
-    await ctx.reply("❌ Sizning arizangiz bekor qilindi.", {
-      reply_markup: { remove_keyboard: true },
-    });
+    // Изменение: Заменяем remove_keyboard на основное меню (это скроет клавиатуру подтверждения и покажет меню)
+    const latestIdAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
+    await ctx.reply("❌ Sizning arizangiz bekor qilindi.", buildMainMenu(latestIdAfterDelete));
 
     await resetSessionAndScene(ctx);
 
