@@ -576,7 +576,7 @@ async function sendApplicationToAdmin(ctx, application) {
   const firstRelative = application.relatives[0];
   const text = `📌 Yangi ariza. №: ${application.id}
 👥 Arizachi: ${firstRelative ? `${firstRelative.full_name}` : "Noma'lum"}
-🏛 Koloniya: ${application.colony}
+🏛 Koloniya: ${application.colony}-son ${application.colony === "23" ? "MUIK" : "JIEK"}
 📅 Berilgan sana: ${new Date().toLocaleString("ru-RU", {
     day: "2-digit",
     month: "2-digit",
