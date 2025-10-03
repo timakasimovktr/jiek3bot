@@ -598,7 +598,8 @@ bot.hears("✅ Ha", async (ctx) => {
   }
 });
 
-bot.on("text", async (ctx, next) => {
+
+bot.on(message("text"), async (ctx, next ) => {
   try {
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     buildMainMenu(latestId);
