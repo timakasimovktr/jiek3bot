@@ -31,7 +31,7 @@ function generateColonyKeyboard() {
   for (let i = 0; i < colonies.length; i += 2) {
     const row = colonies
       .slice(i, i + 2)
-      .map((c) => Markup.button.callback(`🏛 ${c}-сон JIEK`, `colony_${c}`));
+      .map((c) => Markup.button.callback(`🏛 ${c}-сон ${c === "23" ? "MUIK" : "JIEK"}`, `colony_${c}`));
     keyboard.push(row);
   }
   return Markup.inlineKeyboard(keyboard);
@@ -230,7 +230,7 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
     ctx.wizard.state.offer_accepted = true;
 
     await ctx.reply(
-      "🏛 Iltimos, koloniyani tanlang:            .",
+      "🏛 Iltimos, koloniyani tanlang:",
       generateColonyKeyboard()
     );
     console.log(`Step 2: Moving to colony selection for user ${ctx.from.id}`);
