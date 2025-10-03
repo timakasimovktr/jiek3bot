@@ -1,6 +1,5 @@
 // index.js
 
-import { message } from "telegraf/filters";
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 require("dotenv").config();
 const pool = require("../db");
@@ -599,17 +598,18 @@ bot.hears("✅ Ha", async (ctx) => {
   }
 });
 
-
 bot.on(message("text"), async (ctx, next) => {
   try {
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     buildMainMenu(latestId);
+
     if (ctx.scene && ctx.scene.current) {
       console.log(
         `User ${ctx.from.id} in scene ${ctx.scene.current.id}, ignoring unexpected text: ${ctx.message.text}`
       );
       return;
     }
+
     await next();
   } catch (err) {
     console.error("Error in text handler:", err);
