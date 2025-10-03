@@ -97,11 +97,12 @@ const bookingWizard = new Scenes.WizardScene(
           Markup.removeKeyboard()
         );
         await ctx.reply(
-          "📜 Iltimos, OMAVIY OFERTANI o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
+          `📜 Iltimos, OMAVIY OFERTANI o‘qing 
+va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
           Markup.inlineKeyboard([
             [
               Markup.button.url(
-                "📖 Omaviy ofertani o‘qish",
+                "📖 OMAVIY OFERTANI o‘qish",
                 "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
               ),
             ],
@@ -179,11 +180,12 @@ const bookingWizard = new Scenes.WizardScene(
       );
 
       await ctx.reply(
-        "📜 Iltimos, OMAVIY OFERTANI o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
+        `📜 Iltimos, OMAVIY OFERTANI o‘qing 
+va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
         Markup.inlineKeyboard([
           [
             Markup.button.url(
-              "📖 Omaviy ofertani o‘qish",
+              "📖 OMAVIY OFERTANI o‘qish",
               "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
             ),
           ],
@@ -209,11 +211,12 @@ const bookingWizard = new Scenes.WizardScene(
 
     if (!ctx.callbackQuery?.data || ctx.callbackQuery.data !== "accept_offer") {
       await ctx.reply(
-        "📜 Iltimos, OMAVIY OFERTANI o‘qing va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:",
+        `📜 Iltimos, OMAVIY OFERTANI o‘qing 
+va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
         Markup.inlineKeyboard([
           [
             Markup.button.url(
-              "📖 Omaviy ofertani o‘qish",
+              "📖 OMAVIY OFERTANI o‘qish",
               "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
             ),
           ],
@@ -584,9 +587,6 @@ async function sendApplicationToAdmin(ctx, application) {
 
   try {
     await ctx.reply(text);
-    // await ctx.telegram.sendMessage(adminChatId, text, {
-    //   parse_mode: "Markdown",
-    // });
   } catch (err) {
     if (err.response && err.response.error_code === 403) {
       console.warn(
