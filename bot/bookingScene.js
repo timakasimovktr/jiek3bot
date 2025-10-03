@@ -428,7 +428,7 @@ async function askAddMore(ctx) {
 async function showSummary(ctx) {
   const { prisoner_name, relatives, colony } = ctx.wizard.state;
   let text = "📋 Arizangiz tafsilotlari:\n";
-  text += `🏛 Koloniya: ${colony} ${colony === "23" ? "(MUIK)" : "(JIEK)"}\n`;
+  text += `🏛 Koloniya: ${colony}-son ${colony === "23" ? "MUIK" : "JIEK"}\n`;
   text += `👤 Mahbus: 
 ${prisoner_name}\n\n`;
   relatives.forEach((r, i) => {
