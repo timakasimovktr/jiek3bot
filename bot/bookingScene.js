@@ -265,7 +265,7 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
     ctx.wizard.state.visit_type = null;
 
     await ctx.reply(
-      "📅 Iltimos, uchrashuv turini tanlang:",
+      "📅 Iltimos, UCHRASHUV turini tanlang:",
       Markup.inlineKeyboard([
         [Markup.button.callback("🔵 1-kunlik", "short"), Markup.button.callback("🟢 2-kunlik", "long")]
       ])
@@ -283,7 +283,7 @@ va qabul qilish uchun 'Qabul qilaman' tugmasini bosing:`,
       (ctx.callbackQuery.data !== "long" && ctx.callbackQuery.data !== "short")
     ) {
       await ctx.reply(
-        "❌ Iltimos, uchrashuv turini tanlang:",
+        "❌ Iltimos, UCHRASHUV turini tanlang:",
         Markup.inlineKeyboard([
           [Markup.button.callback("🔵 1-kunlik", "short"), Markup.button.callback("🟢 2-kunlik", "long")]
         ])
