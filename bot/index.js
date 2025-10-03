@@ -79,10 +79,10 @@ function buildMainMenu(latestPendingId) {
   if (latestPendingId) {
     rows.push([`❌ Arizani bekor qilish #${latestPendingId}`]);
   } else {
-    rows.push(["❌ Arizani bekor qilish"]);
+    rows.push(["📅 Uchrashuvga yozilish"]);
   }
 
-  return Markup.keyboard(rows).resize();
+  return Markup.keyboard(rows).resize().persistent();
 }
 
 async function getQueuePosition(bookingId) {
@@ -172,9 +172,9 @@ bot.start(async (ctx) => {
 
     const userId = ctx.from.id;
     const latestBooking = await getLatestBooking(userId);
+    const latestId = await getLatestPendingOrApprovedId(userId);
 
     if (latestBooking && latestBooking.status !== "canceled") {
-      const latestId = latestBooking.id;
       let relatives = [];
       try {
         relatives = JSON.parse(latestBooking.relatives || "[]");
@@ -199,19 +199,28 @@ bot.start(async (ctx) => {
     } else {
       await ctx.reply(
         "👋 Assalomu alaykum!\nBu platforma orqali siz qamoqxona mahbuslari bilan uchrashuvga yozilishingiz mumkin.",
-        Markup.inlineKeyboard([
-          [
-            Markup.button.callback(
-              "📅 Uchrashuvga yozilish",
-              "choose_language"
-            ),
-          ],
-        ])
+        buildMainMenu(null)
       );
     }
   } catch (err) {
     console.error("Error in /start:", err);
     await ctx.reply("❌ Xatolik yuz berdi, qayta urinib ko‘ring.");
+  }
+});
+
+bot.hears("📅 Uchrashuvga yozilish", async (ctx) => {
+  try {
+    await resetSessionAndScene(ctx);
+    await ctx.reply(
+      "🌐 Iltimos, tilni tanlang:",
+      Markup.inlineKeyboard([
+        [Markup.button.callback("🇺🇿 O‘zbekcha", "lang_uz")],
+        [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
+      ])
+    );
+  } catch (err) {
+    console.error("Error in Uchrashuvga yozilish:", err);
+    await ctx.reply("❌ Xatolik yuz berdi.");
   }
 });
 
@@ -499,15 +508,8 @@ bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => {
 
     if (!latestId) {
       await ctx.reply(
-        "🔄 Yangi uchrashuvga yozilish uchun quyidagi tugmani bosing:",
-        Markup.inlineKeyboard([
-          [
-            Markup.button.callback(
-              "📅 Uchrashuvga yozilish",
-              "choose_language"
-            ),
-          ],
-        ])
+        "🔄 Yangi uchrashuvga yozilish uchun menyudagi tugmani bosing.",
+        buildMainMenu(null)
       );
 
       return;
@@ -597,13 +599,6 @@ bot.hears("✅ Ha", async (ctx) => {
       }
     }
     */
-
-    await ctx.reply(
-      "🔄 Yangi uchrashuvga yozilish uchun quyidagi tugmani bosing:",
-      Markup.inlineKeyboard([
-        [Markup.button.callback("📅 Uchrashuvga yozilish", "start_booking")],
-      ])
-    );
   } catch (err) {
     console.error("Error in Ha:", err);
     await ctx.reply("❌ Xatolik yuz berdi.");
