@@ -24,7 +24,7 @@ const colonies = [
   "22",
   "23",
   "24",
-];
+]; 
 
 const texts = {
   ru: {
@@ -633,14 +633,14 @@ async function saveBooking(ctx) {
 
     await ctx.scene.leave();
 
-    await sendApplicationToAdmin(ctx, {
-      relatives,
-      prisoner: prisoner_name,
-      id: bookingId,
-      visit_type,
-      colony,
-      lang, // Pass lang for admin message
-    });
+    // await sendApplicationToAdmin(ctx, {
+    //   relatives,
+    //   prisoner: prisoner_name,
+    //   id: bookingId,
+    //   visit_type,
+    //   colony,
+    //   lang, 
+    // });
 
     const [rows] = await pool.query(
       `SELECT * FROM bookings WHERE status = 'pending' AND colony = ? ORDER BY id ASC`,

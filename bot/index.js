@@ -17,6 +17,13 @@ bot.use(session());
 bot.use(stage.middleware());
 
 bot.use((ctx, next) => {
+  if (ctx.chat?.type !== "private") {
+    return; 
+  }
+  return next();
+});
+
+bot.use((ctx, next) => {
   console.log(
     `Middleware: user ${
       ctx.from?.id
@@ -25,17 +32,19 @@ bot.use((ctx, next) => {
     }`
   );
   if (!ctx.session) ctx.session = {};
-  if (!ctx.session.language) ctx.session.language = 'uz'; // Default to Uzbek Latin
+  if (!ctx.session.language) ctx.session.language = "uz"; // Default to Uzbek Latin
   return next();
 });
 
 const texts = {
   ru: {
-    greeting: "👋 Здравствуйте!\nЧерез эту платформу вы можете записаться на встречу с заключёнными в тюрьме.",
+    greeting:
+      "👋 Здравствуйте!\nЧерез эту платформу вы можете записаться на встречу с заключёнными в тюрьме.",
     process_canceled: "❌ Процесс отменён.",
     error_occurred: "❌ Произошла ошибка.",
     main_menu: "Основное меню:",
-    already_in_process: "❌ Вы уже в процессе. Пожалуйста, завершите текущий процесс или используйте /cancel.",
+    already_in_process:
+      "❌ Вы уже в процессе. Пожалуйста, завершите текущий процесс или используйте /cancel.",
     approved_status: `🎉 Заявка одобрена. №: {id}\n👤 Заявитель: {name}`,
     pending_status: `📊 Ваша очередь: {pos}`,
     queue_not_found: "❌ Очередь не найдена.",
@@ -54,13 +63,17 @@ const texts = {
     booking_not_found_or_canceled: "❌ Заявка не найдена или уже отменена.",
     application_canceled: "❌ Ваша заявка отменена.",
     new_booking_prompt: "🔄 Для записи на новую встречу нажмите кнопку в меню.",
-    unexpected_text_ignore: "User {id} in scene {scene}, ignoring unexpected text: {text}",
-    global_error_reply: "❌ Произошла ошибка, пожалуйста, отправьте /start заново.",
-    existing_application: "❌ У вас уже есть заявка (№: {id}, Статус: {status}, Заявитель: {name}). Чтобы подать новую, сначала отмените текущую.",
+    unexpected_text_ignore:
+      "User {id} in scene {scene}, ignoring unexpected text: {text}",
+    global_error_reply:
+      "❌ Произошла ошибка, пожалуйста, отправьте /start заново.",
+    existing_application:
+      "❌ У вас уже есть заявка (№: {id}, Статус: {status}, Заявитель: {name}). Чтобы подать новую, сначала отмените текущую.",
     booking_canceled: "❌ Запись на встречу отменена.",
     no_application: "❌ У вас нет активной заявки.",
     file_not_found: "❌ Файл не найден.",
-    additional_info: "📗 Дополнительная информация: Здесь может быть полезный текст или ссылки.", // Placeholder
+    additional_info:
+      "📗 Дополнительная информация: Здесь может быть полезный текст или ссылки.", // Placeholder
     language_prompt: "🌐 Пожалуйста, выберите язык:",
     queue_status: "📊 Статус очереди",
     group_join: "🫂 Перейти в группу",
@@ -75,12 +88,15 @@ const texts = {
     status_approved: "одобрено",
     status_pending: "ожидает",
   },
-  uz: { // Uzbek Cyrillic
-    greeting: "👋 Ассалому алайкум!\nБу платформа орқали сиз қамоқхона маҳбуслари билан учрашувга ёзилишингиз мумкин.",
+  uz: {
+    // Uzbek Cyrillic
+    greeting:
+      "👋 Ассалому алайкум!\nБу платформа орқали сиз қамоқхона маҳбуслари билан учрашувга ёзилишингиз мумкин.",
     process_canceled: "❌ Жараён бекор қилинди.",
     error_occurred: "❌ Хатолик юз берди.",
     main_menu: "Асосий меню:",
-    already_in_process: "❌ Сиз аллақачон жараёндасиз. Илтимос, жорий жараённи якунланг ёки /cancel буйруғини ишлатинг.",
+    already_in_process:
+      "❌ Сиз аллақачон жараёндасиз. Илтимос, жорий жараённи якунланг ёки /cancel буйруғини ишлатинг.",
     approved_status: `🎉 Ариза тасдиқланган. №: {id}\n👤 Аризачи: {name}`,
     pending_status: `📊 Сизнинг навбатингиз: {pos}`,
     queue_not_found: "❌ Навбат топилмади.",
@@ -96,16 +112,22 @@ const texts = {
     cancel_confirm: "❓ Аризани бекор қилмоқчимисиз?",
     cancel_no: "✅ Ариза бекор қилинмади.",
     no_cancel_booking: "❌ Ҳозир бекор қилиш учун ариза топилмади.",
-    booking_not_found_or_canceled: "❌ Ариза топилмади ёки аллақачон бекор қилинган.",
+    booking_not_found_or_canceled:
+      "❌ Ариза топилмади ёки аллақачон бекор қилинган.",
     application_canceled: "❌ Сизнинг аризангиз бекор қилинди.",
-    new_booking_prompt: "🔄 Янги учрашувга ёзилиш учун менюдаги тугмани босинг.",
-    unexpected_text_ignore: "User {id} in scene {scene}, ignoring unexpected text: {text}",
-    global_error_reply: "❌ Хатолик юз берди, илтимос, /start буйруғини қайта юборинг.",
-    existing_application: "❌ Сизда аллақачон ариза мавжуд (№: {id}, Ҳолат: {status}, Аризачи: {name}). Янги ариза юбориш учун аввал жорий аризани бекор қилинг.",
+    new_booking_prompt:
+      "🔄 Янги учрашувга ёзилиш учун менюдаги тугмани босинг.",
+    unexpected_text_ignore:
+      "User {id} in scene {scene}, ignoring unexpected text: {text}",
+    global_error_reply:
+      "❌ Хатолик юз берди, илтимос, /start буйруғини қайта юборинг.",
+    existing_application:
+      "❌ Сизда аллақачон ариза мавжуд (№: {id}, Ҳолат: {status}, Аризачи: {name}). Янги ариза юбориш учун аввал жорий аризани бекор қилинг.",
     booking_canceled: "❌ Учрашув ёзуви бекор қилинди.",
     no_application: "❌ Сизда ҳозирда кутаётган ариза йўқ.",
     file_not_found: "❌ Файл топилмади.",
-    additional_info: "📗 Қўшимча маълумот: Бу ерда фойдали матн ёки ҳаволалар бўлиши мумкин.", // Placeholder
+    additional_info:
+      "📗 Қўшимча маълумот: Бу ерда фойдали матн ёки ҳаволалар бўлиши мумкин.", // Placeholder
     language_prompt: "🌐 Илтимос, тилни танланг:",
     queue_status: "📊 Навбат ҳолати",
     group_join: "🫂 Гуруҳга ўтиш",
@@ -120,12 +142,15 @@ const texts = {
     status_approved: "тасдиқланган",
     status_pending: "кутмоқда",
   },
-  uzl: { // Uzbek Latin (original)
-    greeting: "👋 Assalomu alaykum!\nBu platforma orqali siz qamoqxona mahbuslari bilan uchrashuvga yozilishingiz mumkin.",
+  uzl: {
+    // Uzbek Latin (original)
+    greeting:
+      "👋 Assalomu alaykum!\nBu platforma orqali siz qamoqxona mahbuslari bilan uchrashuvga yozilishingiz mumkin.",
     process_canceled: "❌ Jarayon bekor qilindi.",
     error_occurred: "❌ Xatolik yuz berdi.",
     main_menu: "Asosiy menu:",
-    already_in_process: "❌ Siz allaqachon jarayondasiz. Iltimos, joriy jarayonni yakunlang yoki /cancel buyrug‘ini ishlating.",
+    already_in_process:
+      "❌ Siz allaqachon jarayondasiz. Iltimos, joriy jarayonni yakunlang yoki /cancel buyrug‘ini ishlating.",
     approved_status: `🎉 Ariza tasdiqlangan. №: {id}\n👤 Arizachi: {name}`,
     pending_status: `📊 Sizning navbatingiz: {pos}`,
     queue_not_found: "❌ Navbat topilmadi.",
@@ -141,16 +166,22 @@ const texts = {
     cancel_confirm: "❓ Arizani bekor qilmoqchimisiz?",
     cancel_no: "✅ Ariza bekor qilinmadi.",
     no_cancel_booking: "❌ Hozir bekor qilish uchun ariza topilmadi.",
-    booking_not_found_or_canceled: "❌ Ariza topilmadi yoki allaqachon bekor qilingan.",
+    booking_not_found_or_canceled:
+      "❌ Ariza topilmadi yoki allaqachon bekor qilingan.",
     application_canceled: "❌ Sizning arizangiz bekor qilindi.",
-    new_booking_prompt: "🔄 Yangi uchrashuvga yozilish uchun menyudagi tugmani bosing.",
-    unexpected_text_ignore: "User {id} in scene {scene}, ignoring unexpected text: {text}",
-    global_error_reply: "❌ Xatolik yuz berdi, iltimos, /start buyrug‘ini qayta yuboring.",
-    existing_application: "❌ Sizda allaqachon ariza mavjud (№: {id}, Holat: {status}, Arizachi: {name}). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.",
+    new_booking_prompt:
+      "🔄 Yangi uchrashuvga yozilish uchun menyudagi tugmani bosing.",
+    unexpected_text_ignore:
+      "User {id} in scene {scene}, ignoring unexpected text: {text}",
+    global_error_reply:
+      "❌ Xatolik yuz berdi, iltimos, /start buyrug‘ini qayta yuboring.",
+    existing_application:
+      "❌ Sizda allaqachon ariza mavjud (№: {id}, Holat: {status}, Arizachi: {name}). Yangi ariza yuborish uchun avval joriy arizani bekor qiling.",
     booking_canceled: "❌ Uchrashuv yozuvi bekor qilindi.",
     no_application: "❌ Sizda hozirda kutayotgan ariza yo‘q.",
     file_not_found: "❌ Fayl topilmadi.",
-    additional_info: "📗 Qo‘shimcha ma’lumot: Bu yerda foydali matn yoki havolalar bo‘lishi mumkin.", // Placeholder
+    additional_info:
+      "📗 Qo‘shimcha ma’lumot: Bu yerda foydali matn yoki havolalar bo‘lishi mumkin.", // Placeholder
     language_prompt: "🌐 Iltimos, tilni tanlang:",
     queue_status: "📊 Navbat holati",
     group_join: "🫂 Grupaga otish",
@@ -164,7 +195,7 @@ const texts = {
     no: "❌ Yo‘q",
     status_approved: "tasdiqlangan",
     status_pending: "kutmoqda",
-  }
+  },
 };
 
 async function getLatestPendingOrApprovedId(userId) {
@@ -215,9 +246,11 @@ function buildMainMenu(lang, latestPendingId) {
   ];
 
   if (latestPendingId) {
-    rows.push([texts[lang].cancel_application.replace('{id}', latestPendingId)]);
+    rows.push([
+      texts[lang].cancel_application.replace("{id}", latestPendingId),
+    ]);
   } else {
-    rows.length = 0;  
+    rows.length = 0;
     rows.push([texts[lang].book_meeting]);
   }
 
@@ -280,7 +313,10 @@ bot.command("cancel", async (ctx) => {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
-    await ctx.reply(texts[lang].process_canceled, buildMainMenu(lang, latestId));
+    await ctx.reply(
+      texts[lang].process_canceled,
+      buildMainMenu(lang, latestId)
+    );
   } catch (err) {
     console.error("Error in /cancel:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
@@ -321,25 +357,32 @@ bot.start(async (ctx) => {
         relatives = [];
       }
       const rel1 = relatives[0] || {};
-      const name = rel1.full_name || (lang === 'ru' ? 'Неизвестно' : lang === 'uz' ? 'Номаълум' : "Noma'lum");
+      const name =
+        rel1.full_name ||
+        (lang === "ru"
+          ? "Неизвестно"
+          : lang === "uz"
+          ? "Номаълум"
+          : "Noma'lum");
 
       if (latestBooking.status === "approved") {
         await ctx.reply(
-          texts[lang].approved_status.replace('{id}', latestId).replace('{name}', name),
+          texts[lang].approved_status
+            .replace("{id}", latestId)
+            .replace("{name}", name),
           buildMainMenu(lang, latestId)
         );
       } else if (latestBooking.status === "pending") {
         const pos = await getQueuePosition(latestId);
         await ctx.reply(
-          pos ? texts[lang].pending_status.replace('{pos}', pos) : texts[lang].queue_not_found,
+          pos
+            ? texts[lang].pending_status.replace("{pos}", pos)
+            : texts[lang].queue_not_found,
           buildMainMenu(lang, latestId)
         );
       }
     } else {
-      await ctx.reply(
-        texts[lang].greeting,
-        buildMainMenu(lang, null)
-      );
+      await ctx.reply(texts[lang].greeting, buildMainMenu(lang, null));
     }
   } catch (err) {
     console.error("Error in /start:", err);
@@ -387,7 +430,7 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
       reply_markup: { inline_keyboard: [] },
     });
 
-    ctx.session.language = ctx.match[0].replace('lang_', '');
+    ctx.session.language = ctx.match[0].replace("lang_", "");
     delete ctx.session.__scenes;
 
     console.log(
@@ -419,13 +462,24 @@ bot.action("start_booking", async (ctx) => {
         relatives = [];
       }
       const rel1 = relatives[0] || {};
-      const name = rel1.full_name || (lang === 'ru' ? 'Неизвестно' : lang === 'uz' ? 'Номаълум' : "Noma'lum");
+      const name =
+        rel1.full_name ||
+        (lang === "ru"
+          ? "Неизвестно"
+          : lang === "uz"
+          ? "Номаълум"
+          : "Noma'lum");
       const statusText =
-        booking.status === "approved" ? texts[lang].status_approved : texts[lang].status_pending;
+        booking.status === "approved"
+          ? texts[lang].status_approved
+          : texts[lang].status_pending;
 
       await ctx.answerCbQuery();
       return ctx.reply(
-        texts[lang].existing_application.replace('{id}', existingBookingId).replace('{status}', statusText).replace('{name}', name),
+        texts[lang].existing_application
+          .replace("{id}", existingBookingId)
+          .replace("{status}", statusText)
+          .replace("{name}", name),
         buildMainMenu(lang, existingBookingId)
       );
     }
@@ -480,8 +534,10 @@ async function handleQueueStatus(ctx) {
       relatives = [];
     }
     const rel1 = relatives[0] || {};
-    const name = rel1.full_name || (lang === 'ru' ? 'Неизвестно' : lang === 'uz' ? 'Номаълум' : "Noma'lum");
-    const locale = lang === 'ru' ? 'ru-RU' : 'uz-UZ';
+    const name =
+      rel1.full_name ||
+      (lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum");
+    const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
 
     if (latestBooking.status === "approved") {
       const visitDate = latestBooking.start_datetime
@@ -495,26 +551,42 @@ async function handleQueueStatus(ctx) {
             year: "numeric",
             timeZone: "Asia/Tashkent",
           })
-        : (lang === 'ru' ? 'Неизвестно' : lang === 'uz' ? 'Номаълум' : "Noma'lum");
-      const createdDate = new Date(latestBooking.created_at).toLocaleString(locale, {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        timeZone: "Asia/Tashkent",
-      });
+        : lang === "ru"
+        ? "Неизвестно"
+        : lang === "uz"
+        ? "Номаълум"
+        : "Noma'lum";
+      const createdDate = new Date(latestBooking.created_at).toLocaleString(
+        locale,
+        {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          timeZone: "Asia/Tashkent",
+        }
+      );
       await ctx.reply(
-        texts[lang].approved_details.replace('{id}', latestId).replace('{name}', name).replace('{created}', createdDate).replace('{visit}', visitDate),
+        texts[lang].approved_details
+          .replace("{id}", latestId)
+          .replace("{name}", name)
+          .replace("{created}", createdDate)
+          .replace("{visit}", visitDate),
         buildMainMenu(lang, latestId)
       );
       return;
     } else if (latestBooking.status === "pending") {
       const pos = await getQueuePosition(latestId);
       await ctx.reply(
-        pos ? texts[lang].pending_status.replace('{pos}', pos) : texts[lang].queue_not_found,
+        pos
+          ? texts[lang].pending_status.replace("{pos}", pos)
+          : texts[lang].queue_not_found,
         buildMainMenu(lang, latestId)
       );
     } else {
-      await ctx.reply(texts[lang].status_unknown, buildMainMenu(lang, latestId));
+      await ctx.reply(
+        texts[lang].status_unknown,
+        buildMainMenu(lang, latestId)
+      );
     }
   } catch (err) {
     console.error("Error in queue status:", err);
@@ -597,7 +669,9 @@ async function handleGroupJoin(ctx) {
     }
     await ctx.reply(
       texts[lang].group_join_prompt,
-      Markup.inlineKeyboard([[Markup.button.url(texts[lang].group_join_button, groupUrl)]])
+      Markup.inlineKeyboard([
+        [Markup.button.url(texts[lang].group_join_button, groupUrl)],
+      ])
     );
   } catch (err) {
     console.error("Error in group join:", err);
@@ -605,9 +679,15 @@ async function handleGroupJoin(ctx) {
   }
 }
 
-bot.hears(texts.uzl.colony_location_button, async (ctx) => handleColonyLocation(ctx));
-bot.hears(texts.uz.colony_location_button, async (ctx) => handleColonyLocation(ctx));
-bot.hears(texts.ru.colony_location_button, async (ctx) => handleColonyLocation(ctx));
+bot.hears(texts.uzl.colony_location_button, async (ctx) =>
+  handleColonyLocation(ctx)
+);
+bot.hears(texts.uz.colony_location_button, async (ctx) =>
+  handleColonyLocation(ctx)
+);
+bot.hears(texts.ru.colony_location_button, async (ctx) =>
+  handleColonyLocation(ctx)
+);
 
 async function handleColonyLocation(ctx) {
   try {
@@ -634,7 +714,7 @@ async function handleColonyLocation(ctx) {
     const { longitude, latitude } = coordRows[0];
     await ctx.replyWithLocation(longitude, latitude);
     await ctx.reply(
-      texts[lang].colony_location.replace('{colony}', colony),
+      texts[lang].colony_location.replace("{colony}", colony),
       buildMainMenu(lang, latestBooking.id)
     );
   } catch (err) {
@@ -663,9 +743,15 @@ async function handleNoCancel(ctx) {
   }
 }
 
-bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) => handleCancelApplication(ctx)); // uzl
-bot.hears(/^❌ Аризани бекор қилиш(?:\s*#(\d+))?$/i, async (ctx) => handleCancelApplication(ctx)); // uz
-bot.hears(/^❌ Отменить заявку(?:\s*#(\d+))?$/i, async (ctx) => handleCancelApplication(ctx)); // ru
+bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, async (ctx) =>
+  handleCancelApplication(ctx)
+); // uzl
+bot.hears(/^❌ Аризани бекор қилиш(?:\s*#(\d+))?$/i, async (ctx) =>
+  handleCancelApplication(ctx)
+); // uz
+bot.hears(/^❌ Отменить заявку(?:\s*#(\d+))?$/i, async (ctx) =>
+  handleCancelApplication(ctx)
+); // ru
 
 async function handleCancelApplication(ctx) {
   try {
@@ -724,7 +810,8 @@ async function handleYesCancel(ctx) {
     }
 
     const colony = bookingsRows[0].colony;
-    let bookingName = lang === 'ru' ? 'Неизвестно' : lang === 'uz' ? 'Номаълум' : "Noma'lum";
+    let bookingName =
+      lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum";
 
     if (bookingsRows[0].relatives) {
       try {
@@ -751,10 +838,12 @@ async function handleYesCancel(ctx) {
     }
 
     const latestIdAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
-    await ctx.reply(texts[lang].application_canceled, buildMainMenu(lang, latestIdAfterDelete));
+    await ctx.reply(
+      texts[lang].application_canceled,
+      buildMainMenu(lang, latestIdAfterDelete)
+    );
 
     await resetSessionAndScene(ctx);
-
   } catch (err) {
     console.error("Error in yes cancel:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
@@ -769,7 +858,10 @@ bot.on(message("text"), async (ctx, next) => {
 
     if (ctx.scene && ctx.scene.current) {
       console.log(
-        texts[lang].unexpected_text_ignore.replace('{id}', ctx.from.id).replace('{scene}', ctx.scene.current.id).replace('{text}', ctx.message.text)
+        texts[lang].unexpected_text_ignore
+          .replace("{id}", ctx.from.id)
+          .replace("{scene}", ctx.scene.current.id)
+          .replace("{text}", ctx.message.text)
       );
       return;
     }
@@ -791,7 +883,8 @@ bot.catch((err, ctx) => {
   }
 });
 
-bot.hears("Yangi ariza yuborish", async (ctx) => { // Legacy, assume uzl
+bot.hears("Yangi ariza yuborish", async (ctx) => {
+  // Legacy, assume uzl
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
@@ -811,12 +904,23 @@ bot.hears("Yangi ariza yuborish", async (ctx) => { // Legacy, assume uzl
         relatives = [];
       }
       const rel1 = relatives[0] || {};
-      const name = rel1.full_name || (lang === 'ru' ? 'Неизвестно' : lang === 'uz' ? 'Номаълум' : "Noma'lum");
+      const name =
+        rel1.full_name ||
+        (lang === "ru"
+          ? "Неизвестно"
+          : lang === "uz"
+          ? "Номаълум"
+          : "Noma'lum");
       const statusText =
-        booking.status === "approved" ? texts[lang].status_approved : texts[lang].status_pending;
+        booking.status === "approved"
+          ? texts[lang].status_approved
+          : texts[lang].status_pending;
 
       return ctx.reply(
-        texts[lang].existing_application.replace('{id}', existingBookingId).replace('{status}', statusText).replace('{name}', name),
+        texts[lang].existing_application
+          .replace("{id}", existingBookingId)
+          .replace("{status}", statusText)
+          .replace("{name}", name),
         buildMainMenu(lang, existingBookingId)
       );
     }
@@ -828,7 +932,9 @@ bot.hears("Yangi ariza yuborish", async (ctx) => { // Legacy, assume uzl
   }
 });
 
-bot.hears(texts.uzl.application_copy, async (ctx) => handleApplicationCopy(ctx));
+bot.hears(texts.uzl.application_copy, async (ctx) =>
+  handleApplicationCopy(ctx)
+);
 bot.hears(texts.uz.application_copy, async (ctx) => handleApplicationCopy(ctx));
 bot.hears(texts.ru.application_copy, async (ctx) => handleApplicationCopy(ctx));
 
@@ -838,10 +944,7 @@ async function handleApplicationCopy(ctx) {
     await resetSessionAndScene(ctx);
     const latestBooking = await getLatestBooking(ctx.from.id);
     if (!latestBooking) {
-      return ctx.reply(
-        texts[lang].no_application,
-        buildMainMenu(lang, null)
-      );
+      return ctx.reply(texts[lang].no_application, buildMainMenu(lang, null));
     }
     const booking = latestBooking;
 
@@ -874,7 +977,7 @@ async function handleApplicationCopy(ctx) {
       linebreaks: true,
     });
 
-    const locale = lang === 'ru' ? 'ru-RU' : 'uz-UZ';
+    const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
 
     doc.render({
       placeNumber: library.placeNumber,
@@ -903,7 +1006,9 @@ async function handleApplicationCopy(ctx) {
   }
 }
 
-bot.hears(texts.uzl.visitor_reminder, async (ctx) => handleVisitorReminder(ctx));
+bot.hears(texts.uzl.visitor_reminder, async (ctx) =>
+  handleVisitorReminder(ctx)
+);
 bot.hears(texts.uz.visitor_reminder, async (ctx) => handleVisitorReminder(ctx));
 bot.hears(texts.ru.visitor_reminder, async (ctx) => handleVisitorReminder(ctx));
 
@@ -924,9 +1029,15 @@ async function handleVisitorReminder(ctx) {
   }
 }
 
-bot.hears(texts.uzl.additional_info_button, async (ctx) => handleAdditionalInfo(ctx));
-bot.hears(texts.uz.additional_info_button, async (ctx) => handleAdditionalInfo(ctx));
-bot.hears(texts.ru.additional_info_button, async (ctx) => handleAdditionalInfo(ctx));
+bot.hears(texts.uzl.additional_info_button, async (ctx) =>
+  handleAdditionalInfo(ctx)
+);
+bot.hears(texts.uz.additional_info_button, async (ctx) =>
+  handleAdditionalInfo(ctx)
+);
+bot.hears(texts.ru.additional_info_button, async (ctx) =>
+  handleAdditionalInfo(ctx)
+);
 
 async function handleAdditionalInfo(ctx) {
   try {
