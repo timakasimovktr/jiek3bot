@@ -703,6 +703,9 @@ async function saveBooking(ctx) {
       case "12":
         groupUrl = "https://t.me/SmartJIEK12";
         break;
+      case "13":
+        groupUrl = "https://t.me/SmartJIEK13";
+        break;
       case "17":
         groupUrl = "https://t.me/SmartJIEK17";
         break;
