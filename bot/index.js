@@ -526,6 +526,7 @@ async function handleQueueStatus(ctx) {
       );
     }
     const latestId = latestBooking.id;
+    const colony = latestBooking.colony;
     let relatives = [];
     try {
       relatives = JSON.parse(latestBooking.relatives || "[]");
@@ -569,6 +570,7 @@ async function handleQueueStatus(ctx) {
         texts[lang].approved_details
           .replace("{id}", latestId)
           .replace("{name}", name)
+          .replace("{colony}", colony)
           .replace("{created}", createdDate)
           .replace("{visit}", visitDate),
         buildMainMenu(lang, latestId)
