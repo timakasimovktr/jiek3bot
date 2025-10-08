@@ -545,6 +545,7 @@ async function handleQueueStatus(ctx) {
     const name =
       rel1.full_name ||
       (lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum");
+    const colony_application_number = latestBooking.colony_application_number;  
     const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
 
     if (latestBooking.status === "approved") {
@@ -575,7 +576,7 @@ async function handleQueueStatus(ctx) {
       );
       await ctx.reply(
         texts[lang].approved_details
-          .replace("{id}", latestId)
+          .replace("{id}", colony_application_number)
           .replace("{name}", name)
           .replace("{colony}", colony)
           .replace("{created}", createdDate)
