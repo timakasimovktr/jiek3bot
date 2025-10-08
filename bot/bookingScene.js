@@ -642,7 +642,8 @@ async function saveBooking(ctx) {
     // Insert the booking with the colony-specific number
     const [result] = await pool.query(
       `INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id, colony_application_number)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+      SELECT ?, ?, ?, ?, ?, ?, 'pending', ?, COALESCE(MAX(colony_application_number), 0) + 1
+      FROM bookings WHERE colony = ? FOR UPDATE`,
       [
         ctx.from.id,
         ctx.wizard.state.phone,
@@ -651,7 +652,7 @@ async function saveBooking(ctx) {
         JSON.stringify(relatives),
         colony,
         chatId,
-        nextNumber,
+        colony,
       ]
     );
 
@@ -779,7 +780,9 @@ async function sendApplicationToClient(ctx, application) {
     year: "numeric",
   });
   const isLong = application.visit_type === "long";
-  const text = `${texts[application.lang].admin_new(application.colony_application_number)}
+  const text = `${texts[application.lang].admin_new(
+    application.colony_application_number
+  )}
 ${texts[application.lang].admin_applicant(name)}
 ${texts[application.lang].admin_colony(application.colony)}
 ${texts[application.lang].admin_date(date)}
