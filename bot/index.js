@@ -677,7 +677,7 @@ async function handleGroupJoin(ctx) {
         groupUrl = "https://t.me/SmartJIEK24";
         break;
     }
-    
+
     await ctx.reply(
       texts[lang].group_join_prompt,
       Markup.inlineKeyboard([
@@ -1017,7 +1017,7 @@ async function handleApplicationCopy(ctx) {
         rel3.full_name ||
         "____________________________________________________",
       prisoner: booking.prisoner_name || "",
-      arizaNumber: booking.id || "",
+      arizaNumber: booking.colony_application_number || "",
       today: new Date().toLocaleDateString(locale),
     });
 
@@ -1025,7 +1025,7 @@ async function handleApplicationCopy(ctx) {
 
     await ctx.replyWithDocument({
       source: buf,
-      filename: `ariza_${booking.id}.docx`,
+      filename: `ariza_${booking.colony_application_number}.docx`,
     });
   } catch (err) {
     console.error("Error in application copy:", err);
