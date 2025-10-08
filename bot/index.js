@@ -18,7 +18,7 @@ bot.use(stage.middleware());
 
 bot.use((ctx, next) => {
   if (ctx.chat?.type !== "private") {
-    return; 
+    return;
   }
   return next();
 });
@@ -201,7 +201,7 @@ const texts = {
 async function getLatestPendingOrApprovedId(userId) {
   try {
     const [rows] = await pool.query(
-      `SELECT id
+      `SELECT colony_application_number
        FROM bookings
        WHERE status IN ('pending', 'approved') AND user_id = ?
        ORDER BY created_at DESC
@@ -209,7 +209,7 @@ async function getLatestPendingOrApprovedId(userId) {
       [userId]
     );
 
-    return rows.length ? rows[0].id : null;
+    return rows.length ? rows[0].colony_application_number : null;
   } catch (err) {
     console.error("Error in getLatestPendingOrApprovedId:", err);
     throw err;
@@ -219,7 +219,7 @@ async function getLatestPendingOrApprovedId(userId) {
 async function getLatestBooking(userId) {
   try {
     const [rows] = await pool.query(
-      `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime
+      `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime, colony_application_number
        FROM bookings
        WHERE user_id = ?
        ORDER BY created_at DESC
@@ -238,16 +238,16 @@ async function getUserBookingStatus(userId) {
   return await getLatestBooking(userId); // Reuse the function
 }
 
-function buildMainMenu(lang, latestPendingId) {
+function buildMainMenu(lang, latestPendingNumber) {
   const rows = [
     [texts[lang].queue_status, texts[lang].group_join],
     [texts[lang].application_copy, texts[lang].additional_info_button],
     [texts[lang].visitor_reminder, texts[lang].colony_location_button],
   ];
 
-  if (latestPendingId) {
+  if (latestPendingNumber) {
     rows.push([
-      texts[lang].cancel_application.replace("{id}", latestPendingId),
+      texts[lang].cancel_application.replace("{id}", latestPendingNumber),
     ]);
   } else {
     rows.length = 0;
@@ -260,7 +260,7 @@ function buildMainMenu(lang, latestPendingId) {
 async function getQueuePosition(bookingId) {
   try {
     const [bookingsRows] = await pool.query(
-      "SELECT colony FROM bookings WHERE id = ?",
+      "SELECT colony, colony_application_number FROM bookings WHERE id = ?",
       [bookingId]
     );
 
@@ -270,21 +270,22 @@ async function getQueuePosition(bookingId) {
     }
 
     const colony = bookingsRows[0].colony;
+    const colonyApplicationNumber = bookingsRows[0].colony_application_number;
 
     if (String(colony) === "5") {
       console.error(`Inconsistency: bookings has colony 5`);
     }
 
     const [rows] = await pool.query(
-      "SELECT id FROM bookings WHERE status = 'pending' AND colony = ? ORDER BY id ASC",
+      "SELECT colony_application_number FROM bookings WHERE status = 'pending' AND colony = ? ORDER BY colony_application_number ASC",
       [colony]
     );
     console.log(
       `getQueuePosition: Fetched ${rows.length} pending bookings from bookings for colony ${colony}`
     );
 
-    const ids = rows.map((row) => row.id);
-    const position = ids.indexOf(bookingId);
+    const numbers = rows.map((row) => row.colony_application_number);
+    const position = numbers.indexOf(colonyApplicationNumber);
     return position !== -1 ? position + 1 : null;
   } catch (err) {
     console.error("Error in getQueuePosition:", err);
@@ -347,7 +348,7 @@ bot.start(async (ctx) => {
 
     const userId = ctx.from.id;
     const latestBooking = await getLatestBooking(userId);
-    const latestId = await getLatestPendingOrApprovedId(userId);
+    const latestNumber = await getLatestPendingOrApprovedId(userId);
 
     if (latestBooking && latestBooking.status !== "canceled") {
       let relatives = [];
@@ -368,17 +369,17 @@ bot.start(async (ctx) => {
       if (latestBooking.status === "approved") {
         await ctx.reply(
           texts[lang].approved_status
-            .replace("{id}", latestId)
+            .replace("{id}", latestNumber) // Используем colony_application_number
             .replace("{name}", name),
-          buildMainMenu(lang, latestId)
+          buildMainMenu(lang, latestNumber)
         );
       } else if (latestBooking.status === "pending") {
-        const pos = await getQueuePosition(latestId);
+        const pos = await getQueuePosition(latestBooking.id); // Передаем id, так как getQueuePosition работает с id
         await ctx.reply(
           pos
             ? texts[lang].pending_status.replace("{pos}", pos)
             : texts[lang].queue_not_found,
-          buildMainMenu(lang, latestId)
+          buildMainMenu(lang, latestNumber)
         );
       }
     } else {
@@ -759,21 +760,36 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitId = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
-    const latestId =
-      explicitId || (await getLatestPendingOrApprovedId(ctx.from.id));
+    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const latestNumber =
+      explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
 
-    if (!latestId) {
+    if (!latestNumber) {
       await ctx.reply(
         texts[lang].new_booking_prompt,
         buildMainMenu(lang, null)
       );
-
       return;
     }
 
+    // Находим id по colony_application_number
+    const [bookingRows] = await pool.query(
+      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
+      [latestNumber, ctx.from.id]
+    );
+
+    if (!bookingRows.length) {
+      await ctx.reply(
+        texts[lang].booking_not_found_or_canceled,
+        buildMainMenu(lang, null)
+      );
+      return;
+    }
+
+    const bookingId = bookingRows[0].id;
+
     ctx.session.confirmCancel = true;
-    ctx.session.confirmCancelId = latestId;
+    ctx.session.confirmCancelId = bookingId;
 
     await ctx.reply(
       texts[lang].cancel_confirm,
@@ -802,7 +818,7 @@ async function handleYesCancel(ctx) {
     ctx.session.confirmCancelId = null;
 
     const [bookingsRows] = await pool.query(
-      "SELECT colony, relatives FROM bookings WHERE id = ? AND user_id = ?",
+      "SELECT colony, relatives, colony_application_number FROM bookings WHERE id = ? AND user_id = ?",
       [bookingId, ctx.from.id]
     );
 
@@ -812,6 +828,7 @@ async function handleYesCancel(ctx) {
     }
 
     const colony = bookingsRows[0].colony;
+    const colonyApplicationNumber = bookingsRows[0].colony_application_number;
     let bookingName =
       lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum";
 
@@ -839,10 +856,10 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
-    const latestIdAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
+    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(
       texts[lang].application_canceled,
-      buildMainMenu(lang, latestIdAfterDelete)
+      buildMainMenu(lang, latestNumberAfterDelete)
     );
 
     await resetSessionAndScene(ctx);
