@@ -630,8 +630,19 @@ async function saveBooking(ctx) {
   const { prisoner_name, relatives, visit_type, colony } = ctx.wizard.state;
   const chatId = ctx.chat.id;
   try {
+    // Get the maximum colony_application_number for the selected colony
+    const [maxNumberRows] = await pool.query(
+      `SELECT MAX(colony_application_number) AS max_number
+       FROM bookings
+       WHERE colony = ?`,
+      [colony]
+    );
+    const nextNumber = (maxNumberRows[0].max_number || 0) + 1;
+
+    // Insert the booking with the colony-specific number
     const [result] = await pool.query(
-      `INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      `INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id, colony_application_number)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
       [
         ctx.from.id,
         ctx.wizard.state.phone,
@@ -640,6 +651,7 @@ async function saveBooking(ctx) {
         JSON.stringify(relatives),
         colony,
         chatId,
+        nextNumber,
       ]
     );
 
@@ -651,6 +663,7 @@ async function saveBooking(ctx) {
       relatives,
       prisoner: prisoner_name,
       id: bookingId,
+      colony_application_number: nextNumber, // Pass the new number
       visit_type,
       colony,
       lang,
@@ -658,7 +671,7 @@ async function saveBooking(ctx) {
     });
 
     const [rows] = await pool.query(
-      `SELECT * FROM bookings WHERE status = 'pending' AND colony = ? ORDER BY id ASC`,
+      `SELECT * FROM bookings WHERE status = 'pending' AND colony = ? ORDER BY colony_application_number ASC`, // Order by colony_application_number
       [colony]
     );
     const myIndex = rows.findIndex((b) => b.id === bookingId);
@@ -673,7 +686,7 @@ async function saveBooking(ctx) {
       texts[lang].booking_saved(position),
       Markup.keyboard([
         [texts[lang].queue_status],
-        [texts[lang].cancel_application(bookingId)],
+        [texts[lang].cancel_application(nextNumber)], // Use colony_application_number
       ])
         .resize()
         .oneTime(false)
@@ -766,7 +779,7 @@ async function sendApplicationToClient(ctx, application) {
     year: "numeric",
   });
   const isLong = application.visit_type === "long";
-  const text = `${texts[application.lang].admin_new(application.id)}
+  const text = `${texts[application.lang].admin_new(application.colony_application_number)}
 ${texts[application.lang].admin_applicant(name)}
 ${texts[application.lang].admin_colony(application.colony)}
 ${texts[application.lang].admin_date(date)}

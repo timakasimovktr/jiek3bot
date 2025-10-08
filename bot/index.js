@@ -18,7 +18,7 @@ bot.use(stage.middleware());
 
 bot.use((ctx, next) => {
   if (ctx.chat?.type !== "private") {
-    return; 
+    return;
   }
   return next();
 });
@@ -37,7 +37,7 @@ bot.use((ctx, next) => {
 });
 
 const texts = {
-  ru: {
+  ru: {   
     greeting:
       "👋 Здравствуйте!\nЧерез эту платформу вы можете записаться на встречу с заключёнными в тюрьме.",
     process_canceled: "❌ Процесс отменён.",
@@ -45,7 +45,8 @@ const texts = {
     main_menu: "Основное меню:",
     already_in_process:
       "❌ Вы уже в процессе. Пожалуйста, завершите текущий процесс или используйте /cancel.",
-    approved_status: `🎉 Заявка одобрена. №: {id}\n👤 Заявитель: {name}`,
+    admin_new: (id) => `📌 Новая заявка. №: ${id}`,
+    approved_status: `🎉 Заявка одобрена. №: {colony_application_number}\n👤 Заявитель: {name}`,
     pending_status: `📊 Ваша очередь: {pos}`,
     queue_not_found: "❌ Очередь не найдена.",
     no_pending_application: "❌ У вас нет активной заявки.",
@@ -57,6 +58,7 @@ const texts = {
     no_active_application: "❌ У вас нет активной заявки.",
     coordinates_not_found: "❌ Координаты колонии не найдены.",
     colony_location: "🏛 Локация колонии {colony}",
+    cancel_application: "❌ Отменить заявку #{colony_application_number}",
     cancel_confirm: "❓ Вы уверены, что хотите отменить заявку?",
     cancel_no: "✅ Заявка не отменена.",
     no_cancel_booking: "❌ Нет заявки для отмены.",
@@ -97,7 +99,9 @@ const texts = {
     main_menu: "Асосий меню:",
     already_in_process:
       "❌ Сиз аллақачон жараёндасиз. Илтимос, жорий жараённи якунланг ёки /cancel буйруғини ишлатинг.",
-    approved_status: `🎉 Ариза тасдиқланган. №: {id}\n👤 Аризачи: {name}`,
+    approved_status: `🎉 Ариза тасдиқланган. №: {colony_application_number}\n👤 Аризачи: {name}`,
+    cancel_application: "❌ Аризани бекор қилиш #{colony_application_number}",
+    admin_new: (id) => `📌 Янги ариза. №: ${id}`,
     pending_status: `📊 Сизнинг навбатингиз: {pos}`,
     queue_not_found: "❌ Навбат топилмади.",
     no_pending_application: "❌ Сизда ҳозирда кутаётган ариза йўқ.",
@@ -151,7 +155,9 @@ const texts = {
     main_menu: "Asosiy menu:",
     already_in_process:
       "❌ Siz allaqachon jarayondasiz. Iltimos, joriy jarayonni yakunlang yoki /cancel buyrug‘ini ishlating.",
-    approved_status: `🎉 Ariza tasdiqlangan. №: {id}\n👤 Arizachi: {name}`,
+    approved_status: `🎉 Ariza tasdiqlangan. №: {colony_application_number}\n👤 Arizachi: {name}`,
+    cancel_application: "❌ Arizani bekor qilish #{colony_application_number}",
+    admin_new: (id) => `📌 Yangi ariza. №: ${id}`,
     pending_status: `📊 Sizning navbatingiz: {pos}`,
     queue_not_found: "❌ Navbat topilmadi.",
     no_pending_application: "❌ Sizda hozirda kutayotgan ariza yo‘q.",
@@ -201,7 +207,7 @@ const texts = {
 async function getLatestPendingOrApprovedId(userId) {
   try {
     const [rows] = await pool.query(
-      `SELECT id
+      `SELECT id, colony_application_number
        FROM bookings
        WHERE status IN ('pending', 'approved') AND user_id = ?
        ORDER BY created_at DESC
@@ -209,7 +215,12 @@ async function getLatestPendingOrApprovedId(userId) {
       [userId]
     );
 
-    return rows.length ? rows[0].id : null;
+    return rows.length
+      ? {
+          id: rows[0].id,
+          colony_application_number: rows[0].colony_application_number,
+        }
+      : null;
   } catch (err) {
     console.error("Error in getLatestPendingOrApprovedId:", err);
     throw err;
@@ -238,16 +249,19 @@ async function getUserBookingStatus(userId) {
   return await getLatestBooking(userId); // Reuse the function
 }
 
-function buildMainMenu(lang, latestPendingId) {
+function buildMainMenu(lang, latestBooking) {
   const rows = [
     [texts[lang].queue_status, texts[lang].group_join],
     [texts[lang].application_copy, texts[lang].additional_info_button],
     [texts[lang].visitor_reminder, texts[lang].colony_location_button],
   ];
 
-  if (latestPendingId) {
+  if (latestBooking && latestBooking.colony_application_number) {
     rows.push([
-      texts[lang].cancel_application.replace("{id}", latestPendingId),
+      texts[lang].cancel_application.replace(
+        "{id}",
+        latestBooking.colony_application_number
+      ),
     ]);
   } else {
     rows.length = 0;
@@ -260,7 +274,7 @@ function buildMainMenu(lang, latestPendingId) {
 async function getQueuePosition(bookingId) {
   try {
     const [bookingsRows] = await pool.query(
-      "SELECT colony FROM bookings WHERE id = ?",
+      "SELECT colony, colony_application_number FROM bookings WHERE id = ?",
       [bookingId]
     );
 
@@ -269,22 +283,18 @@ async function getQueuePosition(bookingId) {
       return null;
     }
 
-    const colony = bookingsRows[0].colony;
-
-    if (String(colony) === "5") {
-      console.error(`Inconsistency: bookings has colony 5`);
-    }
+    const { colony, colony_application_number } = bookingsRows[0];
 
     const [rows] = await pool.query(
-      "SELECT id FROM bookings WHERE status = 'pending' AND colony = ? ORDER BY id ASC",
+      "SELECT colony_application_number FROM bookings WHERE status = 'pending' AND colony = ? ORDER BY colony_application_number ASC",
       [colony]
     );
     console.log(
-      `getQueuePosition: Fetched ${rows.length} pending bookings from bookings for colony ${colony}`
+      `getQueuePosition: Fetched ${rows.length} pending bookings for colony ${colony}`
     );
 
-    const ids = rows.map((row) => row.id);
-    const position = ids.indexOf(bookingId);
+    const numbers = rows.map((row) => row.colony_application_number);
+    const position = numbers.indexOf(colony_application_number);
     return position !== -1 ? position + 1 : null;
   } catch (err) {
     console.error("Error in getQueuePosition:", err);
@@ -347,7 +357,7 @@ bot.start(async (ctx) => {
 
     const userId = ctx.from.id;
     const latestBooking = await getLatestBooking(userId);
-    const latestId = await getLatestPendingOrApprovedId(userId);
+    const latest = await getLatestPendingOrApprovedId(userId);
 
     if (latestBooking && latestBooking.status !== "canceled") {
       let relatives = [];
@@ -368,17 +378,17 @@ bot.start(async (ctx) => {
       if (latestBooking.status === "approved") {
         await ctx.reply(
           texts[lang].approved_status
-            .replace("{id}", latestId)
+            .replace("{id}", latest.colony_application_number) // Use colony_application_number
             .replace("{name}", name),
-          buildMainMenu(lang, latestId)
+          buildMainMenu(lang, latest)
         );
       } else if (latestBooking.status === "pending") {
-        const pos = await getQueuePosition(latestId);
+        const pos = await getQueuePosition(latest.id); // Pass global id
         await ctx.reply(
           pos
             ? texts[lang].pending_status.replace("{pos}", pos)
             : texts[lang].queue_not_found,
-          buildMainMenu(lang, latestId)
+          buildMainMenu(lang, latest)
         );
       }
     } else {
@@ -759,21 +769,23 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitId = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
-    const latestId =
-      explicitId || (await getLatestPendingOrApprovedId(ctx.from.id));
+    const explicitNumber =
+      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const latest = await getLatestPendingOrApprovedId(ctx.from.id);
 
-    if (!latestId) {
+    if (!latest || (!explicitNumber && !latest.colony_application_number)) {
       await ctx.reply(
         texts[lang].new_booking_prompt,
         buildMainMenu(lang, null)
       );
-
       return;
     }
 
+    const colonyApplicationNumber =
+      explicitNumber || latest.colony_application_number;
+
     ctx.session.confirmCancel = true;
-    ctx.session.confirmCancelId = latestId;
+    ctx.session.confirmCancelId = colonyApplicationNumber;
 
     await ctx.reply(
       texts[lang].cancel_confirm,
@@ -781,6 +793,69 @@ async function handleCancelApplication(ctx) {
     );
   } catch (err) {
     console.error("Error in cancel application:", err);
+    await ctx.reply(texts[ctx.session.language].error_occurred);
+  }
+}
+
+async function handleYesCancel(ctx) {
+  try {
+    const lang = ctx.session.language;
+    const colonyApplicationNumber = ctx.session.confirmCancelId;
+    if (!ctx.session.confirmCancel || !colonyApplicationNumber) {
+      await resetSessionAndScene(ctx);
+      return ctx.reply(texts[lang].no_cancel_booking);
+    }
+
+    ctx.session.confirmCancel = false;
+    ctx.session.confirmCancelId = null;
+
+    const [bookingsRows] = await pool.query(
+      "SELECT id, colony, relatives FROM bookings WHERE colony_application_number = ? AND user_id = ?",
+      [colonyApplicationNumber, ctx.from.id]
+    );
+
+    if (!bookingsRows.length) {
+      await resetSessionAndScene(ctx);
+      return ctx.reply(texts[lang].booking_not_found_or_canceled);
+    }
+
+    const { id: bookingId, colony, relatives } = bookingsRows[0];
+    let bookingName =
+      lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum";
+
+    if (relatives) {
+      try {
+        const parsedRelatives = JSON.parse(relatives);
+        if (Array.isArray(parsedRelatives) && parsedRelatives.length > 0) {
+          bookingName = parsedRelatives[0].full_name || bookingName;
+        }
+      } catch (e) {
+        console.error("JSON parse error for booking cancellation:", e);
+      }
+    }
+
+    const [result] = await pool.query(
+      "DELETE FROM bookings WHERE colony_application_number = ? AND user_id = ?",
+      [colonyApplicationNumber, ctx.from.id]
+    );
+
+    if (result.affectedRows === 0) {
+      console.log(
+        `Deletion failed: No rows affected for colony_application_number=${colonyApplicationNumber}, user_id=${ctx.from.id}`
+      );
+      await resetSessionAndScene(ctx);
+      return ctx.reply(texts[lang].booking_not_found_or_canceled);
+    }
+
+    const latest = await getLatestPendingOrApprovedId(ctx.from.id);
+    await ctx.reply(
+      texts[lang].application_canceled,
+      buildMainMenu(lang, latest)
+    );
+
+    await resetSessionAndScene(ctx);
+  } catch (err) {
+    console.error("Error in yes cancel:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
@@ -992,7 +1067,7 @@ async function handleApplicationCopy(ctx) {
         rel3.full_name ||
         "____________________________________________________",
       prisoner: booking.prisoner_name || "",
-      arizaNumber: booking.id || "",
+      arizaNumber: booking.colony_application_number || "", // Use colony_application_number
       today: new Date().toLocaleDateString(locale),
     });
 
@@ -1000,7 +1075,7 @@ async function handleApplicationCopy(ctx) {
 
     await ctx.replyWithDocument({
       source: buf,
-      filename: `ariza_${booking.id}.docx`,
+      filename: `ariza_${booking.colony_application_number}.docx`, // Use colony_application_number
     });
   } catch (err) {
     console.error("Error in application copy:", err);
