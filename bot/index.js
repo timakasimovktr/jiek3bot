@@ -1,3 +1,5 @@
+// index.js
+
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 require("dotenv").config();
 const pool = require("../db");
@@ -87,6 +89,7 @@ const texts = {
     no: "❌ Нет",
     status_approved: "одобрено",
     status_pending: "ожидает",
+    change_language: "🌐 Сменить язык",
   },
   uz: {
     // Uzbek Cyrillic
@@ -141,6 +144,7 @@ const texts = {
     no: "❌ Йўқ",
     status_approved: "тасдиқланган",
     status_pending: "кутмоқда",
+    change_language: "🌐 Тилни ўзгартириш",
   },
   uzl: {
     // Uzbek Latin (original)
@@ -195,6 +199,7 @@ const texts = {
     no: "❌ Yo‘q",
     status_approved: "tasdiqlangan",
     status_pending: "kutmoqda",
+    change_language: "🌐 Tilni o‘zgartirish",
   },
 };
 
@@ -239,7 +244,7 @@ async function getUserBookingStatus(userId) {
 }
 
 function buildMainMenu(lang, latestPendingNumber) {
-  const rows = [
+  let rows = [
     [texts[lang].queue_status, texts[lang].group_join],
     [texts[lang].application_copy, texts[lang].additional_info_button],
     [texts[lang].visitor_reminder, texts[lang].colony_location_button],
@@ -250,9 +255,10 @@ function buildMainMenu(lang, latestPendingNumber) {
       texts[lang].cancel_application.replace("{id}", latestPendingNumber),
     ]);
   } else {
-    rows.length = 0;
     rows.push([texts[lang].book_meeting]);
   }
+
+  rows.push([texts[lang].change_language]);
 
   return Markup.keyboard(rows).resize().persistent();
 }
@@ -369,7 +375,7 @@ bot.start(async (ctx) => {
       if (latestBooking.status === "approved") {
         await ctx.reply(
           texts[lang].approved_status
-            .replace("{id}", latestNumber) // Используем colony_application_number
+            .replace("{id}", latestNumber) 
             .replace("{name}", name),
           buildMainMenu(lang, latestNumber)
         );
@@ -1068,6 +1074,44 @@ async function handleAdditionalInfo(ctx) {
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
+
+bot.hears(texts.uzl.change_language, async (ctx) => handleChangeLanguage(ctx));
+bot.hears(texts.uz.change_language, async (ctx) => handleChangeLanguage(ctx));
+bot.hears(texts.ru.change_language, async (ctx) => handleChangeLanguage(ctx));
+
+async function handleChangeLanguage(ctx) {
+  try {
+    await resetSessionAndScene(ctx);
+    await ctx.reply(
+      texts[ctx.session.language].language_prompt,
+      Markup.inlineKeyboard([
+        [Markup.button.callback("🇺🇿 O‘zbekcha (lotin)", "ch_lang_uzl")],
+        [Markup.button.callback("🇺🇿 Ўзбекча (кирилл)", "ch_lang_uz")],
+        [Markup.button.callback("🇷🇺 Русский", "ch_lang_ru")],
+      ])
+    );
+  } catch (err) {
+    console.error("Error in change language:", err);
+    await ctx.reply(texts[ctx.session.language].error_occurred);
+  }
+}
+
+bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
+  try {
+    await ctx.answerCbQuery();
+    await ctx.editMessageReplyMarkup({
+      reply_markup: { inline_keyboard: [] },
+    });
+
+    ctx.session.language = ctx.match[0].replace("ch_lang_", "");
+    const lang = ctx.session.language;
+    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+    await ctx.reply(texts[lang].main_menu, buildMainMenu(lang, latestId));
+  } catch (err) {
+    console.error(`Error in change language selection for user ${ctx.from.id}:`, err);
+    await ctx.reply(texts[ctx.session.language].error_occurred);
+  }
+});
 
 bot.launch().then(() => console.log("🚀 Bot ishga tushdi"));
 process.once("SIGINT", () => bot.stop("SIGINT"));

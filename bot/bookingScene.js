@@ -663,7 +663,7 @@ async function saveBooking(ctx) {
     await sendApplicationToClient(ctx, {
       relatives,
       prisoner: prisoner_name,
-      id: newColonyApplicationNumber, // Используем colony_application_number вместо id
+      id: newColonyApplicationNumber,
       visit_type,
       colony,
       lang,
@@ -686,7 +686,7 @@ async function saveBooking(ctx) {
       texts[lang].booking_saved(position),
       Markup.keyboard([
         [texts[lang].queue_status],
-        [texts[lang].cancel_application(newColonyApplicationNumber)], // Используем colony_application_number
+        [texts[lang].cancel_application(newColonyApplicationNumber)], 
       ])
         .resize()
         .oneTime(false)
@@ -723,7 +723,7 @@ async function sendApplicationToClient(ctx, application) {
     year: "numeric",
   });
   const isLong = application.visit_type === "long";
-  const text = `${texts[application.lang].admin_new(application.id)} // Используем colony_application_number
+  const text = `${texts[application.lang].admin_new(application.id)} 
 ${texts[application.lang].admin_applicant(name)}
 ${texts[application.lang].admin_colony(application.colony)}
 ${texts[application.lang].admin_date(date)}
