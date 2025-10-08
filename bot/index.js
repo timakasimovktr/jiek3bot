@@ -781,7 +781,7 @@ async function handleCancelApplication(ctx) {
 
     // Находим id по colony_application_number
     const [bookingRows] = await pool.query(
-      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
+      "SELECT id FROM bookings WHERE id = ? AND user_id = ?",
       [latestNumber, ctx.from.id]
     );
 
