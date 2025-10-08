@@ -677,6 +677,7 @@ async function handleGroupJoin(ctx) {
         groupUrl = "https://t.me/SmartJIEK24";
         break;
     }
+    
     await ctx.reply(
       texts[lang].group_join_prompt,
       Markup.inlineKeyboard([

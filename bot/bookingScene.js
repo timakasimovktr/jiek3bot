@@ -686,14 +686,70 @@ async function saveBooking(ctx) {
       texts[lang].booking_saved(position),
       Markup.keyboard([
         [texts[lang].queue_status],
-        [texts[lang].cancel_application(newColonyApplicationNumber)], 
+        [texts[lang].cancel_application(bookingId)], 
       ])
         .resize()
         .oneTime(false)
     );
 
     let groupUrl = "https://t.me/smartdunyomeet";
-    // ... (остальной код для groupUrl без изменений)
+
+    switch (colony) {
+      case "1":
+        groupUrl = "https://t.me/SmartJIEK1";
+        break;
+      case "2":
+        groupUrl = "https://t.me/SmartJIEK2";
+        break;
+      case "3":
+        groupUrl = "https://t.me/SmartJIEK3";
+        break;
+      case "4":
+        groupUrl = "https://t.me/SmartJIEK4";
+        break;
+      case "5":
+        groupUrl = "https://t.me/SmartJIEK5";
+        break;
+      case "6":
+        groupUrl = "https://t.me/SmartJIEK6";
+        break;
+      case "7":
+        groupUrl = "https://t.me/SmartJIEK7";
+        break;
+      case "10":
+        groupUrl = "https://t.me/SmartJIEK10";
+        break;
+      case "11":
+        groupUrl = "https://t.me/SmartJIEK11";
+        break;
+      case "12":
+        groupUrl = "https://t.me/SmartJIEK12";
+        break;
+      case "13":
+        groupUrl = "https://t.me/SmartJIEK13";
+        break;
+      case "14":
+        groupUrl = "https://t.me/SmartJIEK14";
+        break;
+      case "17":
+        groupUrl = "https://t.me/SmartJIEK17";
+        break;
+      case "20":
+        groupUrl = "https://t.me/SmartJIEK20";
+        break;
+      case "21":
+        groupUrl = "https://t.me/SmartJIEK21";
+        break;
+      case "22":
+        groupUrl = "https://t.me/SmartJIEK22";
+        break;
+      case "23":
+        groupUrl = "https://t.me/SmartJIEK23";
+        break;
+      case "24":
+        groupUrl = "https://t.me/SmartJIEK24";
+        break;
+    }
 
     await ctx.reply(
       texts[lang].join_group,
