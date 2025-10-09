@@ -23,18 +23,16 @@ bot.use((ctx, next) => {
   return next();
 });
 
-bot.use(async (ctx, next) => {  // Изменено: асинхронно загружаем язык из БД, если не установлен
+bot.use(async (ctx, next) => {
   console.log(
-    `Middleware: user ${
-      ctx.from?.id
-    }, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
+    `Middleware: user ${ctx.from?.id}, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
       ctx.scene?.current?.id || "none"
     }`
   );
   if (!ctx.session) ctx.session = {};
   if (!ctx.session.language) {
-    const latest = await getLatestBooking(ctx.from?.id);  // Загрузка из последней заявки
-    ctx.session.language = latest?.language || "uzl";  // Default "uz", если нет
+    const latest = await getLatestBooking(ctx.from?.id);
+    ctx.session.language = latest?.language || "uzl"; // По умолчанию uzl
   }
   return next();
 });
@@ -227,7 +225,7 @@ async function getLatestBooking(userId) {
     const [rows] = await pool.query(
       `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime, colony_application_number, language
        FROM bookings
-       WHERE user_id = ?
+       WHERE user_id = ? AND status IN ('pending', 'approved')
        ORDER BY created_at DESC
        LIMIT 1`,
       [userId]
@@ -309,10 +307,8 @@ async function resetSessionAndScene(ctx) {
       console.log(`Leaving scene: ${ctx.scene.current.id}`);
       await ctx.scene.leave();
     }
-    const language_before_reset = ctx.session.language;
     ctx.session = ctx.session || {};
     delete ctx.session.__scenes;
-    ctx.session.language = language_before_reset || "uzl";
     console.log(`Session after reset:`, ctx.session);
   } catch (err) {
     console.error("Error in resetSessionAndScene:", err);
@@ -358,7 +354,6 @@ bot.start(async (ctx) => {
     await resetSessionAndScene(ctx);
 
     const userId = ctx.from.id;
-    console.log(`111111111111111111111111 ${ctx.session.language}  222222222222222222222 ${ctx.session.language}`);
     const latestBooking = await getLatestBooking(userId);
     const latestNumber = await getLatestPendingOrApprovedId(userId);
 
@@ -410,24 +405,30 @@ bot.hears(texts.ru.book_meeting, async (ctx) => handleBookMeeting(ctx));
 async function handleBookMeeting(ctx) {
   try {
     await resetSessionAndScene(ctx);
-    const latest = await getLatestBooking(ctx.from.id);  // Изменено: проверяем наличие предыдущей заявки
-    if (latest && latest.language) {
-      ctx.session.language = latest.language;  // Используем язык из БД
-      await ctx.scene.enter("booking-wizard");  // Входим сразу, без вопроса
-    } else {
-      // Только для первой заявки спрашиваем язык
+    const latest = await getLatestBooking(ctx.from.id);
+
+    if (latest && latest.language && !ctx.session.language) {
+      // Устанавливаем язык из последней заявки, только если язык не выбран
+      ctx.session.language = latest.language;
+    }
+
+    if (!ctx.session.language) {
+      // Спрашиваем язык, если он не установлен
       await ctx.reply(
-        texts[ctx.session.language].language_prompt,
+        texts[ctx.session.language || "uzl"].language_prompt,
         Markup.inlineKeyboard([
           [Markup.button.callback("🇺🇿 O‘zbekcha (lotin)", "lang_uzl")],
           [Markup.button.callback("🇺🇿 Ўзбекча (кирилл)", "lang_uz")],
           [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
         ])
       );
+    } else {
+      // Входим в сцену, если язык уже установлен
+      await ctx.scene.enter("booking-wizard");
     }
   } catch (err) {
     console.error("Error in book meeting:", err);
-    await ctx.reply(texts[ctx.session.language].error_occurred);
+    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
   }
 }
 
@@ -450,7 +451,7 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
       reply_markup: { inline_keyboard: [] },
     });
 
-    // ctx.session.language = ctx.match[0].replace("lang_", "");
+    ctx.session.language = ctx.match[0].replace("lang_", "");
     delete ctx.session.__scenes;
 
     console.log(
@@ -504,7 +505,9 @@ bot.action("start_booking", async (ctx) => {
       );
     }
 
+    const language_before_reset = ctx.session.language;
     await resetSessionAndScene(ctx);
+    ctx.session.language = language_before_reset;
     console.log(`Entering booking-wizard for user ${ctx.from.id}`);
     await ctx.answerCbQuery();
     await ctx.scene.enter("booking-wizard");
@@ -1100,7 +1103,7 @@ async function handleChangeLanguage(ctx) {
   try {
     await resetSessionAndScene(ctx);
     await ctx.reply(
-      texts[ctx.session.language].language_prompt,
+      texts[ctx.session.language || "uzl"].language_prompt,
       Markup.inlineKeyboard([
         [Markup.button.callback("🇺🇿 O‘zbekcha (lotin)", "ch_lang_uzl")],
         [Markup.button.callback("🇺🇿 Ўзбекча (кирилл)", "ch_lang_uz")],
@@ -1109,7 +1112,7 @@ async function handleChangeLanguage(ctx) {
     );
   } catch (err) {
     console.error("Error in change language:", err);
-    await ctx.reply(texts[ctx.session.language].error_occurred);
+    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
   }
 }
 
@@ -1126,7 +1129,7 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
     await ctx.reply(texts[lang].main_menu, buildMainMenu(lang, latestId));
   } catch (err) {
     console.error(`Error in change language selection for user ${ctx.from.id}:`, err);
-    await ctx.reply(texts[ctx.session.language].error_occurred);
+    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
   }
 });
 
