@@ -593,9 +593,9 @@ async function handleQueueStatus(ctx) {
       );
 
       createdDate = createdDate.replace(".", "/");
-      createdDate = createdDate.replace(".2", "/");
+      createdDate = createdDate.replace(".2", "/2");
       visitDate = visitDate.replace(".", "/");
-      visitDate = visitDate.replace(".2", "/");
+      visitDate = visitDate.replace(".2", "/2");
 
       await ctx.reply(
         texts[lang].approved_details
