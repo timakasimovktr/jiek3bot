@@ -34,7 +34,7 @@ bot.use(async (ctx, next) => {  // Изменено: асинхронно заг
   if (!ctx.session) ctx.session = {};
   if (!ctx.session.language) {
     const latest = await getLatestBooking(ctx.from?.id);  // Загрузка из последней заявки
-    ctx.session.language = latest?.language || "uz";  // Default "uz", если нет
+    ctx.session.language = latest?.language || "uzl";  // Default "uz", если нет
   }
   return next();
 });
@@ -245,8 +245,8 @@ async function getUserBookingStatus(userId) {
 }
 
 function buildMainMenu(lang, latestPendingNumber) {
-  let rows;
-  if (latestPendingNumber) {  // Изменено: полное меню только если есть активная заявка
+  let rows = [];
+  if (latestPendingNumber) {  // Полное меню с кнопкой смены языка
     rows = [
       [texts[lang].queue_status, texts[lang].group_join],
       [texts[lang].application_copy, texts[lang].additional_info_button],
@@ -255,6 +255,7 @@ function buildMainMenu(lang, latestPendingNumber) {
     rows.push([
       texts[lang].cancel_application.replace("{id}", latestPendingNumber),
     ]);
+    rows.push([texts[lang].change_language]);  // Добавлено: кнопка смены языка в полном меню
   } else {  
     rows = [
       [texts[lang].book_meeting],

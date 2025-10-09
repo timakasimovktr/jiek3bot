@@ -784,7 +784,6 @@ ${texts[application.lang].admin_colony(application.colony)}
 ${texts[application.lang].admin_date(date)}
 ${texts[application.lang].admin_type(isLong)}
 ${texts[application.lang].admin_status}`;
-
   try {
     await ctx.telegram.sendMessage(application.telegram_id, text);
   } catch (err) {
