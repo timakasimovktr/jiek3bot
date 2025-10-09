@@ -225,7 +225,7 @@ async function getLatestPendingOrApprovedId(userId) {
 async function getLatestBooking(userId) {
   try {
     const [rows] = await pool.query(
-      `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime, colony_application_number, language  // Добавлено: language
+      `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime, colony_application_number, language
        FROM bookings
        WHERE user_id = ?
        ORDER BY created_at DESC
@@ -913,7 +913,7 @@ bot.on(message("text"), async (ctx, next) => {
 
 bot.catch((err, ctx) => {
   console.error("Global error:", err);
-  const lang = ctx.session.language;
+  const lang = ctx.session?.language || "uzl"; 
   if (err.response && err.response.error_code === 403) {
     console.warn(`⚠️ User ${ctx.from?.id} blocked the bot, skip message`);
   } else {
