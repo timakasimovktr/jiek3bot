@@ -447,7 +447,8 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
       reply_markup: { inline_keyboard: [] },
     });
 
-    delete ctx.session.__scenes;
+    // ctx.session.language = ctx.match[0].replace("lang_", "");
+    // delete ctx.session.__scenes;
 
     console.log(
       `Entering booking-wizard for user ${ctx.from.id} with language ${ctx.session.language}`
