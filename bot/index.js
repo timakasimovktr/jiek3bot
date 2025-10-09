@@ -548,8 +548,8 @@ async function handleQueueStatus(ctx) {
         buildMainMenu(lang, null)
       );
     }
-    const latestId = latestBooking.id;  // Для getQueuePosition нужен primary id
-    const latestNumber = latestBooking.colony_application_number;  // Изменено: для меню используем colony_application_number
+    const latestId = latestBooking.id; // Для getQueuePosition нужен primary id
+    const latestNumber = latestBooking.colony_application_number; // Для меню используем colony_application_number
     const colony = latestBooking.colony;
     let relatives = [];
     try {
@@ -562,16 +562,11 @@ async function handleQueueStatus(ctx) {
     const name =
       rel1.full_name ||
       (lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum");
-    const colony_application_number = latestBooking.colony_application_number;  
-    // const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
+    const colony_application_number = latestBooking.colony_application_number;
 
     if (latestBooking.status === "approved") {
       let visitDate = latestBooking.start_datetime
-        ? new Date(
-            new Date(latestBooking.start_datetime).setDate(
-              new Date(latestBooking.start_datetime).getDate() + 1
-            )
-          ).toLocaleString("uz-UZ", {
+        ? new Date(latestBooking.start_datetime).toLocaleString("uz-UZ", {
             day: "2-digit",
             month: "2-digit",
             year: "numeric",
@@ -599,7 +594,7 @@ async function handleQueueStatus(ctx) {
           .replace("{colony}", colony)
           .replace("{created}", createdDate)
           .replace("{visit}", visitDate),
-        buildMainMenu(lang, latestNumber)  // Изменено: latestNumber вместо latestId
+        buildMainMenu(lang, latestNumber)
       );
       return;
     } else if (latestBooking.status === "pending") {
@@ -608,12 +603,12 @@ async function handleQueueStatus(ctx) {
         pos
           ? texts[lang].pending_status.replace("{pos}", pos)
           : texts[lang].queue_not_found,
-        buildMainMenu(lang, latestNumber)  // Изменено: latestNumber вместо latestId
+        buildMainMenu(lang, latestNumber)
       );
     } else {
       await ctx.reply(
         texts[lang].status_unknown,
-        buildMainMenu(lang, latestNumber)  // Изменено: latestNumber вместо latestId
+        buildMainMenu(lang, latestNumber)
       );
     }
   } catch (err) {
