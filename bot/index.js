@@ -50,7 +50,7 @@ const texts = {
     pending_status: `📊 Ваша очередь: {pos}`,
     queue_not_found: "❌ Очередь не найдена.",
     no_pending_application: "❌ У вас нет активной заявки.",
-    approved_details: `🎉 Заявка одобрена. №: {id}\n👤 Заявитель: {name}\n📅 Дата подачи: {created}\n⌚️ Дата посещения: {visit}\n🏛️ Колония: {colony}\n🟢 Статус: Одобрено`,
+    approved_details: `🎉 Заявка одобрена. №: {id}\n👤 Заявитель: {name}\n📅 Дата подачи: {created}\n⌚️ Дата посещения: {visit}\n🏛️ Колония: {colony}\n🟢 Статус: Утверждено`,
     status_unknown: "❌ Статус заявки неизвестен.",
     no_booking_found: "❌ Заявка не найдена.",
     group_join_prompt: "🫂 Нажмите кнопку:",
@@ -566,7 +566,7 @@ async function handleQueueStatus(ctx) {
     const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
 
     if (latestBooking.status === "approved") {
-      const visitDate = latestBooking.start_datetime
+      let visitDate = latestBooking.start_datetime
         ? new Date(
             new Date(latestBooking.start_datetime).setDate(
               new Date(latestBooking.start_datetime).getDate() + 1
@@ -582,7 +582,7 @@ async function handleQueueStatus(ctx) {
         : lang === "uz"
         ? "Номаълум"
         : "Noma'lum";
-      const createdDate = new Date(latestBooking.created_at).toLocaleString(
+      let createdDate = new Date(latestBooking.created_at).toLocaleString(
         locale,
         {
           day: "2-digit",
@@ -591,6 +591,8 @@ async function handleQueueStatus(ctx) {
           timeZone: "Asia/Tashkent",
         }
       );
+      createdDate = createdDate.replace(".", "/");
+      visitDate = visitDate.replace(".", "/");
       await ctx.reply(
         texts[lang].approved_details
           .replace("{id}", colony_application_number)
