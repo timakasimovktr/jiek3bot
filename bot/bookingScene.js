@@ -686,7 +686,7 @@ async function saveBooking(ctx) {
       texts[lang].booking_saved(position),
       Markup.keyboard([
         [texts[lang].queue_status],
-        [texts[lang].cancel_application(newColonyApplicationNumber)], // Use colony_application_number
+        [texts[lang].cancel_application(bookingId)], 
       ])
         .resize()
         .oneTime(false)
