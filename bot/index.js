@@ -358,6 +358,7 @@ bot.start(async (ctx) => {
     await resetSessionAndScene(ctx);
 
     const userId = ctx.from.id;
+    console.log(`111111111111111111111111 ${ctx.session.language}  222222222222222222222 ${ctx.session.language}`);
     const latestBooking = await getLatestBooking(userId);
     const latestNumber = await getLatestPendingOrApprovedId(userId);
 
