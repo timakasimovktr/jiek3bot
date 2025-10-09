@@ -563,7 +563,7 @@ async function handleQueueStatus(ctx) {
       rel1.full_name ||
       (lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum");
     const colony_application_number = latestBooking.colony_application_number;  
-    const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
+    // const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
 
     if (latestBooking.status === "approved") {
       let visitDate = latestBooking.start_datetime
@@ -571,7 +571,7 @@ async function handleQueueStatus(ctx) {
             new Date(latestBooking.start_datetime).setDate(
               new Date(latestBooking.start_datetime).getDate() + 1
             )
-          ).toLocaleString(locale, {
+          ).toLocaleString("uz-UZ", {
             day: "2-digit",
             month: "2-digit",
             year: "numeric",
@@ -583,7 +583,7 @@ async function handleQueueStatus(ctx) {
         ? "Номаълум"
         : "Noma'lum";
       let createdDate = new Date(latestBooking.created_at).toLocaleString(
-        locale,
+        "uz-UZ",
         {
           day: "2-digit",
           month: "2-digit",
@@ -1028,7 +1028,7 @@ async function handleApplicationCopy(ctx) {
       linebreaks: true,
     });
 
-    const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
+    // const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
 
     doc.render({
       placeNumber: library.placeNumber,
@@ -1042,7 +1042,7 @@ async function handleApplicationCopy(ctx) {
         "____________________________________________________",
       prisoner: booking.prisoner_name || "",
       arizaNumber: booking.colony_application_number || "",
-      today: new Date().toLocaleDateString(locale),
+      today: new Date().toLocaleDateString("uz-UZ"),
     });
 
     const buf = doc.getZip().generate({ type: "nodebuffer" });
