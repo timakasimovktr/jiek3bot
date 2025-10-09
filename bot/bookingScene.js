@@ -1,5 +1,3 @@
-//bookingScene.js
-
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const pool = require("../db");
 
@@ -640,10 +638,10 @@ async function saveBooking(ctx) {
     const maxNumber = maxNumberRows[0].max_number || 0;
     const newColonyApplicationNumber = maxNumber + 1;
 
-    // Вставляем новую заявку с colony_application_number
+    // Изменено: добавлено сохранение language в БД
     const [result] = await pool.query(
-      `INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id, colony_application_number)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+      `INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id, colony_application_number, language)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,  // Добавлено language
       [
         ctx.from.id,
         ctx.wizard.state.phone,
@@ -653,6 +651,7 @@ async function saveBooking(ctx) {
         colony,
         chatId,
         newColonyApplicationNumber,
+        lang,  // Добавлено: сохраняем выбранный язык
       ]
     );
 
@@ -663,7 +662,7 @@ async function saveBooking(ctx) {
     await sendApplicationToClient(ctx, {
       relatives,
       prisoner: prisoner_name,
-      id: newColonyApplicationNumber,
+      id: newColonyApplicationNumber,  // Используем colony_application_number
       visit_type,
       colony,
       lang,
@@ -686,7 +685,7 @@ async function saveBooking(ctx) {
       texts[lang].booking_saved(position),
       Markup.keyboard([
         [texts[lang].queue_status],
-        [texts[lang].cancel_application(bookingId)], 
+        [texts[lang].cancel_application(newColonyApplicationNumber)],  // Изменено: используем colony_application_number вместо bookingId
       ])
         .resize()
         .oneTime(false)

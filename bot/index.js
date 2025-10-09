@@ -1,5 +1,3 @@
-// index.js
-
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 require("dotenv").config();
 const pool = require("../db");
@@ -25,7 +23,7 @@ bot.use((ctx, next) => {
   return next();
 });
 
-bot.use((ctx, next) => {
+bot.use(async (ctx, next) => {  // Изменено: асинхронно загружаем язык из БД, если не установлен
   console.log(
     `Middleware: user ${
       ctx.from?.id
@@ -34,7 +32,10 @@ bot.use((ctx, next) => {
     }`
   );
   if (!ctx.session) ctx.session = {};
-  if (!ctx.session.language) ctx.session.language = "uz"; // Default to Uzbek Latin
+  if (!ctx.session.language) {
+    const latest = await getLatestBooking(ctx.from?.id);  // Загрузка из последней заявки
+    ctx.session.language = latest?.language || "uz";  // Default "uz", если нет
+  }
   return next();
 });
 
@@ -224,7 +225,7 @@ async function getLatestPendingOrApprovedId(userId) {
 async function getLatestBooking(userId) {
   try {
     const [rows] = await pool.query(
-      `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime, colony_application_number
+      `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime, colony_application_number, language  // Добавлено: language
        FROM bookings
        WHERE user_id = ?
        ORDER BY created_at DESC
@@ -244,21 +245,22 @@ async function getUserBookingStatus(userId) {
 }
 
 function buildMainMenu(lang, latestPendingNumber) {
-  let rows = [
-    [texts[lang].queue_status, texts[lang].group_join],
-    [texts[lang].application_copy, texts[lang].additional_info_button],
-    [texts[lang].visitor_reminder, texts[lang].colony_location_button],
-  ];
-
-  if (latestPendingNumber) {
+  let rows;
+  if (latestPendingNumber) {  // Изменено: полное меню только если есть активная заявка
+    rows = [
+      [texts[lang].queue_status, texts[lang].group_join],
+      [texts[lang].application_copy, texts[lang].additional_info_button],
+      [texts[lang].visitor_reminder, texts[lang].colony_location_button],
+    ];
     rows.push([
       texts[lang].cancel_application.replace("{id}", latestPendingNumber),
     ]);
-  } else {
-    rows.push([texts[lang].book_meeting]);
+  } else {  
+    rows = [
+      [texts[lang].book_meeting],
+      [texts[lang].change_language],
+    ];
   }
-
-  rows.push([texts[lang].change_language]);
 
   return Markup.keyboard(rows).resize().persistent();
 }
@@ -404,14 +406,21 @@ bot.hears(texts.ru.book_meeting, async (ctx) => handleBookMeeting(ctx));
 async function handleBookMeeting(ctx) {
   try {
     await resetSessionAndScene(ctx);
-    await ctx.reply(
-      texts[ctx.session.language].language_prompt,
-      Markup.inlineKeyboard([
-        [Markup.button.callback("🇺🇿 O‘zbekcha (lotin)", "lang_uzl")],
-        [Markup.button.callback("🇺🇿 Ўзбекча (кирилл)", "lang_uz")],
-        [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
-      ])
-    );
+    const latest = await getLatestBooking(ctx.from.id);  // Изменено: проверяем наличие предыдущей заявки
+    if (latest && latest.language) {
+      ctx.session.language = latest.language;  // Используем язык из БД
+      await ctx.scene.enter("booking-wizard");  // Входим сразу, без вопроса
+    } else {
+      // Только для первой заявки спрашиваем язык
+      await ctx.reply(
+        texts[ctx.session.language].language_prompt,
+        Markup.inlineKeyboard([
+          [Markup.button.callback("🇺🇿 O‘zbekcha (lotin)", "lang_uzl")],
+          [Markup.button.callback("🇺🇿 Ўзбекча (кирилл)", "lang_uz")],
+          [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
+        ])
+      );
+    }
   } catch (err) {
     console.error("Error in book meeting:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
@@ -532,7 +541,8 @@ async function handleQueueStatus(ctx) {
         buildMainMenu(lang, null)
       );
     }
-    const latestId = latestBooking.id;
+    const latestId = latestBooking.id;  // Для getQueuePosition нужен primary id
+    const latestNumber = latestBooking.colony_application_number;  // Изменено: для меню используем colony_application_number
     const colony = latestBooking.colony;
     let relatives = [];
     try {
@@ -581,7 +591,7 @@ async function handleQueueStatus(ctx) {
           .replace("{colony}", colony)
           .replace("{created}", createdDate)
           .replace("{visit}", visitDate),
-        buildMainMenu(lang, latestId)
+        buildMainMenu(lang, latestNumber)  // Изменено: latestNumber вместо latestId
       );
       return;
     } else if (latestBooking.status === "pending") {
@@ -590,12 +600,12 @@ async function handleQueueStatus(ctx) {
         pos
           ? texts[lang].pending_status.replace("{pos}", pos)
           : texts[lang].queue_not_found,
-        buildMainMenu(lang, latestId)
+        buildMainMenu(lang, latestNumber)  // Изменено: latestNumber вместо latestId
       );
     } else {
       await ctx.reply(
         texts[lang].status_unknown,
-        buildMainMenu(lang, latestId)
+        buildMainMenu(lang, latestNumber)  // Изменено: latestNumber вместо latestId
       );
     }
   } catch (err) {
@@ -713,6 +723,7 @@ async function handleColonyLocation(ctx) {
     }
 
     const colony = latestBooking.colony;
+    const latestNumber = latestBooking.colony_application_number;  // Изменено: для меню
     const [coordRows] = await pool.query(
       "SELECT longitude, latitude FROM coordinates WHERE id = ?",
       [colony]
@@ -726,7 +737,7 @@ async function handleColonyLocation(ctx) {
     await ctx.replyWithLocation(longitude, latitude);
     await ctx.reply(
       texts[lang].colony_location.replace("{colony}", colony),
-      buildMainMenu(lang, latestBooking.id)
+      buildMainMenu(lang, latestNumber)  // Изменено: latestNumber вместо id
     );
   } catch (err) {
     console.error("Error in colony location:", err);
@@ -780,9 +791,9 @@ async function handleCancelApplication(ctx) {
       return;
     }
 
-    // Находим id по colony_application_number
+    // Изменено: поиск по colony_application_number, а не по id
     const [bookingRows] = await pool.query(
-      "SELECT id FROM bookings WHERE id = ? AND user_id = ?",
+      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
       [latestNumber, ctx.from.id]
     );
 
