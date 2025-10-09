@@ -591,8 +591,10 @@ async function handleQueueStatus(ctx) {
           timeZone: "Asia/Tashkent",
         }
       );
+
       createdDate = createdDate.replace(".", "/");
       visitDate = visitDate.replace(".", "/");
+
       await ctx.reply(
         texts[lang].approved_details
           .replace("{id}", colony_application_number)
