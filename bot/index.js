@@ -25,7 +25,7 @@ bot.use((ctx, next) => {
   return next();
 });
 
-bot.use((ctx, next) => {
+bot.use(async (ctx, next) => {
   console.log(
     `Middleware: user ${
       ctx.from?.id
@@ -34,7 +34,21 @@ bot.use((ctx, next) => {
     }`
   );
   if (!ctx.session) ctx.session = {};
-  if (!ctx.session.language) ctx.session.language = "uz"; // Default to Uzbek Latin
+
+  // Fetch language from the database
+  if (!ctx.session.language) {
+    try {
+      const [rows] = await pool.query(
+        `SELECT language FROM bookings WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`,
+        [ctx.from.id]
+      );
+      ctx.session.language =
+        rows.length && rows[0].language ? rows[0].language : "uzl";
+    } catch (err) {
+      console.error("Error fetching language from DB:", err);
+      ctx.session.language = "uzl"; // Fallback to uzl if DB query fails
+    }
+  }
   return next();
 });
 
@@ -213,7 +227,6 @@ async function getLatestPendingOrApprovedId(userId) {
        LIMIT 1`,
       [userId]
     );
-
     return rows.length ? rows[0].colony_application_number : null;
   } catch (err) {
     console.error("Error in getLatestPendingOrApprovedId:", err);
@@ -244,21 +257,22 @@ async function getUserBookingStatus(userId) {
 }
 
 function buildMainMenu(lang, latestPendingNumber) {
+  if (!latestPendingNumber) {
+    return Markup.keyboard([
+      [texts[lang].book_meeting],
+      [texts[lang].change_language],
+    ])
+      .resize()
+      .persistent();
+  }
+
   let rows = [
     [texts[lang].queue_status, texts[lang].group_join],
     [texts[lang].application_copy, texts[lang].additional_info_button],
     [texts[lang].visitor_reminder, texts[lang].colony_location_button],
+    [texts[lang].cancel_application.replace("{id}", latestPendingNumber)],
+    [texts[lang].change_language],
   ];
-
-  if (latestPendingNumber) {
-    rows.push([
-      texts[lang].cancel_application.replace("{id}", latestPendingNumber),
-    ]);
-  } else {
-    rows.push([texts[lang].book_meeting]);
-  }
-
-  rows.push([texts[lang].change_language]);
 
   return Markup.keyboard(rows).resize().persistent();
 }
@@ -375,7 +389,7 @@ bot.start(async (ctx) => {
       if (latestBooking.status === "approved") {
         await ctx.reply(
           texts[lang].approved_status
-            .replace("{id}", latestNumber) 
+            .replace("{id}", latestNumber)
             .replace("{name}", name),
           buildMainMenu(lang, latestNumber)
         );
@@ -404,14 +418,25 @@ bot.hears(texts.ru.book_meeting, async (ctx) => handleBookMeeting(ctx));
 async function handleBookMeeting(ctx) {
   try {
     await resetSessionAndScene(ctx);
-    await ctx.reply(
-      texts[ctx.session.language].language_prompt,
-      Markup.inlineKeyboard([
-        [Markup.button.callback("🇺🇿 O‘zbekcha (lotin)", "lang_uzl")],
-        [Markup.button.callback("🇺🇿 Ўзбекча (кирилл)", "lang_uz")],
-        [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
-      ])
-    );
+    const lang = ctx.session.language;
+
+    // Check if language is already set
+    if (lang) {
+      console.log(
+        `Entering booking-wizard for user ${ctx.from.id} with existing language ${lang}`
+      );
+      await ctx.scene.enter("booking-wizard");
+    } else {
+      // Prompt for language if not set
+      await ctx.reply(
+        texts[ctx.session.language].language_prompt,
+        Markup.inlineKeyboard([
+          [Markup.button.callback("🇺🇿 O‘zbekcha (lotin)", "lang_uzl")],
+          [Markup.button.callback("🇺🇿 Ўзбекча (кирилл)", "lang_uz")],
+          [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
+        ])
+      );
+    }
   } catch (err) {
     console.error("Error in book meeting:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
@@ -438,8 +463,15 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
     });
 
     ctx.session.language = ctx.match[0].replace("lang_", "");
-    delete ctx.session.__scenes;
+    const lang = ctx.session.language;
 
+    // Save language to the database
+    await pool.query(
+      `INSERT INTO bookings (user_id, language) VALUES (?, ?) ON DUPLICATE KEY UPDATE language = ?`,
+      [ctx.from.id, lang, lang]
+    );
+
+    delete ctx.session.__scenes;
     console.log(
       `Entering booking-wizard for user ${ctx.from.id} with language ${ctx.session.language}`
     );
@@ -545,7 +577,7 @@ async function handleQueueStatus(ctx) {
     const name =
       rel1.full_name ||
       (lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum");
-    const colony_application_number = latestBooking.colony_application_number;  
+    const colony_application_number = latestBooking.colony_application_number;
     const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
 
     if (latestBooking.status === "approved") {
@@ -780,9 +812,9 @@ async function handleCancelApplication(ctx) {
       return;
     }
 
-    // Находим id по colony_application_number
+    // Find booking by colony_application_number
     const [bookingRows] = await pool.query(
-      "SELECT id FROM bookings WHERE id = ? AND user_id = ?",
+      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
       [latestNumber, ctx.from.id]
     );
 
@@ -864,7 +896,9 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
-    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
+    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(
+      ctx.from.id
+    );
     await ctx.reply(
       texts[lang].application_canceled,
       buildMainMenu(lang, latestNumberAfterDelete)
@@ -1107,10 +1141,20 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 
     ctx.session.language = ctx.match[0].replace("ch_lang_", "");
     const lang = ctx.session.language;
+
+    // Save language to the database
+    await pool.query(
+      `INSERT INTO bookings (user_id, language) VALUES (?, ?) ON DUPLICATE KEY UPDATE language = ?`,
+      [ctx.from.id, lang, lang]
+    );
+
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(texts[lang].main_menu, buildMainMenu(lang, latestId));
   } catch (err) {
-    console.error(`Error in change language selection for user ${ctx.from.id}:`, err);
+    console.error(
+      `Error in change language selection for user ${ctx.from.id}:`,
+      err
+    );
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 });
