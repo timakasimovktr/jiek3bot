@@ -504,6 +504,7 @@ bot.action("start_booking", async (ctx) => {
     const language_before_reset = ctx.session.language;
     await resetSessionAndScene(ctx);
     ctx.session.language = language_before_reset;
+    console.log(`Session after reset:`, language_before_reset);
     console.log(`Entering booking-wizard for user ${ctx.from.id}`);
     await ctx.answerCbQuery();
     await ctx.scene.enter("booking-wizard");
