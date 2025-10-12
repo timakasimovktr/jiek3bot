@@ -488,8 +488,8 @@ const bookingWizard = new Scenes.WizardScene(
       try {
         await ctx.telegram.sendInvoice({
           chat_id: ctx.chat.id,
-          title: "Оплата за подачу заявки",
-          description: `Оплата за подачу заявки в колонию ${colony}`,
+          title: "Smart Booking Service",
+          description: `Koloniya ${colony}`,
           payload: `booking_${ctx.from.id}_${colony}`,
           provider_token: process.env.PAYMENT_TOKEN,
           currency: "UZS",
