@@ -89,6 +89,7 @@ const texts = {
     status_approved: "одобрено",
     status_pending: "ожидает",
     change_language: "🌐 Сменить язык",
+    attempts_remaining: "❗ У вас осталось {attempts} попыток на подачу заявки.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -144,6 +145,7 @@ const texts = {
     status_approved: "тасдиқланган",
     status_pending: "кутмоқда",
     change_language: "🌐 Тилни ўзгартириш",
+    attempts_remaining: "❗ Сизда қолган {attempts} та ариза юбориш имконияти.",
   },
   uzl: {
     // Uzbek Latin (original)
@@ -199,6 +201,7 @@ const texts = {
     status_approved: "tasdiqlangan",
     status_pending: "kutmoqda",
     change_language: "🌐 Tilni o‘zgartirish",
+    attempts_remaining: "❗ Sizda qolgan {attempts} ta ariza yuborish imkoniyati.",
   },
 };
 
@@ -840,7 +843,7 @@ async function handleYesCancel(ctx) {
     ctx.session.confirmCancelId = null;
 
     const [bookingsRows] = await pool.query(
-      "SELECT colony, relatives, colony_application_number FROM bookings WHERE id = ? AND user_id = ?",
+      "SELECT colony, relatives, colony_application_number, phone_number FROM bookings WHERE id = ? AND user_id = ?",
       [bookingId, ctx.from.id]
     );
 
@@ -851,6 +854,7 @@ async function handleYesCancel(ctx) {
 
     const colony = bookingsRows[0].colony;
     const colonyApplicationNumber = bookingsRows[0].colony_application_number;
+    const phone = bookingsRows[0].phone_number;
     let bookingName =
       lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum";
 
@@ -878,10 +882,30 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
+    // Уменьшение попыток при отмене
+    let attempts = 0;
+    const [attemptRows] = await pool.query(
+      "SELECT attempts FROM users_attempts WHERE phone_number = ?",
+      [phone]
+    );
+    if (attemptRows.length) {
+      attempts = attemptRows[0].attempts - 1;
+      attempts = Math.max(0, attempts);
+    } else {
+      attempts = 1; // Если нет записи, устанавливаем 2-1=1 (но по логике, запись должна быть при создании)
+    }
+    await pool.query(
+      "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, ?) ON DUPLICATE KEY UPDATE attempts = ?",
+      [phone, attempts, attempts]
+    );
+
     const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(
       texts[lang].application_canceled,
       buildMainMenu(lang, latestNumberAfterDelete)
+    );
+    await ctx.reply(
+      texts[lang].attempts_remaining.replace("{attempts}", attempts)
     );
 
     await resetSessionAndScene(ctx);
@@ -911,6 +935,16 @@ bot.on(message("text"), async (ctx, next) => {
   } catch (err) {
     console.error("Error in text handler:", err);
     await ctx.reply(texts[ctx.session.language].global_error_reply);
+  }
+});
+
+bot.on("pre_checkout_query", async (ctx) => {
+  try {
+    // Можно добавить проверку (например, по payload)
+    await ctx.answerPreCheckoutQuery(true);
+  } catch (err) {
+    console.error("Error in pre_checkout_query:", err);
+    await ctx.answerPreCheckoutQuery(false, "Извините, произошла ошибка при обработке заказа.");
   }
 });
 
