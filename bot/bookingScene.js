@@ -453,63 +453,74 @@ const bookingWizard = new Scenes.WizardScene(
   },
 
   // Step 3: Select colony + payment
-  async (ctx) => {
-    const lang = ctx.session.language;
-    console.log(
-      `Step 3: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
-    );
+async (ctx) => {
+  const lang = ctx.session.language;
+  console.log(
+    `Step 3: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
+  );
 
-    const data = ctx.callbackQuery?.data;
+  const data = ctx.callbackQuery?.data;
 
-    if (
-      !ctx.callbackQuery?.data ||
-      !ctx.callbackQuery.data.startsWith("colony_")
-    ) {
-      await ctx.reply(texts[lang].select_colony, generateColonyKeyboard(lang));
-      return;
+  if (
+    !ctx.callbackQuery?.data ||
+    !ctx.callbackQuery.data.startsWith("colony_")
+  ) {
+    await ctx.reply(texts[lang].select_colony, generateColonyKeyboard(lang));
+    return;
+  }
+
+  await ctx.answerCbQuery();
+  ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
+
+  // Create temp booking
+  const [result] = await pool.query(
+    `INSERT INTO bookings (user_id, phone_number, colony, status, payment_status, telegram_chat_id, language)
+     VALUES (?, ?, ?, 'pending', 'pending', ?, ?)`, // Updated 'temp' to 'pending' per previous fix
+    [ctx.from.id, ctx.wizard.state.phone, ctx.wizard.state.colony, ctx.chat.id, lang]
+  );
+  ctx.wizard.state.tempBookingId = result.insertId;
+
+  // Define language-specific title
+  const titles = {
+    ru: 'Оплата за подачу заявки',
+    uz: 'Ariza topshirish uchun to‘lov',
+    uzl: 'Ariza topshirish uchun to‘lov'
+  };
+  const title = titles[lang] || titles.uzl; // Fallback to uzl
+  const description = `${texts[lang].payment_required}\n${texts[lang].summary_colony(ctx.wizard.state.colony)}`;
+  const payload = JSON.stringify({
+    tempBookingId: ctx.wizard.state.tempBookingId,
+    state: ctx.wizard.state
+  });
+  const prices = [{ label: titles[lang] || titles.uzl, amount: APPLICATION_FEE * 100 }];
+
+  try {
+      await ctx.telegram.sendInvoice(
+        ctx.chat.id,
+        title,
+        description,
+        payload,
+        PROVIDER_TOKEN,
+        'UZS',
+        prices,
+        { need_phone_number: true }
+      );
+    } catch (err) {
+      console.error(`Error sending invoice for user ${ctx.from.id}:`, err);
+      await ctx.reply(texts[lang].payment_error);
+      return ctx.scene.leave();
     }
 
-    await ctx.answerCbQuery();
-    ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
-
-    // Create temp booking
-    const [result] = await pool.query(
-      `INSERT INTO bookings (user_id, phone_number, colony, status, payment_status, telegram_chat_id, language)
-      VALUES (?, ?, ?, 'pending', 'pending', ?, ?)`,
-      [ctx.from.id, ctx.wizard.state.phone, ctx.wizard.state.colony, ctx.chat.id, lang]
-    );
-    ctx.wizard.state.tempBookingId = result.insertId;
-
-    // Send invoice
-    const title = 'Оплата за подачу заявки';
-    const description = `${texts[lang].payment_required}\nКолония: ${ctx.wizard.state.colony}`;
-    const payload = JSON.stringify({
-      tempBookingId: ctx.wizard.state.tempBookingId,
-      state: ctx.wizard.state
-    });
-    const prices = [{ label: 'Подача заявки', amount: APPLICATION_FEE * 100 }];
-
-    await ctx.telegram.sendInvoice(
-      ctx.chat.id,
-      title,
-      description,
-      payload,
-      PROVIDER_TOKEN,
-      'UZS',
-      prices,
-      { need_phone_number: true }
-    );
-
-    // Reply with retry button if needed
+    // Reply with retry button
     await ctx.reply(
-      'Пожалуйста, оплатите счет. Если возникла проблема, повторите.',
+      texts[lang].payment_error + '\n' + texts[lang].retry_payment,
       Markup.inlineKeyboard([
         [Markup.button.callback(texts[lang].retry_payment, 'retry_payment')]
       ])
     );
 
-    return ctx.scene.leave(); // Выходим из сцены, ждем оплаты
-  },
+    return ctx.scene.leave(); // Exit scene, wait for payment
+  }, 
 
   // Step 4: Select visit type
   async (ctx) => {
