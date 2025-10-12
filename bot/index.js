@@ -37,6 +37,10 @@ bot.use(async (ctx, next) => {
   return next();
 });
 
+const MAX_ATTEMPTS = 2;
+const APPLICATION_FEE = 10000; // Цена в сумах, измените по нужде
+const PROVIDER_TOKEN = '398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065'; // Из .env
+
 const texts = {
   ru: {
     greeting:
@@ -89,6 +93,12 @@ const texts = {
     status_approved: "одобрено",
     status_pending: "ожидает",
     change_language: "🌐 Сменить язык",
+    payment_required: "💳 Для продолжения требуется оплата за подачу заявки: 100000 сум.",
+    payment_success: "✅ Оплата прошла успешно! Продолжаем оформление заявки.",
+    payment_error: "❌ Оплата не прошла. Попробуйте снова.",
+    retry_payment: "🔄 Повторить оплату",
+    attempts_remaining: (n) => `Осталось попыток: ${n}`,
+    attempts_exceeded: "❌ Вы исчерпали лимит попыток (2). Обратитесь в поддержку.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -144,6 +154,12 @@ const texts = {
     status_approved: "тасдиқланган",
     status_pending: "кутмоқда",
     change_language: "🌐 Тилни ўзгартириш",
+    payment_required: "💳 Ариза давом эттириш учун тўлов талаб қилинади: 100000 сўм.",
+    payment_success: "✅ Тўлов муваффақиятли ўтказилди! Ариза давом эттириш.",
+    payment_error: "❌ Тўлов ўтмади. Қайта уриниб кўринг.",
+    retry_payment: "🔄 Тўловни қайтариш",
+    attempts_remaining: (n) => `Қолган уринишлар: ${n}`,
+    attempts_exceeded: "❌ Сиз уринишлар лимитини (2) тугатдингиз. Қўллаб-қувватлашга мурожаат қилинг.",
   },
   uzl: {
     // Uzbek Latin (original)
@@ -199,6 +215,12 @@ const texts = {
     status_approved: "tasdiqlangan",
     status_pending: "kutmoqda",
     change_language: "🌐 Tilni o‘zgartirish",
+    payment_required: "💳 Ariza davom ettirish uchun to'lov talab qilinadi: 100000 so'm.",
+    payment_success: "✅ To'lov muvaffaqiyatli o'tkazildi! Ariza davom ettirish.",
+    payment_error: "❌ To'lov o'tmadi. Qayta urinib ko'ring.",
+    retry_payment: "🔄 To'lovni qaytarish",
+    attempts_remaining: (n) => `Qolgan urinishlar: ${n}`,
+    attempts_exceeded: "❌ Siz urinishlar limitini (2) tugatdingiz. Qo'llab-quvvatlashga murojaat qiling.",
   },
 };
 
@@ -555,7 +577,9 @@ async function handleQueueStatus(ctx) {
     try {
       relatives = JSON.parse(latestBooking.relatives || "[]");
     } catch (err) {
-      console.error(`JSON parse error for booking ${latestId}:`, err);
+      console.error(
+        `JSON parse error for booking ${latestId}:`, err
+      );
       relatives = [];
     }
     const rel1 = relatives[0] || {};
@@ -840,7 +864,7 @@ async function handleYesCancel(ctx) {
     ctx.session.confirmCancelId = null;
 
     const [bookingsRows] = await pool.query(
-      "SELECT colony, relatives, colony_application_number FROM bookings WHERE id = ? AND user_id = ?",
+      "SELECT colony, relatives, colony_application_number, phone_number FROM bookings WHERE id = ? AND user_id = ?",
       [bookingId, ctx.from.id]
     );
 
@@ -849,6 +873,7 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
+    const phone = bookingsRows[0].phone_number;
     const colony = bookingsRows[0].colony;
     const colonyApplicationNumber = bookingsRows[0].colony_application_number;
     let bookingName =
@@ -878,9 +903,36 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
+    // Увеличиваем attempts по phone
+    let [attemptRow] = await pool.query(
+      "SELECT attempts FROM users_attempts WHERE phone_number = ?",
+      [phone]
+    );
+    let attempts = attemptRow.length ? attemptRow[0].attempts : 0;
+    attempts += 1;
+    if (attemptRow.length) {
+      await pool.query(
+        "UPDATE users_attempts SET attempts = ? WHERE phone_number = ?",
+        [attempts, phone]
+      );
+    } else {
+      await pool.query(
+        "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, ?)",
+        [phone, attempts]
+      );
+    }
+
+    const remaining = MAX_ATTEMPTS - attempts;
+    let message = texts[lang].application_canceled;
+    if (remaining > 0) {
+      message += "\n" + texts[lang].attempts_remaining(remaining);
+    } else {
+      message += "\n" + texts[lang].attempts_exceeded;
+    }
+
     const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(
-      texts[lang].application_canceled,
+      message,
       buildMainMenu(lang, latestNumberAfterDelete)
     );
 
@@ -1127,6 +1179,46 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
     console.error(`Error in change language selection for user ${ctx.from.id}:`, err);
     await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
   }
+});
+
+// Обработчики платежей
+bot.on('pre_checkout_query', async (ctx) => {
+  try {
+    await ctx.answerPreCheckoutQuery(true); // Подтверждаем заказ
+  } catch (err) {
+    console.error('Error in pre_checkout_query:', err);
+    await ctx.answerPreCheckoutQuery(false, texts[ctx.session.language].payment_error);
+  }
+});
+
+bot.on('successful_payment', async (ctx) => {
+  try {
+    const payload = JSON.parse(ctx.message.successful_payment.invoice_payload);
+    const tempBookingId = payload.tempBookingId;
+    await pool.query(
+      'UPDATE bookings SET payment_status = "paid" WHERE id = ? AND payment_status = "pending"',
+      [tempBookingId]
+    );
+
+    const [bookingRow] = await pool.query('SELECT language, colony FROM bookings WHERE id = ?', [tempBookingId]);
+    const lang = bookingRow[0].language;
+    ctx.session.language = lang;
+
+    ctx.wizard.state = payload.state;
+    ctx.scene.session.cursor = 4; // Переходим к Step 4 (выбор типа визита)
+    await ctx.scene.enter("booking-wizard");
+
+    await ctx.reply(texts[lang].payment_success);
+  } catch (err) {
+    console.error('Error in successful_payment:', err);
+    await ctx.reply(texts[ctx.session.language].error_occurred);
+  }
+});
+
+// Кнопка повторной оплаты (если пользователь нажмет, перезапустим wizard)
+bot.action('retry_payment', async (ctx) => {
+  await ctx.answerCbQuery();
+  await ctx.scene.enter('booking-wizard'); // Пользователь начнет заново (выберет колонию снова)
 });
 
 bot.launch().then(() => console.log("🚀 Bot ishga tushdi"));
