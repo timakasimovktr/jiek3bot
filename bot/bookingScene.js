@@ -475,7 +475,7 @@ const bookingWizard = new Scenes.WizardScene(
     // Create temp booking
     const [result] = await pool.query(
       `INSERT INTO bookings (user_id, phone_number, colony, status, payment_status, telegram_chat_id, language)
-       VALUES (?, ?, ?, 'temp', 'pending', ?, ?)`,
+      VALUES (?, ?, ?, 'pending', 'pending', ?, ?)`,
       [ctx.from.id, ctx.wizard.state.phone, ctx.wizard.state.colony, ctx.chat.id, lang]
     );
     ctx.wizard.state.tempBookingId = result.insertId;
