@@ -87,8 +87,10 @@ const texts = {
     error: "❌ Произошла ошибка. Пожалуйста, попробуйте позже.",
     not_found: "❌ Ошибка: Ваша заявка не найдена.",
     book_meeting: "📅 Записаться на встречу",
-    no_attempts_left: "❌ У вас закончились бесплатные попытки. Необходимо оплатить подачу заявки.",
+    no_attempts_left:
+      "❌ У вас закончились бесплатные попытки. Необходимо оплатить подачу заявки.",
     payment_success: "✅ Оплата прошла успешно! Продолжайте заполнение.",
+    please_pay: "Пожалуйста, завершите оплату, нажав кнопку Pay в счете.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -150,8 +152,11 @@ const texts = {
     error: "❌ Хатолик юз берди. Илтимос, кейинроқ уриниб кўринг.",
     not_found: "❌ Хатолик: Аризангиз топилмади.",
     book_meeting: "📅 Учрашувга ёзилиш",
-    no_attempts_left: "❌ Сизда бепул имкониятлар тугаган. Ариза юбориш учун тўлов қилинг.",
+    no_attempts_left:
+      "❌ Сизда бепул имкониятлар тугаган. Ариза юбориш учун тўлов қилинг.",
     payment_success: "✅ Тўлов муваффақиятли ўтди! Толдиришни давом эттиринг.",
+    please_pay:
+      "Илтимос, ҳисоб-фактурадаги Pay тугмасини босиб тўловни якунланг.",
   },
   uzl: {
     // Uzbek Latin (original)
@@ -214,8 +219,12 @@ const texts = {
     error: "❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring.",
     not_found: "❌ Xatolik: Arizangiz topilmadi.",
     book_meeting: "📅 Uchrashuvga yozilish",
-    no_attempts_left: "❌ Sizda bepul imkoniyatlar tugagan. Ariza yuborish uchun to‘lov qiling.",
-    payment_success: "✅ To‘lov muvaffaqiyatli o‘tdi! To‘ldirishni davom ettiring.",
+    no_attempts_left:
+      "❌ Sizda bepul imkoniyatlar tugagan. Ariza yuborish uchun to‘lov qiling.",
+    payment_success:
+      "✅ To‘lov muvaffaqiyatli o‘tdi! To‘ldirishni davom ettiring.",
+    please_pay:
+      "Iltimos, hisob-fakturada Pay tugmasini bosib to‘lovni yakunlang.",
   },
 };
 
@@ -440,7 +449,6 @@ const bookingWizard = new Scenes.WizardScene(
     ctx.wizard.state.prisoner_name = null;
     ctx.wizard.state.visit_type = null;
     ctx.wizard.state.paymentDone = false;
-    ctx.wizard.state.invoiceSent = false;
 
     // Проверка после colony
     const colony = ctx.wizard.state.colony;
@@ -460,12 +468,10 @@ const bookingWizard = new Scenes.WizardScene(
       attempts = attRows[0].attempts;
     }
 
-    if (paidColonies.includes(colony)) {
-      // Всегда платно для этой колонии
-      await ctx.reply(texts[lang].no_attempts_left);
-      return ctx.wizard.next(); // К шагу 4 (оплата)
-    } else if (attempts > 0) {
-      // Бесплатно для этой колонии
+    const needsPayment = paidColonies.includes(colony) || attempts <= 0;
+
+    if (!needsPayment) {
+      // Бесплатно
       await ctx.reply(
         texts[lang].select_visit_type,
         Markup.inlineKeyboard([
@@ -475,20 +481,34 @@ const bookingWizard = new Scenes.WizardScene(
           ],
         ])
       );
-      return ctx.wizard.selectStep(5); // К шагу 5 (visit type)
+      return ctx.wizard.selectStep(5);
     } else {
-      // Платно, т.к. attempts <= 0
+      // Платно: отправляем сообщение и инвойс сразу
       await ctx.reply(texts[lang].no_attempts_left);
-      return ctx.wizard.next(); // К шагу 4 (оплата)
+      try {
+        await ctx.telegram.sendInvoice({
+          chat_id: ctx.chat.id,
+          title: "Оплата за подачу заявки",
+          description: `Оплата за подачу заявки в колонию ${colony}`,
+          payload: `booking_${ctx.from.id}_${colony}`,
+          provider_token: process.env.PAYMENT_TOKEN,
+          currency: "UZS",
+          prices: [{ label: "Услуга", amount: 10000 }], // Настройте сумму
+        });
+      } catch (err) {
+        console.error("Error sending invoice:", err);
+        await ctx.reply(texts[lang].error);
+        return ctx.scene.leave();
+      }
+      return ctx.wizard.next(); // К шагу 4: ожидание оплаты
     }
   },
 
-  // Step 4: Payment step
+  // Step 4: Payment waiting (обновлено: только обработка, без отправки инвойса)
   async (ctx) => {
     const lang = ctx.session.language;
     try {
       if (ctx.message?.successful_payment) {
-        // Успешная оплата
         ctx.wizard.state.paymentDone = true;
         await ctx.reply(texts[lang].payment_success);
         await ctx.reply(
@@ -501,25 +521,13 @@ const bookingWizard = new Scenes.WizardScene(
           ])
         );
         return ctx.wizard.next(); // К шагу 5
+      } else {
+        // Если пользователь отправил что-то другое (текст и т.д.)
+        await ctx.reply(texts[lang].please_pay);
+        return; // Остаемся в шаге 4
       }
-
-      // Отправляем инвойс
-      if (!ctx.wizard.state.invoiceSent) {
-        await ctx.telegram.sendInvoice({
-          chat_id: ctx.chat.id,
-          title: "Оплата за подачу заявки",
-          description: `Оплата за подачу заявки в колонию ${ctx.wizard.state.colony}`,
-          payload: `booking_${ctx.from.id}_${ctx.wizard.state.colony}`,
-          provider_token: '398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065',
-          currency: "UZS",
-          prices: [{ label: "Услуга", amount: 10000 }],
-        });
-        ctx.wizard.state.invoiceSent = true;
-      }
-
-      return; // Ждем
     } catch (err) {
-      console.error("Error in payment step:", err);
+      console.error("Error in payment waiting step:", err);
       await ctx.reply(texts[lang].error);
       return ctx.scene.leave();
     }
@@ -708,10 +716,9 @@ async function saveBooking(ctx) {
   const lang = ctx.session.language;
   const { prisoner_name, relatives, visit_type, colony } = ctx.wizard.state;
   const chatId = ctx.chat.id;
-  const paymentStatus = ctx.wizard.state.paymentDone ? 'paid' : 'free';
+  const paymentStatus = ctx.wizard.state.paymentDone ? "paid" : "free";
   const phone = ctx.wizard.state.phone;
   try {
-    // Находим max colony_application_number
     const [maxNumberRows] = await pool.query(
       `SELECT MAX(colony_application_number) as max_number
        FROM bookings
@@ -740,8 +747,7 @@ async function saveBooking(ctx) {
 
     const bookingId = result.insertId;
 
-    // Если бесплатно, уменьшаем attempts
-    if (paymentStatus === 'free') {
+    if (paymentStatus === "free") {
       let attempts = 0;
       const [attRows] = await pool.query(
         "SELECT attempts FROM users_attempts WHERE phone_number = ?",
