@@ -24,6 +24,8 @@ const colonies = [
   "24",
 ];
 
+const paidColonies = ["24"]; // Измените на список платных колоний, напр. ["1", "2", "23"]
+
 const texts = {
   ru: {
     internal_error: "❌ Внутренняя ошибка бота. Пожалуйста, попробуйте снова.",
@@ -440,7 +442,8 @@ const bookingWizard = new Scenes.WizardScene(
     ctx.wizard.state.paymentDone = false;
     ctx.wizard.state.invoiceSent = false;
 
-    // Проверка попыток после выбора колонии
+    // Проверка после colony
+    const colony = ctx.wizard.state.colony;
     const phone = ctx.wizard.state.phone;
     let attempts = 0;
     const [attRows] = await pool.query(
@@ -457,8 +460,12 @@ const bookingWizard = new Scenes.WizardScene(
       attempts = attRows[0].attempts;
     }
 
-    if (attempts > 0) {
-      // Бесплатно, переходим к выбору типа визита (теперь шаг 5)
+    if (paidColonies.includes(colony)) {
+      // Всегда платно для этой колонии
+      await ctx.reply(texts[lang].no_attempts_left);
+      return ctx.wizard.next(); // К шагу 4 (оплата)
+    } else if (attempts > 0) {
+      // Бесплатно для этой колонии
       await ctx.reply(
         texts[lang].select_visit_type,
         Markup.inlineKeyboard([
@@ -468,20 +475,20 @@ const bookingWizard = new Scenes.WizardScene(
           ],
         ])
       );
-      return ctx.wizard.selectStep(5);
+      return ctx.wizard.selectStep(5); // К шагу 5 (visit type)
     } else {
-      // Требуется оплата, переходим к шагу оплаты (шаг 4)
+      // Платно, т.к. attempts <= 0
       await ctx.reply(texts[lang].no_attempts_left);
-      return ctx.wizard.next();
+      return ctx.wizard.next(); // К шагу 4 (оплата)
     }
   },
 
-  // Step 4: Payment step (новый)
+  // Step 4: Payment step
   async (ctx) => {
     const lang = ctx.session.language;
     try {
       if (ctx.message?.successful_payment) {
-        // Успешная оплата, продолжаем
+        // Успешная оплата
         ctx.wizard.state.paymentDone = true;
         await ctx.reply(texts[lang].payment_success);
         await ctx.reply(
@@ -493,10 +500,10 @@ const bookingWizard = new Scenes.WizardScene(
             ],
           ])
         );
-        return ctx.wizard.next(); // К шагу 5 (visit type)
+        return ctx.wizard.next(); // К шагу 5
       }
 
-      // Отправляем инвойс, если не отправлен
+      // Отправляем инвойс
       if (!ctx.wizard.state.invoiceSent) {
         await ctx.telegram.sendInvoice({
           chat_id: ctx.chat.id,
@@ -505,12 +512,12 @@ const bookingWizard = new Scenes.WizardScene(
           payload: `booking_${ctx.from.id}_${ctx.wizard.state.colony}`,
           provider_token: '398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065',
           currency: "UZS",
-          prices: [{ label: "Услуга", amount: 10000 }], // 10000 UZS, настройте сумму
+          prices: [{ label: "Услуга", amount: 10000 }],
         });
         ctx.wizard.state.invoiceSent = true;
       }
 
-      return; // Остаемся в шаге, ждем оплаты
+      return; // Ждем
     } catch (err) {
       console.error("Error in payment step:", err);
       await ctx.reply(texts[lang].error);
@@ -518,7 +525,7 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 5: Select visit type (был 4)
+  // Step 5: Select visit type
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
@@ -547,7 +554,7 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
 
-  // Step 6: Full name (был 5)
+  // Step 6: Full name
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(`Step 6: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
@@ -578,12 +585,12 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 7: Placeholder (был 6)
+  // Step 7: Placeholder
   async (ctx) => {
     return ctx.wizard.next();
   },
 
-  // Step 8: Prisoner name (был 7)
+  // Step 8: Prisoner name
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(`Step 8: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
@@ -596,7 +603,7 @@ const bookingWizard = new Scenes.WizardScene(
     return askAddMore(ctx);
   },
 
-  // Step 9: Add more or done (был 8)
+  // Step 9: Add more or done
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
@@ -627,7 +634,7 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 10: Final confirm or cancel (был 9)
+  // Step 10: Final confirm or cancel
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
@@ -702,8 +709,9 @@ async function saveBooking(ctx) {
   const { prisoner_name, relatives, visit_type, colony } = ctx.wizard.state;
   const chatId = ctx.chat.id;
   const paymentStatus = ctx.wizard.state.paymentDone ? 'paid' : 'free';
+  const phone = ctx.wizard.state.phone;
   try {
-    // Находим максимальный colony_application_number для данной колонии
+    // Находим max colony_application_number
     const [maxNumberRows] = await pool.query(
       `SELECT MAX(colony_application_number) as max_number
        FROM bookings
@@ -713,13 +721,12 @@ async function saveBooking(ctx) {
     const maxNumber = maxNumberRows[0].max_number || 0;
     const newColonyApplicationNumber = maxNumber + 1;
 
-    // Изменено: добавлено сохранение language и payment_status в БД
     const [result] = await pool.query(
       `INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id, colony_application_number, language, payment_status)
        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
       [
         ctx.from.id,
-        ctx.wizard.state.phone,
+        phone,
         visit_type,
         prisoner_name,
         JSON.stringify(relatives),
@@ -733,12 +740,29 @@ async function saveBooking(ctx) {
 
     const bookingId = result.insertId;
 
+    // Если бесплатно, уменьшаем attempts
+    if (paymentStatus === 'free') {
+      let attempts = 0;
+      const [attRows] = await pool.query(
+        "SELECT attempts FROM users_attempts WHERE phone_number = ?",
+        [phone]
+      );
+      if (attRows.length) {
+        attempts = attRows[0].attempts - 1;
+        attempts = Math.max(0, attempts);
+      }
+      await pool.query(
+        "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, ?) ON DUPLICATE KEY UPDATE attempts = ?",
+        [phone, attempts, attempts]
+      );
+    }
+
     await ctx.scene.leave();
 
     await sendApplicationToClient(ctx, {
       relatives,
       prisoner: prisoner_name,
-      id: newColonyApplicationNumber,  // Используем colony_application_number
+      id: newColonyApplicationNumber,
       visit_type,
       colony,
       lang,
@@ -761,7 +785,7 @@ async function saveBooking(ctx) {
       texts[lang].booking_saved(position),
       Markup.keyboard([
         [texts[lang].queue_status],
-        [texts[lang].cancel_application(newColonyApplicationNumber)],  // Изменено: используем colony_application_number вместо bookingId
+        [texts[lang].cancel_application(newColonyApplicationNumber)],
       ])
         .resize()
         .oneTime(false)
