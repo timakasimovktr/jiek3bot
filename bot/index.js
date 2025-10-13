@@ -1,15 +1,12 @@
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
-const { message } = require("telegraf/filters");
 require("dotenv").config();
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
-const express = require("express");
-const app = express();
+const { message } = require("telegraf/filters");
+const adminChatId = process.env.ADMIN_CHAT_ID;
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
-
-const webhookPath = "/smartmeet-webhook";
 
 const fs = require("fs");
 const path = require("path");
@@ -28,23 +25,14 @@ bot.use((ctx, next) => {
 
 bot.use(async (ctx, next) => {
   console.log(
-    `Middleware: user ${
-      ctx.from?.id
-    }, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
+    `Middleware: user ${ctx.from?.id}, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
       ctx.scene?.current?.id || "none"
     }`
   );
   if (!ctx.session) ctx.session = {};
   if (!ctx.session.language) {
-    if (ctx.preCheckoutQuery) {
-      ctx.session.language = "uzl"; // Default for payments
-      console.log(
-        `Skipped DB query for pre_checkout_query, set default language`
-      );
-    } else {
-      const latest = await getLatestBooking(ctx.from?.id);
-      ctx.session.language = latest?.language || "uzl";
-    }
+    const latest = await getLatestBooking(ctx.from?.id);
+    ctx.session.language = latest?.language || "uzl"; // По умолчанию uzl
   }
   return next();
 });
@@ -101,8 +89,7 @@ const texts = {
     status_approved: "одобрено",
     status_pending: "ожидает",
     change_language: "🌐 Сменить язык",
-    attempts_remaining:
-      "❗ У вас осталось {attempts} попыток на подачу заявки.",
+    attempts_remaining: "❗ У вас осталось {attempts} попыток на подачу заявки.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -214,8 +201,7 @@ const texts = {
     status_approved: "tasdiqlangan",
     status_pending: "kutmoqda",
     change_language: "🌐 Tilni o‘zgartirish",
-    attempts_remaining:
-      "❗ Sizda qolgan {attempts} ta ariza yuborish imkoniyati.",
+    attempts_remaining: "❗ Sizda qolgan {attempts} ta ariza yuborish imkoniyati.",
   },
 };
 
@@ -261,8 +247,7 @@ async function getUserBookingStatus(userId) {
 
 function buildMainMenu(lang, latestPendingNumber) {
   let rows = [];
-  if (latestPendingNumber) {
-    // Полное меню с кнопкой смены языка
+  if (latestPendingNumber) {  // Полное меню с кнопкой смены языка
     rows = [
       [texts[lang].queue_status, texts[lang].group_join],
       [texts[lang].application_copy, texts[lang].additional_info_button],
@@ -271,9 +256,12 @@ function buildMainMenu(lang, latestPendingNumber) {
     rows.push([
       texts[lang].cancel_application.replace("{id}", latestPendingNumber),
     ]);
-    rows.push([texts[lang].change_language]); // Добавлено: кнопка смены языка в полном меню
-  } else {
-    rows = [[texts[lang].book_meeting], [texts[lang].change_language]];
+    rows.push([texts[lang].change_language]);  // Добавлено: кнопка смены языка в полном меню
+  } else {  
+    rows = [
+      [texts[lang].book_meeting],
+      [texts[lang].change_language],
+    ];
   }
 
   return Markup.keyboard(rows).resize().persistent();
@@ -391,7 +379,7 @@ bot.start(async (ctx) => {
       if (latestBooking.status === "approved") {
         await ctx.reply(
           texts[lang].approved_status
-            .replace("{id}", latestNumber)
+            .replace("{id}", latestNumber) 
             .replace("{name}", name),
           buildMainMenu(lang, latestNumber)
         );
@@ -741,7 +729,7 @@ async function handleColonyLocation(ctx) {
     }
 
     const colony = latestBooking.colony;
-    const latestNumber = latestBooking.colony_application_number; // Изменено: для меню
+    const latestNumber = latestBooking.colony_application_number;  // Изменено: для меню
     const [coordRows] = await pool.query(
       "SELECT longitude, latitude FROM coordinates WHERE id = ?",
       [colony]
@@ -755,7 +743,7 @@ async function handleColonyLocation(ctx) {
     await ctx.replyWithLocation(longitude, latitude);
     await ctx.reply(
       texts[lang].colony_location.replace("{colony}", colony),
-      buildMainMenu(lang, latestNumber) // Изменено: latestNumber вместо id
+      buildMainMenu(lang, latestNumber)  // Изменено: latestNumber вместо id
     );
   } catch (err) {
     console.error("Error in colony location:", err);
@@ -797,8 +785,7 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitNumber =
-      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestNumber =
       explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
 
@@ -912,9 +899,7 @@ async function handleYesCancel(ctx) {
       [phone, attempts, attempts]
     );
 
-    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(
-      ctx.from.id
-    );
+    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(
       texts[lang].application_canceled,
       buildMainMenu(lang, latestNumberAfterDelete)
@@ -954,30 +939,18 @@ bot.on(message("text"), async (ctx, next) => {
 });
 
 bot.on("pre_checkout_query", async (ctx) => {
-  const start = Date.now();
   try {
-    if (!ctx.session) ctx.session = {};
-    if (!ctx.session.language) ctx.session.language = "uzl";
-    if (ctx.scene && ctx.scene.current) {
-      console.log(`User ${ctx.from.id} in scene ${ctx.scene.current.id}, leaving scene`);
-      await ctx.scene.leave();
-    }
+    // Можно добавить проверку (например, по payload)
     await ctx.answerPreCheckoutQuery(true);
-    console.log(`pre_checkout_query обработан за ${Date.now() - start} мс`);
   } catch (err) {
-    console.error(`Ошибка pre_checkout_query: ${err}`);
-    await ctx.answerPreCheckoutQuery(false, "Ошибка обработки заказа.");
+    console.error("Error in pre_checkout_query:", err);
+    await ctx.answerPreCheckoutQuery(false, "Извините, произошла ошибка при обработке заказа.");
   }
 });
 
-bot.on(message("successful_payment"), async (ctx) => {
-  const payment = ctx.message.successful_payment;
-  console.log("✅ Payment successful:", JSON.stringify(payment, null, 2));
-  await ctx.reply(`Спасибо за оплату! Номер брони: ${payment.invoice_payload}`);
-});
 bot.catch((err, ctx) => {
   console.error("Global error:", err);
-  const lang = ctx.session?.language || "uzl";
+  const lang = ctx.session?.language || "uzl"; 
   if (err.response && err.response.error_code === 403) {
     console.warn(`⚠️ User ${ctx.from?.id} blocked the bot, skip message`);
   } else {
@@ -1185,23 +1158,11 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(texts[lang].main_menu, buildMainMenu(lang, latestId));
   } catch (err) {
-    console.error(
-      `Error in change language selection for user ${ctx.from.id}:`,
-      err
-    );
+    console.error(`Error in change language selection for user ${ctx.from.id}:`, err);
     await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
   }
 });
 
-app.use(express.json()); 
-app.use(webhookPath, bot.webhookCallback(webhookPath));
-
-const PORT = 443 || 4433;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
 bot.launch().then(() => console.log("🚀 Bot ishga tushdi"));
-
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
