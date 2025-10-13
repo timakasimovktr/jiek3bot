@@ -1,4 +1,5 @@
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
+const { message } = require("telegraf/filters");
 require("dotenv").config();
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
@@ -961,7 +962,7 @@ bot.on("pre_checkout_query", async (ctx) => {
   }
 });
 
-bot.on("successful_payment", async (ctx) => {
+bot.on(message("successful_payment"), async (ctx) => {
   const payment = ctx.message.successful_payment;
   console.log("✅ Payment successful:", payment);
   await ctx.reply(`Спасибо за оплату! Номер брони: ${payment.invoice_payload}`);
