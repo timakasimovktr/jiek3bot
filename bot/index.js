@@ -1180,6 +1180,22 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
   }
 });
 
-bot.launch().then(() => console.log("🚀 Bot ishga tushdi"));
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
+const express = require('express');
+const app = express();
+
+// Путь для webhook (сделайте секретным, напр. /bot-your-token)
+const webhookPath = '/bot-webhook';  
+
+app.use(express.json());
+app.use(bot.webhookCallback(webhookPath));
+
+// Установите webhook в Telegram (один раз)
+bot.telegram.setWebhook(`https://test-dunyo.uz${webhookPath}`)
+  .then(() => console.log('Webhook установлен'))
+  .catch(err => console.error('Ошибка установки webhook:', err));
+
+// Запустите сервер
+const PORT = process.env.PORT || 4443;
+app.listen(PORT, () => {
+  console.log(`Сервер запущен на порту ${PORT}`);
+});
