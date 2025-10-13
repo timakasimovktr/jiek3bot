@@ -3,8 +3,8 @@ const { message } = require("telegraf/filters");
 require("dotenv").config();
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
-const express = require("express");
-const app = express();
+// const express = require("express");
+// const app = express();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
@@ -1188,8 +1188,8 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
   }
 });
 
-app.use(express.json()); 
-app.use(webhookPath, bot.webhookCallback); 
+// app.use(express.json()); 
+// app.use(webhookPath, bot.webhookCallback); 
 
 // const PORT = 443 || 4433;
 // app.listen(PORT, () => {
