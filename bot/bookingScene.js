@@ -490,7 +490,7 @@ const bookingWizard = new Scenes.WizardScene(
         payload: `booking_${ctx.from.id}_${colony}`,
         provider_token: "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065",
         currency: "UZS",
-        prices: [{ label: "Услуга", amount: 10500 }],
+        prices: [{ label: "Услуга", amount: 50000 }],
       });
       return ctx.wizard.next();
     }
