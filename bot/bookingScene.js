@@ -485,12 +485,12 @@ const bookingWizard = new Scenes.WizardScene(
     } else {
       await ctx.reply(texts[lang].no_attempts_left);
       await ctx.telegram.sendInvoice(
-        ctx.chat.id,
+        ctx.chat.id, 
         "Smart Meet Pay", 
         `Koloniya ${colony}`, 
         `booking_${ctx.from.id}_${colony}`,
         "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065", // provider_token
-        "UZS",
+        "UZS", 
         [{ label: "Услуга", amount: 1000 }] 
       );
       return ctx.wizard.next();
