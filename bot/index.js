@@ -1,12 +1,15 @@
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
+const { message } = require("telegraf/filters");
 require("dotenv").config();
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
-const { message } = require("telegraf/filters");
-const adminChatId = process.env.ADMIN_CHAT_ID;
+const express = require("express");
+const app = express();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
+
+const webhookPath = "/smartmeet-webhook";
 
 const fs = require("fs");
 const path = require("path");
@@ -951,21 +954,17 @@ bot.on(message("text"), async (ctx, next) => {
 });
 
 bot.on("pre_checkout_query", async (ctx) => {
-  const startTime = Date.now();
-  console.log(`Received pre_checkout_query from user ${ctx.from?.id}, query:`, ctx.preCheckoutQuery);
+  const start = Date.now();
   try {
     await ctx.answerPreCheckoutQuery(true);
-    console.log(`Answered pre_checkout_query in ${Date.now() - startTime}ms`);
+    console.log(`pre_checkout_query обработан за ${Date.now() - start} мс`);
   } catch (err) {
-    console.error("Error in pre_checkout_query:", err);
-    await ctx.answerPreCheckoutQuery(
-      false,
-      "Извините, произошла ошибка при обработке заказа."
-    );
+    console.error(`Ошибка pre_checkout_query: ${err}`);
+    await ctx.answerPreCheckoutQuery(false, "Ошибка обработки заказа.");
   }
 });
 
-bot.on("successful_payment", async (ctx) => {
+bot.on(message("successful_payment"), async (ctx) => {
   const payment = ctx.message.successful_payment;
   console.log("✅ Payment successful:", payment);
   await ctx.reply(`Спасибо за оплату! Номер брони: ${payment.invoice_payload}`);
@@ -1189,15 +1188,13 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
   }
 });
 
-bot
-  .launch({
-    allowedUpdates: [
-      "message",
-      "callback_query",
-      "pre_checkout_query",
-      "successful_payment",
-    ],
-  })
-  .then(() => console.log("🚀 Bot ishga tushdi"));
+app.use(express.json()); 
+app.use(webhookPath, bot.webhookCallback); 
+
+// const PORT = 443 || 4433;
+// app.listen(PORT, () => {
+//   console.log(`Server running on port ${PORT}`);
+// });
+
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
