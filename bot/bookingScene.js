@@ -471,7 +471,6 @@ const bookingWizard = new Scenes.WizardScene(
     const needsPayment = paidColonies.includes(colony) || attempts <= 0;
 
     if (!needsPayment) {
-      // Бесплатно
       await ctx.reply(
         texts[lang].select_visit_type,
         Markup.inlineKeyboard([
