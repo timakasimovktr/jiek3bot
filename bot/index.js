@@ -951,17 +951,13 @@ bot.on(message("text"), async (ctx, next) => {
 });
 
 bot.on("pre_checkout_query", async (ctx) => {
-  const startTime = Date.now();
-  console.log(`Received pre_checkout_query from user ${ctx.from?.id}, query:`, ctx.preCheckoutQuery);
+  const start = Date.now();
   try {
     await ctx.answerPreCheckoutQuery(true);
-    console.log(`Answered pre_checkout_query in ${Date.now() - startTime}ms`);
+    console.log(`pre_checkout_query обработан за ${Date.now() - start} мс`);
   } catch (err) {
-    console.error("Error in pre_checkout_query:", err);
-    await ctx.answerPreCheckoutQuery(
-      false,
-      "Извините, произошла ошибка при обработке заказа."
-    );
+    console.error(`Ошибка pre_checkout_query: ${err}`);
+    await ctx.answerPreCheckoutQuery(false, "Ошибка обработки заказа.");
   }
 });
 
