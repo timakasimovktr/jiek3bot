@@ -3,9 +3,13 @@ const { message } = require("telegraf/filters");
 require("dotenv").config();
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
+const express = require("express");
+const app = express();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
+
+const webhookPath = "/smartmeet-webhook";
 
 const fs = require("fs");
 const path = require("path");
@@ -1184,17 +1188,13 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
   }
 });
 
-bot
-  .launch({
-    allowedUpdates: [
-      "message",
-      "callback_query",
-      "pre_checkout_query",
-      "successful_payment",
-    ],
-  })
-  .then(() => console.log("🚀 Bot ishga tushdi"));
+app.use(express.json()); 
+app.use(webhookPath, bot.webhookCallback); 
+
+const PORT = 443 || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
-
-bot.launch();
