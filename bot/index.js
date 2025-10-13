@@ -3,7 +3,6 @@ const { message } = require("telegraf/filters");
 require("dotenv").config();
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
-const adminChatId = process.env.ADMIN_CHAT_ID;
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
@@ -1197,3 +1196,5 @@ bot
   .then(() => console.log("🚀 Bot ishga tushdi"));
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
+
+bot.launch();
