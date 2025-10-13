@@ -951,13 +951,11 @@ bot.on(message("text"), async (ctx, next) => {
 });
 
 bot.on("pre_checkout_query", async (ctx) => {
-  console.log(
-    `Received pre_checkout_query from user ${ctx.from?.id}, query:`,
-    ctx.preCheckoutQuery
-  );
+  const startTime = Date.now();
+  console.log(`Received pre_checkout_query from user ${ctx.from?.id}, query:`, ctx.preCheckoutQuery);
   try {
     await ctx.answerPreCheckoutQuery(true);
-    console.log(`Sent answerPreCheckoutQuery true for user ${ctx.from?.id}`);
+    console.log(`Answered pre_checkout_query in ${Date.now() - startTime}ms`);
   } catch (err) {
     console.error("Error in pre_checkout_query:", err);
     await ctx.answerPreCheckoutQuery(
@@ -970,7 +968,6 @@ bot.on("pre_checkout_query", async (ctx) => {
 bot.on("successful_payment", async (ctx) => {
   const payment = ctx.message.successful_payment;
   console.log("✅ Payment successful:", payment);
-
   await ctx.reply(`Спасибо за оплату! Номер брони: ${payment.invoice_payload}`);
 });
 

@@ -452,23 +452,8 @@ const bookingWizard = new Scenes.WizardScene(
 
     const colony = ctx.wizard.state.colony;
     const phone = ctx.wizard.state.phone;
-    
-    let attempts = 0;
-    const [attRows] = await pool.query(
-      "SELECT attempts FROM users_attempts WHERE phone_number = ?",
-      [phone]
-    );
-    if (attRows.length === 0) {
-      await pool.query(
-        "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, 2)",
-        [phone]
-      );
-      attempts = 2;
-    } else {
-      attempts = attRows[0].attempts;
-    }
 
-    const needsPayment = paidColonies.includes(colony) || attempts <= 0;
+    const needsPayment = paidColonies.includes(colony);
 
     if (!needsPayment) {
       await ctx.reply(
@@ -482,14 +467,14 @@ const bookingWizard = new Scenes.WizardScene(
       );
       return ctx.wizard.selectStep(5);
     } else {
-      await ctx.reply(texts[lang].no_attempts_left);
       await ctx.replyWithInvoice({
         title: `Smart Meet Pay ${ctx.from.id}`,
-        description: `Koloniya ${colony} Telefon: ${phone} `,
+        description: `Koloniya ${colony} Telefon: ${phone}`,
         payload: `booking_${ctx.from.id}_${colony}`,
-        provider_token: "333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3",
+        provider_token:
+          "333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3",
         currency: "UZS",
-        prices: [{ label: "Услуга", amount: 500000 }],
+        prices: [{ label: "Услуга", amount: 100000 }],
       });
       return ctx.wizard.next();
     }
@@ -737,7 +722,10 @@ async function saveBooking(ctx) {
 
     const bookingId = result.insertId;
 
-    if (paymentStatus === "free") {
+    if (paymentStatus === "free" && !paidColonies.includes(colony)) {
+      // Не уменьшать попытки для бесплатных колоний
+      // Можно оставить attempts без изменений или не создавать запись
+    } else {
       let attempts = 0;
       const [attRows] = await pool.query(
         "SELECT attempts FROM users_attempts WHERE phone_number = ?",
