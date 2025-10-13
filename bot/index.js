@@ -956,6 +956,12 @@ bot.on(message("text"), async (ctx, next) => {
 bot.on("pre_checkout_query", async (ctx) => {
   const start = Date.now();
   try {
+    if (!ctx.session) ctx.session = {};
+    if (!ctx.session.language) ctx.session.language = "uzl";
+    if (ctx.scene && ctx.scene.current) {
+      console.log(`User ${ctx.from.id} in scene ${ctx.scene.current.id}, leaving scene`);
+      await ctx.scene.leave();
+    }
     await ctx.answerPreCheckoutQuery(true);
     console.log(`pre_checkout_query обработан за ${Date.now() - start} мс`);
   } catch (err) {
@@ -966,10 +972,9 @@ bot.on("pre_checkout_query", async (ctx) => {
 
 bot.on(message("successful_payment"), async (ctx) => {
   const payment = ctx.message.successful_payment;
-  console.log("✅ Payment successful:", payment);
+  console.log("✅ Payment successful:", JSON.stringify(payment, null, 2));
   await ctx.reply(`Спасибо за оплату! Номер брони: ${payment.invoice_payload}`);
 });
-
 bot.catch((err, ctx) => {
   console.error("Global error:", err);
   const lang = ctx.session?.language || "uzl";
@@ -1189,12 +1194,12 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 });
 
 app.use(express.json()); 
-app.use(webhookPath, bot.webhookCallback); 
+app.use(webhookPath, bot.webhookCallback(webhookPath));
 
-// const PORT = 443 || 4433;
-// app.listen(PORT, () => {
-//   console.log(`Server running on port ${PORT}`);
-// });
+const PORT = 443 || 4433;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
