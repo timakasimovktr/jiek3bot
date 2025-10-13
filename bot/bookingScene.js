@@ -450,7 +450,6 @@ const bookingWizard = new Scenes.WizardScene(
     ctx.wizard.state.visit_type = null;
     ctx.wizard.state.paymentDone = false;
 
-    // Проверка после colony
     const colony = ctx.wizard.state.colony;
     const phone = ctx.wizard.state.phone;
     
