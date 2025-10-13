@@ -1189,9 +1189,9 @@ app.use(express.json());
 app.use(bot.webhookCallback(webhookPath));
 
 // Установите webhook в Telegram (один раз)
-bot.telegram.setWebhook(`https://test-dunyo.uz${webhookPath}`)
-  .then(() => console.log('Webhook установлен'))
-  .catch(err => console.error('Ошибка установки webhook:', err));
+// bot.telegram.setWebhook(`https://test-dunyo.uz${webhookPath}`)
+//   .then(() => console.log('Webhook установлен'))
+//   .catch(err => console.error('Ошибка установки webhook:', err));
 
 // Запустите сервер
 const PORT = process.env.PORT || 4443;
