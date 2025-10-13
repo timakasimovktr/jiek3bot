@@ -1201,5 +1201,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
+bot.launch().then(() => console.log("🚀 Bot ishga tushdi"));
+
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
