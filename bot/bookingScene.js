@@ -453,6 +453,7 @@ const bookingWizard = new Scenes.WizardScene(
     // Проверка после colony
     const colony = ctx.wizard.state.colony;
     const phone = ctx.wizard.state.phone;
+    
     let attempts = 0;
     const [attRows] = await pool.query(
       "SELECT attempts FROM users_attempts WHERE phone_number = ?",
@@ -484,10 +485,10 @@ const bookingWizard = new Scenes.WizardScene(
     } else {
       await ctx.reply(texts[lang].no_attempts_left);
       await ctx.replyWithInvoice({
-        title: "Smart Meet Pay",
-        description: `Koloniya ${colony}`,
+        title: `Smart Meet Pay ${ctx.from.id}`,
+        description: `Koloniya ${colony} Telefon: ${phone} `,
         payload: `booking_${ctx.from.id}_${colony}`,
-        provider_token: "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065",
+        provider_token: "333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3",
         currency: "UZS",
         prices: [{ label: "Услуга", amount: 500000 }],
       });
