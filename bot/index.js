@@ -3,9 +3,8 @@ require("dotenv").config();
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
 const { message } = require("telegraf/filters");
-const adminChatId = process.env.ADMIN_CHAT_ID;
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+const bot = new Telegraf('8373923696:AAHxWLeCqoO0I-ZCgNCgn6yJTi6JJ-wOU3I');
 const stage = new Scenes.Stage([bookingWizard]);
 
 const fs = require("fs");
