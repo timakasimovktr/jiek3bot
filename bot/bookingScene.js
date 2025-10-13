@@ -491,7 +491,7 @@ const bookingWizard = new Scenes.WizardScene(
           title: "Smart Booking Service",
           description: `Koloniya ${colony}`,
           payload: `booking_${ctx.from.id}_${colony}`,
-          provider_token: process.env.PAYMENT_TOKEN,
+          provider_token: "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065",
           currency: "UZS",
           prices: [{ label: "Услуга", amount: 10000 }], // Настройте сумму
         });
