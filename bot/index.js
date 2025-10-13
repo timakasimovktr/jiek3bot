@@ -892,7 +892,7 @@ async function handleYesCancel(ctx) {
       attempts = attemptRows[0].attempts - 1;
       attempts = Math.max(0, attempts);
     } else {
-      attempts = 1; // Если нет записи, устанавливаем 2-1=1 (но по логике, запись должна быть при создании)
+      attempts = 1; 
     }
     await pool.query(
       "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, ?) ON DUPLICATE KEY UPDATE attempts = ?",
@@ -914,6 +914,20 @@ async function handleYesCancel(ctx) {
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
+
+bot.on('pre_checkout_query', async (ctx) => {
+  try {
+    // Здесь можно добавить проверку: например, убедиться, что payload соответствует ожидаемому
+    // const payload = ctx.preCheckoutQuery.invoice_payload; // Например, проверьте, что это ваш booking
+    // if (!payload.startsWith('booking_')) { return ctx.answerPreCheckoutQuery(false, 'Неверный заказ'); }
+
+    // Если все OK, подтверждаем
+    await ctx.answerPreCheckoutQuery(true);
+  } catch (err) {
+    console.error('Ошибка в pre_checkout_query:', err);
+    await ctx.answerPreCheckoutQuery(false, 'Произошла ошибка при обработке заказа. Попробуйте позже.');
+  }
+});
 
 bot.on(message("text"), async (ctx, next) => {
   try {
@@ -938,16 +952,6 @@ bot.on(message("text"), async (ctx, next) => {
   }
 });
 
-bot.on("pre_checkout_query", async (ctx) => {
-  try {
-    // Можно добавить проверку (например, по payload)
-    await ctx.answerPreCheckoutQuery(true);
-  } catch (err) {
-    console.error("Error in pre_checkout_query:", err);
-    await ctx.answerPreCheckoutQuery(false, "Извините, произошла ошибка при обработке заказа.");
-  }
-});
-
 bot.catch((err, ctx) => {
   console.error("Global error:", err);
   const lang = ctx.session?.language || "uzl"; 
@@ -959,7 +963,6 @@ bot.catch((err, ctx) => {
 });
 
 bot.hears("Yangi ariza yuborish", async (ctx) => {
-  // Legacy, assume uzl
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);

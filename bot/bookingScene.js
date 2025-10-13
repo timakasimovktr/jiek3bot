@@ -480,10 +480,18 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
+  // Step 4: Wait for payment if needed
   async (ctx) => {
     const lang = ctx.session.language;
     try {
       if (ctx.message?.successful_payment) {
+        const payload = ctx.message.successful_payment.invoice_payload;
+        // Проверяем, что payload соответствует нашему (для безопасности)
+        if (!payload.startsWith(`booking_${ctx.from.id}_`)) {
+          await ctx.reply("❌ Неверный платеж. Пожалуйста, начните заново.");
+          return ctx.scene.leave();
+        }
+
         ctx.wizard.state.paymentDone = true;
         await ctx.reply(texts[lang].payment_success);
         await ctx.reply(
