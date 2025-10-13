@@ -483,24 +483,17 @@ const bookingWizard = new Scenes.WizardScene(
       );
       return ctx.wizard.selectStep(5);
     } else {
-      // Платно: отправляем сообщение и инвойс сразу
       await ctx.reply(texts[lang].no_attempts_left);
-      try {
-        await ctx.telegram.sendInvoice({
-          chat_id: ctx.chat.id,
-          title: "Smart Meet Pay",
-          description: `Koloniya ${colony}`,
-          payload: `booking_${ctx.from.id}_${colony}`,
-          provider_token: "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065",
-          currency: "UZS",
-          prices: [{ label: "Услуга", amount: 10500 }], 
-        });
-      } catch (err) {
-        console.error("Error sending invoice:", err);
-        await ctx.reply(texts[lang].error);
-        return ctx.scene.leave();
-      }
-      return ctx.wizard.next(); 
+      await ctx.telegram.sendInvoice(
+        ctx.chat.id,
+        "Smart Meet Pay", 
+        `Koloniya ${colony}`, 
+        `booking_${ctx.from.id}_${colony}`,
+        "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065", // provider_token
+        "UZS",
+        [{ label: "Услуга", amount: 1000 }] 
+      );
+      return ctx.wizard.next();
     }
   },
 
