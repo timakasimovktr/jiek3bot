@@ -649,7 +649,6 @@ async function showSummary(ctx) {
 }
 
 async function saveBooking(ctx) {
-  ctx.wizard.state.payment_status = 'free';
   const lang = ctx.session.language;
   const { prisoner_name, relatives, visit_type, colony } = ctx.wizard.state;
   const chatId = ctx.chat.id;
@@ -665,6 +664,8 @@ async function saveBooking(ctx) {
     const newColonyApplicationNumber = maxNumber + 1;
 
     // Изменено: добавлено сохранение language в БД
+    ctx.wizard.state.payment_status = "free";
+
     const [result] = await pool.query(
       `INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id, colony_application_number, language)
        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`, // Добавлено language
