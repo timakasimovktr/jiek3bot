@@ -939,6 +939,11 @@ bot.on("pre_checkout_query", async (ctx) => {
   }
 });
 
+bot.on('successful_payment', async (ctx) => {
+  console.log('Payment successful:', ctx.message.successful_payment);
+  await ctx.reply('Спасибо за оплату! Ваша заявка будет обработана в ближайшее время.');
+});
+
 bot.on(message("text"), async (ctx, next) => {
   try {
     const lang = ctx.session.language;
