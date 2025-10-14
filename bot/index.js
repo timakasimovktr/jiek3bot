@@ -1,9 +1,9 @@
-const { Telegraf, Scenes, Markup } = require("telegraf");
+const { Telegraf, Scenes, session, Markup } = require("telegraf");
 require("dotenv").config();
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
 const { message } = require("telegraf/filters");
-const session = require('telegraf/session');
+
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
@@ -560,7 +560,6 @@ bot.on('successful_payment', (ctx) => {
   console.timeEnd('successful_payment_response');
   // Не отвечайте здесь — сцена в bookingScene обработает в шаге
 });
-
 async function handleQueueStatus(ctx) {
   try {
     const lang = ctx.session.language;
