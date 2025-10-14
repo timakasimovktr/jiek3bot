@@ -87,6 +87,13 @@ const texts = {
     error: "❌ Произошла ошибка. Пожалуйста, попробуйте позже.",
     not_found: "❌ Ошибка: Ваша заявка не найдена.",
     book_meeting: "📅 Записаться на встречу",
+    pay_prompt: "❓ Теперь оплатите 2000 сум для продолжения.",
+    payment_success: "✅ Оплата прошла успешно! Продолжаем заполнение.",
+    retry_payment: "🔄 Оплатить заново",
+    cancel_text: "❌ Отменить заявку", // Already exists, reusing
+    payment_wait: "Пожалуйста, завершите оплату или выберите действие.",
+    invalid_payment: "❌ Недействительная оплата.",
+    too_many_payment_attempts: "❌ Слишком много попыток оплаты. Заявка отменена. Начните заново с /start.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -148,6 +155,13 @@ const texts = {
     error: "❌ Хатолик юз берди. Илтимос, кейинроқ уриниб кўринг.",
     not_found: "❌ Хатолик: Аризангиз топилмади.",
     book_meeting: "📅 Учрашувга ёзилиш",
+    pay_prompt: "❓ Endi davom etish uchun 2000 so'm to'lov qiling.",
+    payment_success: "✅ To'lov muvaffaqiyatli! To'ldirishni davom ettiramiz.",
+    retry_payment: "🔄 Qayta to'lov",
+    cancel_text: "❌ Аризани бекор қилиш", // Reuse
+    payment_wait: "Iltimos, to'lovni bajaring yoki harakatni tanlang.",
+    invalid_payment: "❌ Noto'g'ri to'lov.",
+    too_many_payment_attempts: "❌ To'lov urinishlari juda ko'p. Ariza bekor qilindi. /start bilan qaytadan boshlang.",
   },
   uzl: {
     // Uzbek Latin (original)
@@ -210,6 +224,13 @@ const texts = {
     error: "❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring.",
     not_found: "❌ Xatolik: Arizangiz topilmadi.",
     book_meeting: "📅 Uchrashuvga yozilish",
+    pay_prompt: "❓ Endi davom etish uchun 2000 so'm to'lov qiling.",
+    payment_success: "✅ To'lov muvaffaqiyatli! To'ldirishni davom ettiramiz.",
+    retry_payment: "🔄 Qayta to'lov",
+    cancel_text: "❌ Arizani bekor qilish", // Reuse
+    payment_wait: "Iltimos, to'lovni bajaring yoki harakatni tanlang.",
+    invalid_payment: "❌ Noto'g'ri to'lov.",
+    too_many_payment_attempts: "❌ To'lov urinishlari juda ko'p. Ariza bekor qilindi. /start bilan qaytadan boshlang.",
   },
 };
 
