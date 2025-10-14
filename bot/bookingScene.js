@@ -1,7 +1,9 @@
-const { Telegraf, Scenes, session, Markup } = require("telegraf");
-const pool = require("../db");
-const texts = require("./texts.js");
-const MAX_RELATIVES = 3;
+const { Scenes, Markup } = require("telegraf");
+const pool = require("../../db");
+const texts = require("../texts.js");
+const { generateColonyKeyboard } = require("../helpers/keyboards.js");
+const { askAddMore, showSummary, saveBooking } = require("../helpers/bookingUtils.js");
+const { MAX_RELATIVES } = require("../constants/config.js");
 
 const bookingWizard = new Scenes.WizardScene(
   "booking-wizard",
