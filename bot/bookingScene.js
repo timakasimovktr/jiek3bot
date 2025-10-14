@@ -2,7 +2,11 @@ const { Scenes, Markup } = require("telegraf");
 const pool = require("../db");
 const texts = require("./texts.js");
 const { generateColonyKeyboard } = require("./helpers/keyboards.js");
-const { askAddMore, showSummary, saveBooking } = require("./helpers/bookingUtils.js");
+const {
+  askAddMore,
+  showSummary,
+  saveBooking,
+} = require("./helpers/bookingUtils.js");
 const { MAX_RELATIVES } = require("./constants/config.js");
 
 const bookingWizard = new Scenes.WizardScene(
@@ -207,6 +211,15 @@ const bookingWizard = new Scenes.WizardScene(
 
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
+
+    if (ctx.wizard.state.colony === "24") {
+      await ctx.reply(
+        "Вы выбрали 24-ю колонию. Чтобы продолжить, нажмите кнопку ниже 👇",
+        Markup.keyboard([["Оплатить"]]).resize()
+      );
+      // Не переходим к следующему шагу, выходим из сцены
+      return ctx.scene.leave();
+    }
 
     ctx.wizard.state.relatives = [];
     ctx.wizard.state.currentRelative = {};

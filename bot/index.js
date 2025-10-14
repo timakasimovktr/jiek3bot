@@ -244,11 +244,9 @@ bot.action("cancel", async (ctx) => {
 bot.hears(texts.uzl.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.uz.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.ru.queue_status, async (ctx) => handleQueueStatus(ctx));
-
 bot.hears(texts.uzl.group_join, async (ctx) => handleGroupJoin(ctx));
 bot.hears(texts.uz.group_join, async (ctx) => handleGroupJoin(ctx));
 bot.hears(texts.ru.group_join, async (ctx) => handleGroupJoin(ctx));
-
 bot.hears(texts.uzl.colony_location_button, async (ctx) =>
   handleColonyLocation(ctx)
 );
@@ -258,7 +256,6 @@ bot.hears(texts.uz.colony_location_button, async (ctx) =>
 bot.hears(texts.ru.colony_location_button, async (ctx) =>
   handleColonyLocation(ctx)
 );
-
 bot.hears(texts.uzl.no, async (ctx) => handleNoCancel(ctx));
 bot.hears(texts.uz.no, async (ctx) => handleNoCancel(ctx));
 bot.hears(texts.ru.no, async (ctx) => handleNoCancel(ctx));
@@ -272,10 +269,42 @@ bot.hears(/^❌ Аризани бекор қилиш(?:\s*#(\d+))?$/i, async (ct
 bot.hears(/^❌ Отменить заявку(?:\s*#(\d+))?$/i, async (ctx) =>
   handleCancelApplication(ctx)
 ); // ru
-
 bot.hears(texts.uzl.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.uz.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.ru.yes, async (ctx) => handleYesCancel(ctx));
+
+const getInvoice = (id) => {
+  const invoice = {
+    chat_id: id, // Уникальный идентификатор целевого чата или имя пользователя целевого канала
+    provider_token: process.env.PROVIDER_TOKEN, // токен выданный через бот @SberbankPaymentBot 
+    start_parameter: 'get_access', //Уникальный параметр глубинных ссылок. Если оставить поле пустым, переадресованные копии отправленного сообщения будут иметь кнопку «Оплатить», позволяющую нескольким пользователям производить оплату непосредственно из пересылаемого сообщения, используя один и тот же счет. Если не пусто, перенаправленные копии отправленного сообщения будут иметь кнопку URL с глубокой ссылкой на бота (вместо кнопки оплаты) со значением, используемым в качестве начального параметра.
+    title: 'InvoiceTitle', // Название продукта, 1-32 символа
+    description: 'InvoiceDescription', // Описание продукта, 1-255 знаков
+    currency: 'UZS', // Трехбуквенный код валюты ISO 4217
+    prices: [{ label: 'Invoice Title', amount: 5000 * 100 }], // Разбивка цен, сериализованный список компонентов в формате JSON 100 копеек * 100 = 100 рублей
+    photo_url: './images/pay.png', // URL фотографии товара для счета-фактуры. Это может быть фотография товара или рекламное изображение услуги. Людям больше нравится, когда они видят, за что платят.
+    photo_width: 500, // Ширина фото
+    photo_height: 281, // Длина фото
+    payload: { // Полезные данные счета-фактуры, определенные ботом, 1–128 байт. Это не будет отображаться пользователю, используйте его для своих внутренних процессов.
+      unique_id: `${id}_${Number(new Date())}`,
+      provider_token: process.env.PROVIDER_TOKEN 
+    }
+  }
+
+  return invoice
+}
+
+bot.use(Telegraf.log())
+
+bot.hears("Оплатить", async (ctx) => {
+  return ctx.replyWithInvoice(getInvoice(ctx.from.id))
+});
+
+bot.on('pre_checkout_query', (ctx) => ctx.answerPreCheckoutQuery(true))
+
+bot.on('successful_payment', async (ctx, next) => { 
+  await ctx.reply('SuccessfulPayment')
+})
 
 bot.on(message("text"), async (ctx, next) => {
   try {
