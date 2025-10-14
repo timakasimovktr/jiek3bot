@@ -531,44 +531,30 @@ bot.hears(texts.uzl.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.uz.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.ru.queue_status, async (ctx) => handleQueueStatus(ctx));
 
-// В index.js (глобальные платежные handlers)
-bot.on("pre_checkout_query", (ctx) => {
-  console.time("pre_checkout_handler_time"); // Измерит время выполнения handler
-  console.log(`[DEBUG] pre_checkout_query triggered for user ${ctx.from.id}`);
-  console.log(
-    `[DEBUG] Received payload: ${ctx.preCheckoutQuery.invoice_payload}`
-  );
+bot.on("pre_checkout_query", async (ctx) => {  // Сделайте async для await
+  const start = Date.now();
+  console.log(`[DEBUG] pre_checkout_query triggered for ${ctx.from.id}`);
 
-  const expectedPayload =
-    ctx.session?.paymentPayload || ctx.wizard?.state.invoicePayload; // fallback на wizard
-  const isValid =
-    !expectedPayload ||
-    ctx.preCheckoutQuery.invoice_payload === expectedPayload;
-  console.log(
-    `[DEBUG] Expected payload: ${expectedPayload}, Valid: ${isValid}`
-  );
+  const receivedPayload = ctx.preCheckoutQuery.invoice_payload;
+  const expectedPayload = ctx.session?.paymentPayload || ctx.wizard?.state?.invoicePayload;
 
-  ctx
-    .answerPreCheckoutQuery(isValid, isValid ? undefined : "Invalid payload")
-    .then(() => {
-      console.timeEnd("pre_checkout_handler_time"); // Должно быть <1 сек
-      console.log(
-        `[DEBUG] answerPreCheckoutQuery sent: ${isValid ? "OK" : "Rejected"}`
-      );
-    })
-    .catch((err) => {
-      console.timeEnd("pre_checkout_handler_time");
-      console.error("[ERROR] Failed to answer pre_checkout:", err);
-    });
+  const isValid = receivedPayload === expectedPayload;
+  console.log(`[DEBUG] Expected: ${expectedPayload}, Received: ${receivedPayload}, Valid: ${isValid}`);
+
+  try {
+    await ctx.answerPreCheckoutQuery(isValid, isValid ? undefined : "Invalid payload");
+    console.log(`[DEBUG] Answered in ${Date.now() - start}ms: ${isValid ? "OK" : "Error"}`);
+  } catch (err) {
+    console.error("[ERROR] Failed to answer:", err);
+  }
 });
 
-bot.on("successful_payment", (ctx) => {
-  console.time("successful_payment_time");
-  console.log(
-    `[DEBUG] successful_payment triggered:`,
-    ctx.message.successful_payment.invoice_payload
-  );
-  console.timeEnd("successful_payment_time");
+bot.on("successful_payment", async (ctx) => {
+  console.log(`[DEBUG] Payment success, payload: ${ctx.message.successful_payment.invoice_payload}`);
+  // Разберите payload, обновите DB
+  const [bookingId] = ctx.message.successful_payment.invoice_payload.split('|');
+  await pool.query("UPDATE bookings SET status = 'paid' WHERE id = ?", [bookingId]);
+  await ctx.reply("Оплата прошла! Ваша заявка обновлена.");
 });
 
 async function handleQueueStatus(ctx) {
@@ -1193,31 +1179,28 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 4443;
 app.listen(PORT, "0.0.0.0", async () => {
-  console.log(`Express server listening on port ${PORT} (bound to 0.0.0.0)`);
+  console.log(`Express listening on port ${PORT}`);
 
   try {
-    // Установка webhook с explicit allowed_updates для платежей
-    await bot.telegram.setWebhook("https://test-dunyo.uz/bot-webhook", {
+    const newWebhookUrl = "https://bot.test-dunyo.uz/bot-webhook";
+
+    await bot.telegram.deleteWebhook();
+
+    await bot.telegram.setWebhook(newWebhookUrl, {
       allowed_updates: [
         "message",
         "callback_query",
         "pre_checkout_query",
         "successful_payment",
         "chat_member",
-      ], // Добавьте все нужные
+      ],
       drop_pending_updates: true,
     });
-    console.log(
-      "Webhook set successfully to https://test-dunyo.uz/bot-webhook"
-    );
+    console.log(`Webhook set to ${newWebhookUrl}`);
 
-    // Проверьте статус сразу
     const info = await bot.telegram.getWebhookInfo();
     console.log("Webhook info:", JSON.stringify(info, null, 2));
   } catch (err) {
-    console.error(
-      "Error setting webhook:",
-      err.response ? err.response.data : err
-    );
+    console.error("Error setting webhook:", err);
   }
 });
