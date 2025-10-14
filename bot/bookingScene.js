@@ -592,7 +592,7 @@ const bookingWizard = new Scenes.WizardScene(
               ? "2000 сум за обработку заявки"
               : "Ariza ishlov berish uchun 2000 so'm",
           payload,
-          provider_token: process.env.PROVIDER_TOKEN,
+          provider_token: process.env.PAYMENT_PROVIDER_TOKEN,
           currency: "UZS",
           prices: [
             {
