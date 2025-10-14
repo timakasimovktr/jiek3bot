@@ -12,10 +12,6 @@ const path = require("path");
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 
-const CLICK_PROVIDER_TOKEN = process.env.PROVIDER_TOKEN_CLICK;
-const PAYMENT_AMOUNT = 500000; // 5000 UZS в тиинах
-const CURRENCY = "UZS";
-
 bot.use(session());
 bot.use(stage.middleware());
 
@@ -28,9 +24,7 @@ bot.use((ctx, next) => {
 
 bot.use(async (ctx, next) => {
   console.log(
-    `Middleware: user ${
-      ctx.from?.id
-    }, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
+    `Middleware: user ${ctx.from?.id}, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
       ctx.scene?.current?.id || "none"
     }`
   );
@@ -245,7 +239,7 @@ async function getLatestBooking(userId) {
 
 function buildMainMenu(lang, latestPendingNumber) {
   let rows = [];
-  if (latestPendingNumber) {
+  if (latestPendingNumber) {  
     rows = [
       [texts[lang].queue_status, texts[lang].group_join],
       [texts[lang].application_copy, texts[lang].additional_info_button],
@@ -254,9 +248,12 @@ function buildMainMenu(lang, latestPendingNumber) {
     rows.push([
       texts[lang].cancel_application.replace("{id}", latestPendingNumber),
     ]);
-    rows.push([texts[lang].change_language]);
-  } else {
-    rows = [[texts[lang].book_meeting], [texts[lang].change_language]];
+    rows.push([texts[lang].change_language]);  
+  } else {  
+    rows = [
+      [texts[lang].book_meeting],
+      [texts[lang].change_language],
+    ];
   }
 
   return Markup.keyboard(rows).resize().persistent();
@@ -374,7 +371,7 @@ bot.start(async (ctx) => {
       if (latestBooking.status === "approved") {
         await ctx.reply(
           texts[lang].approved_status
-            .replace("{id}", latestNumber)
+            .replace("{id}", latestNumber) 
             .replace("{name}", name),
           buildMainMenu(lang, latestNumber)
         );
@@ -630,8 +627,8 @@ async function handleGroupJoin(ctx) {
     }
 
     const colony = latestBooking.colony;
-    let groupUrl =
-      `https://t.me/SmartJIEK${colony}` || "https://t.me/+qWg7Qh3t_OIxMDBi";
+    let groupUrl = `https://t.me/SmartJIEK${colony}` || "https://t.me/+qWg7Qh3t_OIxMDBi";
+
 
     await ctx.reply(
       texts[lang].group_join_prompt,
@@ -668,7 +665,7 @@ async function handleColonyLocation(ctx) {
     }
 
     const colony = latestBooking.colony;
-    const latestNumber = latestBooking.colony_application_number; // Изменено: для меню
+    const latestNumber = latestBooking.colony_application_number;  // Изменено: для меню
     const [coordRows] = await pool.query(
       "SELECT longitude, latitude FROM coordinates WHERE id = ?",
       [colony]
@@ -682,7 +679,7 @@ async function handleColonyLocation(ctx) {
     await ctx.replyWithLocation(longitude, latitude);
     await ctx.reply(
       texts[lang].colony_location.replace("{colony}", colony),
-      buildMainMenu(lang, latestNumber) // Изменено: latestNumber вместо id
+      buildMainMenu(lang, latestNumber)  // Изменено: latestNumber вместо id
     );
   } catch (err) {
     console.error("Error in colony location:", err);
@@ -724,8 +721,7 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitNumber =
-      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestNumber =
       explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
 
@@ -821,36 +817,9 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
-    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(
-      ctx.from.id
-    );
-    const phone = latestBooking.phone_number; // Предполагаем, что phone в booking
-    const [attemptRows] = await pool.query(
-      "SELECT attempts FROM users_attempts WHERE phone_number = ?",
-      [phone]
-    );
-    let attempts = attemptRows.length ? attemptRows[0].attempts + 1 : 1;
-    if (attemptRows.length) {
-      await pool.query(
-        "UPDATE users_attempts SET attempts = ? WHERE phone_number = ?",
-        [attempts, phone]
-      );
-    } else {
-      await pool.query(
-        "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, ?)",
-        [phone, attempts]
-      );
-    }
-
-    let warning = "";
-    if (attempts >= 2) {
-      warning =
-        "\n⚠️ Вы исчерпали бесплатные отмены. Следующая отмена потребует повторной оплаты.";
-    } else {
-      warning = `\n✅ Осталось бесплатных отмен: ${2 - attempts}`;
-    }
+    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(
-      texts[lang].application_canceled + warning,
+      texts[lang].application_canceled,
       buildMainMenu(lang, latestNumberAfterDelete)
     );
 
@@ -886,7 +855,7 @@ bot.on(message("text"), async (ctx, next) => {
 
 bot.catch((err, ctx) => {
   console.error("Global error:", err);
-  const lang = ctx.session?.language || "uzl";
+  const lang = ctx.session?.language || "uzl"; 
   if (err.response && err.response.error_code === 403) {
     console.warn(`⚠️ User ${ctx.from?.id} blocked the bot, skip message`);
   } else {
@@ -1094,129 +1063,29 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(texts[lang].main_menu, buildMainMenu(lang, latestId));
   } catch (err) {
-    console.error(
-      `Error in change language selection for user ${ctx.from.id}:`,
-      err
-    );
+    console.error(`Error in change language selection for user ${ctx.from.id}:`, err);
     await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
   }
 });
 
-// Функция получения invoice для CLICK
-const getInvoice = (chatId, lang, bookingData) => {
-  const title = texts[lang].book_meeting;
-  const description = texts[lang].booking_saved.replace("{position}", "1"); // Пример описания
-  return {
-    chat_id: chatId,
-    provider_token: CLICK_PROVIDER_TOKEN,
-    start_parameter: "pay-booking",
-    title,
-    description,
-    currency: CURRENCY,
-    prices: [{ label: "Стоимость свидания", amount: PAYMENT_AMOUNT }],
-    payload: {
-      booking: JSON.stringify(bookingData), // Сохраняем данные для успешной оплаты
-      user_id: bookingData.user_id,
-    },
-  };
-};
-
-// Обработчик кнопки "Оплатить" (многоязычный)
-bot.hears(/💳\s*To'lov|💳\s*Оплатить|💳\s*Тўлов/, async (ctx) => {
-  const lang = ctx.session.language || "uzl";
-  if (!ctx.session.tempBooking) {
-    await ctx.reply(texts[lang].error_occurred);
-    return;
-  }
-  const bookingData = {
-    ...ctx.session.tempBooking,
-    user_id: ctx.from.id,
-    lang,
-  };
-  await ctx.replyWithInvoice(getInvoice(ctx.chat.id, lang, bookingData));
-});
-
-// Pre-checkout (ответ в 10 сек)
-bot.on("pre_checkout_query", (ctx) => {
-  ctx.answerPreCheckoutQuery(true); // OK
-});
-
-// Успешная оплата: сохраняем в DB
-bot.on("successful_payment", async (ctx) => {
-  const lang = ctx.session.language || "uzl";
-  const payload = ctx.message.successful_payment.invoice_payload;
-  const bookingData = JSON.parse(payload.booking);
-
-  // Проверяем attempts (если >=2, но оплачено — ок)
-  const [attemptRows] = await pool.query(
-    "SELECT attempts FROM users_attempts WHERE phone_number = ?",
-    [bookingData.phone]
-  );
-  const attempts = attemptRows.length ? attemptRows[0].attempts : 0;
-
-  let position = 1; // Заглушка, пересчитать как в saveBooking
-  try {
-    // Сохраняем (аналог saveBooking)
-    const [maxNumberRows] = await pool.query(
-      `SELECT MAX(colony_application_number) as max_number FROM bookings WHERE colony = ?`,
-      [bookingData.colony]
-    );
-    const maxNumber = maxNumberRows[0].max_number || 0;
-    const newColonyApplicationNumber = maxNumber + 1;
-
-    const [result] = await pool.query(
-      `INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id, colony_application_number, language, payment_status)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, 'paid')`,
-      [
-        bookingData.user_id,
-        bookingData.phone,
-        bookingData.visit_type,
-        bookingData.prisoner_name,
-        JSON.stringify(bookingData.relatives),
-        bookingData.colony,
-        ctx.chat.id,
-        newColonyApplicationNumber,
-        bookingData.lang,
-      ]
-    );
-
-    const bookingId = result.insertId;
-    // ... (отправка админу, как в sendApplicationToClient)
-
-    await ctx.reply(
-      texts[lang].booking_saved(position),
-      buildMainMenu(lang, newColonyApplicationNumber)
-    );
-    delete ctx.session.tempBooking; // Очищаем
-
-    // Иницируем attempts если нет
-    if (!attemptRows.length) {
-      await pool.query(
-        "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, 0)",
-        [bookingData.phone]
-      );
-    }
-  } catch (err) {
-    console.error("Payment save error:", err);
-    await ctx.reply(texts[lang].error_occurred);
-  }
-});
-
-const express = require("express");
+const express = require('express');
 const app = express();
 app.use(express.json());
-app.use(bot.webhookCallback("/bot-webhook"));
+app.use(bot.webhookCallback('/bot-webhook'));
 
-app.listen(process.env.PORT || 4443, "0.0.0.0", async () => {
-  console.log("Webhook server started");
-
+app.listen(process.env.PORT || 4443, '0.0.0.0', async () => {
+  console.log('Webhook server started');
+  
   try {
-    await bot.telegram.setWebhook(`https://bot.test-dunyo.uz/bot-webhook`, {
-      allowed_updates: ["message", "callback_query"],
-      drop_pending_updates: true,
-    });
-    console.log("✅ Webhook set");
+    await bot.telegram.setWebhook(
+      `https://bot.test-dunyo.uz/bot-webhook`, 
+      { 
+        allowed_updates: ['message', 'callback_query'],
+        drop_pending_updates: true 
+      }
+    );
+    console.log('✅ Webhook set');
   } catch (err) {
-    console.error("❌ Webhook error:", err);
+    console.error('❌ Webhook error:', err);
   }
 });
