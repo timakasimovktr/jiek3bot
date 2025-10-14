@@ -532,44 +532,44 @@ bot.hears(texts.uz.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.ru.queue_status, async (ctx) => handleQueueStatus(ctx));
 
 // В index.js (глобальные платежные handlers)
-// bot.on("pre_checkout_query", (ctx) => {
-//   console.time("pre_checkout_handler_time"); // Измерит время выполнения handler
-//   console.log(`[DEBUG] pre_checkout_query triggered for user ${ctx.from.id}`);
-//   console.log(
-//     `[DEBUG] Received payload: ${ctx.preCheckoutQuery.invoice_payload}`
-//   );
+bot.on("pre_checkout_query", (ctx) => {
+  console.time("pre_checkout_handler_time"); // Измерит время выполнения handler
+  console.log(`[DEBUG] pre_checkout_query triggered for user ${ctx.from.id}`);
+  console.log(
+    `[DEBUG] Received payload: ${ctx.preCheckoutQuery.invoice_payload}`
+  );
 
-//   const expectedPayload =
-//     ctx.session?.paymentPayload || ctx.wizard?.state.invoicePayload; // fallback на wizard
-//   const isValid =
-//     !expectedPayload ||
-//     ctx.preCheckoutQuery.invoice_payload === expectedPayload;
-//   console.log(
-//     `[DEBUG] Expected payload: ${expectedPayload}, Valid: ${isValid}`
-//   );
+  const expectedPayload =
+    ctx.session?.paymentPayload || ctx.wizard?.state.invoicePayload; // fallback на wizard
+  const isValid =
+    !expectedPayload ||
+    ctx.preCheckoutQuery.invoice_payload === expectedPayload;
+  console.log(
+    `[DEBUG] Expected payload: ${expectedPayload}, Valid: ${isValid}`
+  );
 
-//   ctx
-//     .answerPreCheckoutQuery(isValid, isValid ? undefined : "Invalid payload")
-//     .then(() => {
-//       console.timeEnd("pre_checkout_handler_time"); // Должно быть <1 сек
-//       console.log(
-//         `[DEBUG] answerPreCheckoutQuery sent: ${isValid ? "OK" : "Rejected"}`
-//       );
-//     })
-//     .catch((err) => {
-//       console.timeEnd("pre_checkout_handler_time");
-//       console.error("[ERROR] Failed to answer pre_checkout:", err);
-//     });
-// });
+  ctx
+    .answerPreCheckoutQuery(isValid, isValid ? undefined : "Invalid payload")
+    .then(() => {
+      console.timeEnd("pre_checkout_handler_time"); // Должно быть <1 сек
+      console.log(
+        `[DEBUG] answerPreCheckoutQuery sent: ${isValid ? "OK" : "Rejected"}`
+      );
+    })
+    .catch((err) => {
+      console.timeEnd("pre_checkout_handler_time");
+      console.error("[ERROR] Failed to answer pre_checkout:", err);
+    });
+});
 
-// bot.on("successful_payment", (ctx) => {
-//   console.time("successful_payment_time");
-//   console.log(
-//     `[DEBUG] successful_payment triggered:`,
-//     ctx.message.successful_payment.invoice_payload
-//   );
-//   console.timeEnd("successful_payment_time");
-// });
+bot.on("successful_payment", (ctx) => {
+  console.time("successful_payment_time");
+  console.log(
+    `[DEBUG] successful_payment triggered:`,
+    ctx.message.successful_payment.invoice_payload
+  );
+  console.timeEnd("successful_payment_time");
+});
 
 async function handleQueueStatus(ctx) {
   try {
@@ -1183,8 +1183,7 @@ app.get("/bot-webhook", (req, res) => {
 app.post("/bot-webhook", (req, res) => {
   console.log("Incoming POST update from Telegram");
   console.log("Raw POST body:", JSON.stringify(req.body));
-  console.log("Update type in raw: pre_checkout_query");  // Если есть ключ
-  bot.webhookCallback("/bot-webhook")(req, res);
+  bot.webhookCallback("/bot-webhook")(req, res); // Явный callback для логов
 });
 
 // Catch-all для других маршрутов (опционально, чтобы не было дефолтного HTML 404)

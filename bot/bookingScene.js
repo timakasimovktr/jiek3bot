@@ -475,59 +475,6 @@ const bookingWizard = new Scenes.WizardScene(
     const phone = ctx.wizard.state.phone; // Use phone as key for attempts
 
     try {
-      if (ctx.updateType === "pre_checkout_query") {
-        console.time("pre_checkout_in_wizard");
-        console.log(
-          `[DEBUG] pre_checkout_query HANDLED IN WIZARD STEP for user ${ctx.from.id}`
-        );
-        console.log(
-          `[DEBUG] Payload received: ${ctx.preCheckoutQuery.invoice_payload}`
-        );
-        console.log(
-          `[DEBUG] Order info: ${JSON.stringify(
-            ctx.preCheckoutQuery.order_info
-          )}`
-        );
-
-        // В LIVE всегда true для скорости (валидация в successful)
-        await ctx.answerPreCheckoutQuery(true); // <1 сек ответ!
-        console.timeEnd("pre_checkout_in_wizard");
-        console.log("[DEBUG] Answered pre_checkout: OK (forced for LIVE)");
-        return; // Стоп, не шлём ничего пользователю
-      }
-
-      // --- Successful payment ---
-      if (ctx.message?.successful_payment) {
-        console.time("successful_in_wizard");
-        const payload = ctx.message.successful_payment.invoice_payload;
-        console.log(
-          `[DEBUG] successful_payment HANDLED IN WIZARD for ${ctx.from.id}, payload: ${payload}`
-        );
-
-        if (payload === ctx.wizard.state.invoicePayload) {
-          // Сброс attempts в БД
-          const phone =
-            ctx.wizard.state.phone ||
-            ctx.message.successful_payment.order_info?.phone_number;
-          if (phone) {
-            await pool.query(
-              "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, 0) ON DUPLICATE KEY UPDATE attempts = 0",
-              [phone]
-            );
-          }
-
-          ctx.wizard.state.payment_status = "paid";
-          await ctx.reply(
-            texts[lang].payment_success || "Успех!",
-            Markup.removeKeyboard()
-          );
-          console.timeEnd("successful_in_wizard");
-          return ctx.wizard.next();
-        } else {
-          await ctx.reply(texts[lang].invalid_payment || "Ошибка.");
-          return;
-        }
-      }
       // Get current attempts from DB
       const [attemptRows] = await pool.query(
         "SELECT attempts FROM users_attempts WHERE phone_number = ?",
@@ -602,7 +549,7 @@ const bookingWizard = new Scenes.WizardScene(
                 label: lang === "ru" ? "Обработка заявки" : "Ariza haqi",
                 amount: 2000 * 100,
               },
-            ],
+            ], 
             need_name: true,
             need_phone_number: true,
           });
@@ -978,18 +925,5 @@ ${texts[application.lang].admin_status}`;
     }
   }
 }
-
-bookingWizard.use((ctx, next) => {
-  console.log(`[WIZARD FALLBACK] Update type: ${ctx.updateType}`);
-  if (ctx.updateType === "pre_checkout_query") {
-    console.log("[FALLBACK] Handling pre_checkout in wizard middleware");
-    ctx
-      .answerPreCheckoutQuery(true)
-      .then(() => console.log("[FALLBACK] Answered OK"))
-      .catch(console.error);
-    return;
-  }
-  return next();
-});
 
 module.exports = bookingWizard;
