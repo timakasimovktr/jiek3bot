@@ -327,4 +327,4 @@ const texts = {
   },
 };
 
-export default texts;
+module.exports = texts;
