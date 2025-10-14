@@ -92,7 +92,6 @@ const texts = {
     booking_saved: (position) =>
       `✅ Заявка на встречу отправлена!\n📊 Ваша очередь: ${position}`,
     queue_status: "📊 Статус очереди",
-    cancel_application: "❌ Отменить заявку #{id}",
     cancel_application: (id) => `❌ Отменить заявку #${id}`,
     join_group: "🫂 Присоединитесь к группе",
     group_button: "📌 Перейти в группу",
@@ -312,7 +311,6 @@ const texts = {
     booking_saved: (position) =>
       `✅ Uchrashuv arizani berish uchun yuborildi!\n📊 Sizning navbatingiz: ${position}`,
     queue_status: "📊 Navbat holati",
-    cancel_application: "❌ Arizani bekor qilish #{id}",
     cancel_application: (id) => `❌ Arizani bekor qilish #${id}`,
     join_group: "🫂 Grupaga qo'shing",
     group_button: "📌 Grupaga otish",

@@ -45,7 +45,7 @@ function buildMainMenu(lang, latestPendingNumber) {
       [texts[lang].visitor_reminder, texts[lang].colony_location_button],
     ];
     rows.push([
-      texts[lang].cancel_application.replace("{id}", latestPendingNumber),
+      texts[lang].cancel_application(latestPendingNumber)
     ]);
     rows.push([texts[lang].change_language]);
   } else {
