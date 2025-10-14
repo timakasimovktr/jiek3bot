@@ -93,7 +93,8 @@ const texts = {
     cancel_text: "❌ Отменить заявку", // Already exists, reusing
     payment_wait: "Пожалуйста, завершите оплату или выберите действие.",
     invalid_payment: "❌ Недействительная оплата.",
-    too_many_payment_attempts: "❌ Слишком много попыток оплаты. Заявка отменена. Начните заново с /start.",
+    too_many_payment_attempts:
+      "❌ Слишком много попыток оплаты. Заявка отменена. Начните заново с /start.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -161,7 +162,8 @@ const texts = {
     cancel_text: "❌ Аризани бекор қилиш", // Reuse
     payment_wait: "Iltimos, to'lovni bajaring yoki harakatni tanlang.",
     invalid_payment: "❌ Noto'g'ri to'lov.",
-    too_many_payment_attempts: "❌ To'lov urinishlari juda ko'p. Ariza bekor qilindi. /start bilan qaytadan boshlang.",
+    too_many_payment_attempts:
+      "❌ To'lov urinishlari juda ko'p. Ariza bekor qilindi. /start bilan qaytadan boshlang.",
   },
   uzl: {
     // Uzbek Latin (original)
@@ -230,7 +232,8 @@ const texts = {
     cancel_text: "❌ Arizani bekor qilish", // Reuse
     payment_wait: "Iltimos, to'lovni bajaring yoki harakatni tanlang.",
     invalid_payment: "❌ Noto'g'ri to'lov.",
-    too_many_payment_attempts: "❌ To'lov urinishlari juda ko'p. Ariza bekor qilindi. /start bilan qaytadan boshlang.",
+    too_many_payment_attempts:
+      "❌ To'lov urinishlari juda ko'p. Ariza bekor qilindi. /start bilan qaytadan boshlang.",
   },
 };
 
@@ -532,25 +535,27 @@ const bookingWizard = new Scenes.WizardScene(
           ctx.wizard.state.invoiceSent = true;
 
           await ctx.reply(texts[lang].pay_prompt);
-
           await ctx.telegram.sendInvoice(ctx.chat.id, {
-            title: "Ariza uchun to'lov",
-            description: "Ariza ishlov berish uchun 2000 so'm",
+            title: lang === "ru" ? "Оплата за заявку" : "Ariza uchun to'lov",
+            description:
+              lang === "ru"
+                ? "2000 сум за обработку заявки"
+                : "Ariza ishlov berish uchun 2000 so'm",
             payload,
             provider_token: PROVIDER_TOKEN,
             currency: "UZS",
             prices: [
               {
-                label: "Ariza haqi",
-                amount: 2000 * 100
+                label: lang === "ru" ? "Обработка заявки" : "Ariza haqi",
+                amount: 2000 * 100,
               },
-            ],
-            need_name: true, 
+            ], 
+            need_name: true,
             need_phone_number: true,
           });
 
           await ctx.reply(
-            " ",
+            texts[lang].payment_wait,
             Markup.keyboard([
               [texts[lang].retry_payment],
               [texts[lang].cancel_text],
