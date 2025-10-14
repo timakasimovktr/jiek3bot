@@ -470,105 +470,161 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
 
+  // Шаг 4: Платёж (в bookingScene.js, внутри new Scenes.WizardScene('booking-wizard', ...))
   async (ctx) => {
-    const lang = ctx.session.language;
-    const phone = ctx.wizard.state.phone; // Use phone as key for attempts
+    const lang = ctx.session.language || "uzl";
+    const texts = require("./index").texts; // Или импортируйте texts глобально, чтобы использовать
+    // Если texts не доступны — передайте через ctx или импортируйте
 
     try {
-      // Get current attempts from DB
-      const [attemptRows] = await pool.query(
-        "SELECT attempts FROM users_attempts WHERE phone_number = ?",
-        [phone]
-      );
-      let attempts = attemptRows.length ? attemptRows[0].attempts : 0;
+      // --- Обработка pre_checkout_query (в начале шага!) ---
+      if (ctx.updateType === "pre_checkout_query") {
+        console.time("pre_checkout_in_scene");
+        console.log(
+          `[DEBUG] pre_checkout_query in payment step for user ${ctx.from.id}`
+        );
+        console.log(
+          `[DEBUG] Received payload: ${ctx.preCheckoutQuery.invoice_payload}`
+        );
 
+        const expectedPayload = ctx.wizard.state.invoicePayload;
+        const isValid =
+          expectedPayload &&
+          ctx.preCheckoutQuery.invoice_payload === expectedPayload;
+        console.log(`[DEBUG] Expected: ${expectedPayload}, Valid: ${isValid}`);
+
+        await ctx.answerPreCheckoutQuery(
+          isValid,
+          isValid ? undefined : "Invalid payload"
+        );
+        console.timeEnd("pre_checkout_in_scene");
+        console.log(
+          `[DEBUG] answerPreCheckoutQuery sent in scene: ${
+            isValid ? "OK" : "Rejected"
+          }`
+        );
+        return; // Прерываем выполнение шага
+      }
+
+      // --- Обработка successful_payment ---
       if (ctx.message?.successful_payment) {
+        console.time("successful_payment_in_scene");
+        console.log(
+          `[DEBUG] successful_payment in payment step for user ${ctx.from.id}: ${ctx.message.successful_payment.invoice_payload}`
+        );
+
         if (
           ctx.message.successful_payment.invoice_payload ===
           ctx.wizard.state.invoicePayload
         ) {
+          // Успешная оплата
           ctx.wizard.state.payment_status = "paid";
-          // Reset attempts on success
+
+          // Сброс attempts в БД (как в вашем коде ранее)
+          const phone = ctx.wizard.state.phone; // Или откуда берёте phone
           await pool.query(
             "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, 0) ON DUPLICATE KEY UPDATE attempts = 0",
             [phone]
           );
-          await ctx.reply(texts[lang].payment_success, Markup.removeKeyboard());
-          return ctx.wizard.next(); // Proceed to visit type
+
+          await ctx.reply(
+            texts[lang].payment_success || "Оплата прошла успешно!",
+            Markup.removeKeyboard()
+          );
+          console.timeEnd("successful_payment_in_scene");
+          return ctx.wizard.next(); // Переход к следующему шагу (тип встречи или конец)
         } else {
-          await ctx.reply(texts[lang].invalid_payment);
+          await ctx.reply(texts[lang].invalid_payment || "Неверная оплата.");
+          console.timeEnd("successful_payment_in_scene");
           return;
         }
-      } else {
-        if (ctx.wizard.state.payment_status === "paid") {
-          return ctx.wizard.next();
-        }
+      }
 
-        if (ctx.message?.text === texts[lang].retry_payment) {
-          if (attempts >= MAX_PAYMENT_ATTEMPTS) {
-            await ctx.reply(
-              texts[lang].too_many_payment_attempts,
-              Markup.removeKeyboard()
-            );
-            return ctx.scene.leave();
-          }
-          // Increment attempts on retry
-          attempts++;
-          await pool.query(
-            "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, ?) ON DUPLICATE KEY UPDATE attempts = ?",
-            [phone, attempts, attempts]
-          );
-          ctx.wizard.state.invoiceSent = false; // Allow resend
-        } else if (ctx.message?.text === texts[lang].cancel_text) {
+      // --- Если оплата уже прошла ранее (возврат в шаг) ---
+      if (ctx.wizard.state.payment_status === "paid") {
+        return ctx.wizard.next();
+      }
+
+      // --- Обработка ретрая или отмены (кнопки) ---
+      if (ctx.message?.text === texts[lang].retry_payment) {
+        // Инкремент attempts (ваша логика с БД users_attempts)
+        const phone = ctx.wizard.state.phone;
+        const [attemptRows] = await pool.query(
+          "SELECT attempts FROM users_attempts WHERE phone_number = ?",
+          [phone]
+        );
+        let attempts = attemptRows.length ? attemptRows[0].attempts + 1 : 1;
+
+        if (attempts > 3) {
+          // Лимит, как у вас
           await ctx.reply(
-            texts[lang].booking_canceled,
+            texts[lang].too_many_attempts || "Слишком много попыток.",
             Markup.removeKeyboard()
           );
           return ctx.scene.leave();
         }
 
-        if (!ctx.wizard.state.invoiceSent) {
-          const payload = `booking_${ctx.from.id}_${
-            ctx.wizard.state.colony
-          }_${Date.now()}`;
-          ctx.wizard.state.invoicePayload = payload;
-          ctx.wizard.state.invoiceSent = true;
+        await pool.query(
+          "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, ?) ON DUPLICATE KEY UPDATE attempts = ?",
+          [phone, attempts, attempts]
+        );
 
-          await ctx.reply(texts[lang].pay_prompt);
-          await ctx.telegram.sendInvoice(ctx.chat.id, {
-            title: lang === "ru" ? "Оплата за заявку" : "Ariza uchun to'lov",
-            description:
-              lang === "ru"
-                ? "2000 сум за обработку заявки"
-                : "Ariza ishlov berish uchun 2000 so'm",
-            payload,
-            provider_token: PROVIDER_TOKEN,
-            currency: "UZS",
-            prices: [
-              {
-                label: lang === "ru" ? "Обработка заявки" : "Ariza haqi",
-                amount: 2000 * 100,
-              },
-            ], 
-            need_name: true,
-            need_phone_number: true,
-          });
-
-          await ctx.reply(
-            texts[lang].payment_wait,
-            Markup.keyboard([
-              [texts[lang].retry_payment],
-              [texts[lang].cancel_text],
-            ]).resize()
-          );
-        } else {
-          await ctx.reply(texts[lang].payment_wait);
-        }
-        return; // Stay on this step
+        ctx.wizard.state.invoiceSent = false; // Разрешаем переотправку инвойса
+        await ctx.reply(texts[lang].retry_prompt || "Повторите оплату.");
+        // Продолжаем шаг для отправки инвойса ниже
+      } else if (ctx.message?.text === texts[lang].cancel_text) {
+        await ctx.reply(texts[lang].booking_canceled, Markup.removeKeyboard());
+        return ctx.scene.leave();
       }
+
+      // --- Генерация и отправка инвойса (если не отправлен) ---
+      if (!ctx.wizard.state.invoiceSent) {
+        const payload = `booking_${ctx.from.id}_${
+          ctx.wizard.state.colony
+        }_${Date.now()}`;
+        ctx.wizard.state.invoicePayload = payload;
+        ctx.wizard.state.invoiceSent = true;
+
+        await ctx.reply(texts[lang].pay_prompt || "Оплатите заявку:");
+
+        await ctx.telegram.sendInvoice(ctx.chat.id, {
+          title: lang === "ru" ? "Оплата за заявку" : "Ariza uchun to'lov",
+          description:
+            lang === "ru"
+              ? "2000 сум за обработку заявки"
+              : "Ariza ishlov berish uchun 2000 so'm",
+          payload,
+          provider_token: process.env.PROVIDER_TOKEN,
+          currency: "UZS",
+          prices: [
+            {
+              label: lang === "ru" ? "Обработка заявки" : "Ariza haqi",
+              amount: 2000 * 100,
+            },
+          ], // 2000 UZS
+          need_name: true,
+          need_phone_number: true,
+        });
+
+        // Клавиатура ожидания
+        await ctx.reply(
+          texts[lang].payment_wait || "Ожидайте завершения оплаты...",
+          Markup.keyboard([
+            [texts[lang].retry_payment || "Оплатить заново"],
+            [texts[lang].cancel_text || "Отмена"],
+          ]).resize()
+        );
+      } else {
+        // Напоминание, если инвойс уже отправлен
+        await ctx.reply(
+          texts[lang].payment_wait || "Завершите оплату в открывшемся окне."
+        );
+      }
+
+      return; // Остаёмся на шаге до оплаты
     } catch (err) {
-      console.error("Payment error:", err);
-      await ctx.reply(texts[lang].error);
+      console.error("Payment step error:", err);
+      await ctx.reply(texts[lang].error || "Ошибка оплаты.");
       return ctx.scene.leave();
     }
   },

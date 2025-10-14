@@ -4,7 +4,6 @@ const pool = require("../db");
 const bookingWizard = require("./bookingScene");
 const { message } = require("telegraf/filters");
 
-
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
 
@@ -534,32 +533,45 @@ bot.hears(texts.ru.queue_status, async (ctx) => handleQueueStatus(ctx));
 
 // В index.js (глобальные платежные handlers)
 // В index.js (глобальные handlers)
-bot.on('pre_checkout_query', (ctx) => {
-  console.time('pre_checkout_response');  // Таймер для отладки
-  console.log(`Pre-checkout received for user ${ctx.from.id}, payload: ${ctx.preCheckoutQuery.invoice_payload}`);
-  
-  // Мгновенная валидация (сравниваем payload с сессией, если храните)
-  const expectedPayload = ctx.session?.paymentPayload;  // Из bookingScene: ctx.session.paymentPayload = payload;
-  const isValid = !expectedPayload || ctx.preCheckoutQuery.invoice_payload === expectedPayload;
-  
-  // Отвечаем сразу (без await на DB или тяжелого!)
-  ctx.answerPreCheckoutQuery(isValid, isValid ? undefined : 'Invalid payload')
+bot.on("pre_checkout_query", (ctx) => {
+  console.time("pre_checkout_handler_time"); // Измерит время выполнения handler
+  console.log(`[DEBUG] pre_checkout_query triggered for user ${ctx.from.id}`);
+  console.log(
+    `[DEBUG] Received payload: ${ctx.preCheckoutQuery.invoice_payload}`
+  );
+
+  const expectedPayload =
+    ctx.session?.paymentPayload || ctx.wizard?.state.invoicePayload; // fallback на wizard
+  const isValid =
+    !expectedPayload ||
+    ctx.preCheckoutQuery.invoice_payload === expectedPayload;
+  console.log(
+    `[DEBUG] Expected payload: ${expectedPayload}, Valid: ${isValid}`
+  );
+
+  ctx
+    .answerPreCheckoutQuery(isValid, isValid ? undefined : "Invalid payload")
     .then(() => {
-      console.timeEnd('pre_checkout_response');  // Должен быть <1 сек!
-      console.log(`Pre-checkout answered: ${isValid ? 'OK' : 'Rejected'} for user ${ctx.from.id}`);
+      console.timeEnd("pre_checkout_handler_time"); // Должно быть <1 сек
+      console.log(
+        `[DEBUG] answerPreCheckoutQuery sent: ${isValid ? "OK" : "Rejected"}`
+      );
     })
     .catch((err) => {
-      console.timeEnd('pre_checkout_response');
-      console.error('Error answering pre_checkout:', err);
+      console.timeEnd("pre_checkout_handler_time");
+      console.error("[ERROR] Failed to answer pre_checkout:", err);
     });
 });
 
-bot.on('successful_payment', (ctx) => {
-  console.time('successful_payment_response');
-  console.log(`Successful payment received globally for user ${ctx.from.id}:`, ctx.message.successful_payment);
-  console.timeEnd('successful_payment_response');
-  // Не отвечайте здесь — сцена в bookingScene обработает в шаге
+bot.on("successful_payment", (ctx) => {
+  console.time("successful_payment_time");
+  console.log(
+    `[DEBUG] successful_payment triggered:`,
+    ctx.message.successful_payment.invoice_payload
+  );
+  console.timeEnd("successful_payment_time");
 });
+
 async function handleQueueStatus(ctx) {
   try {
     const lang = ctx.session.language;
@@ -1158,44 +1170,55 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
   }
 });
 
-const express = require('express');
+const express = require("express");
 const app = express();
 app.use(express.json());
 
 // Обработка GET для health-check Telegram (вернёт 200 OK)
-app.get('/bot-webhook', (req, res) => {
-  console.log('Webhook health-check GET from Telegram or user');
-  res.status(200).send('OK');  // Простой текст, без HTML
+app.get("/bot-webhook", (req, res) => {
+  console.log("Webhook health-check GET from Telegram or user");
+  res.status(200).send("OK"); // Простой текст, без HTML
 });
 
 // Обработка POST от Telegram (обновления)
-app.post('/bot-webhook', (req, res) => {
-  console.log('Incoming POST update from Telegram');
-  console.log('Raw POST body:', JSON.stringify(req.body));
-  bot.webhookCallback('/bot-webhook')(req, res);  // Явный callback для логов
+app.post("/bot-webhook", (req, res) => {
+  console.log("Incoming POST update from Telegram");
+  console.log("Raw POST body:", JSON.stringify(req.body));
+  bot.webhookCallback("/bot-webhook")(req, res); // Явный callback для логов
 });
 
 // Catch-all для других маршрутов (опционально, чтобы не было дефолтного HTML 404)
 app.use((req, res) => {
-  res.status(404).send('Not Found');
+  res.status(404).send("Not Found");
 });
 
 const PORT = process.env.PORT || 4443;
-app.listen(PORT, '0.0.0.0', async () => {
+app.listen(PORT, "0.0.0.0", async () => {
   console.log(`Express server listening on port ${PORT} (bound to 0.0.0.0)`);
 
   try {
     // Установка webhook с explicit allowed_updates для платежей
-    await bot.telegram.setWebhook('https://test-dunyo.uz/bot-webhook', {
-      allowed_updates: ['message', 'callback_query', 'pre_checkout_query', 'successful_payment'],
-      drop_pending_updates: true
+    await bot.telegram.setWebhook("https://test-dunyo.uz/bot-webhook", {
+      allowed_updates: [
+        "message",
+        "callback_query",
+        "pre_checkout_query",
+        "successful_payment",
+        "chat_member",
+      ], // Добавьте все нужные
+      drop_pending_updates: true,
     });
-    console.log('Webhook set successfully to https://test-dunyo.uz/bot-webhook');
+    console.log(
+      "Webhook set successfully to https://test-dunyo.uz/bot-webhook"
+    );
 
     // Проверьте статус сразу
     const info = await bot.telegram.getWebhookInfo();
-    console.log('Webhook info:', JSON.stringify(info, null, 2));
+    console.log("Webhook info:", JSON.stringify(info, null, 2));
   } catch (err) {
-    console.error('Error setting webhook:', err.response ? err.response.data : err);
+    console.error(
+      "Error setting webhook:",
+      err.response ? err.response.data : err
+    );
   }
 });
