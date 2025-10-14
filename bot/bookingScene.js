@@ -460,7 +460,7 @@ const bookingWizard = new Scenes.WizardScene(
         ],
       ])
     );
-    return ctx.wizard.selectStep(5);
+    return ctx.wizard.selectStep(4);
   },
 
   // Step 4: Select visit type
