@@ -1167,6 +1167,7 @@ app.get('/bot-webhook', (req, res) => {
 // Обработка POST от Telegram (обновления)
 app.post('/bot-webhook', (req, res) => {
   console.log('Incoming POST update from Telegram');
+  console.log('Raw POST body:', JSON.stringify(req.body));
   bot.webhookCallback('/bot-webhook')(req, res);  // Явный callback для логов
 });
 
