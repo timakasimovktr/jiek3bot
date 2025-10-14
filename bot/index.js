@@ -237,13 +237,9 @@ async function getLatestBooking(userId) {
   }
 }
 
-async function getUserBookingStatus(userId) {
-  return await getLatestBooking(userId); // Reuse the function
-}
-
 function buildMainMenu(lang, latestPendingNumber) {
   let rows = [];
-  if (latestPendingNumber) {  // Полное меню с кнопкой смены языка
+  if (latestPendingNumber) {  
     rows = [
       [texts[lang].queue_status, texts[lang].group_join],
       [texts[lang].application_copy, texts[lang].additional_info_button],
@@ -252,7 +248,7 @@ function buildMainMenu(lang, latestPendingNumber) {
     rows.push([
       texts[lang].cancel_application.replace("{id}", latestPendingNumber),
     ]);
-    rows.push([texts[lang].change_language]);  // Добавлено: кнопка смены языка в полном меню
+    rows.push([texts[lang].change_language]);  
   } else {  
     rows = [
       [texts[lang].book_meeting],
@@ -400,6 +396,10 @@ bot.start(async (ctx) => {
 bot.hears(texts.uzl.book_meeting, async (ctx) => handleBookMeeting(ctx));
 bot.hears(texts.uz.book_meeting, async (ctx) => handleBookMeeting(ctx));
 bot.hears(texts.ru.book_meeting, async (ctx) => handleBookMeeting(ctx));
+
+bot.preCheckoutQuery(async (ctx) => {
+  await ctx.answerPreCheckoutQuery(true); 
+});
 
 async function handleBookMeeting(ctx) {
   try {

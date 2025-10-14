@@ -1,6 +1,7 @@
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const pool = require("../db");
 
+const PROVIDER_TOKEN = process.env.PAYMENT_PROVIDER_TOKEN;
 const MAX_RELATIVES = 3;
 
 const colonies = [
@@ -444,7 +445,111 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
 
-  // Step 4: Select visit type
+  async (ctx) => {
+    const lang = ctx.session.language;
+    const phone = ctx.wizard.state.phone; // Use phone as key for attempts
+
+    try {
+      // Get current attempts from DB
+      const [attemptRows] = await pool.query(
+        "SELECT attempts FROM users_attempts WHERE phone_number = ?",
+        [phone]
+      );
+      let attempts = attemptRows.length ? attemptRows[0].attempts : 0;
+
+      if (ctx.message?.successful_payment) {
+        if (
+          ctx.message.successful_payment.invoice_payload ===
+          ctx.wizard.state.invoicePayload
+        ) {
+          ctx.wizard.state.payment_status = "paid";
+          // Reset attempts on success
+          await pool.query(
+            "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, 0) ON DUPLICATE KEY UPDATE attempts = 0",
+            [phone]
+          );
+          await ctx.reply(texts[lang].payment_success, Markup.removeKeyboard());
+          return ctx.wizard.next(); // Proceed to visit type
+        } else {
+          await ctx.reply(texts[lang].invalid_payment);
+          return;
+        }
+      } else {
+        if (ctx.wizard.state.payment_status === "paid") {
+          return ctx.wizard.next();
+        }
+
+        if (ctx.message?.text === texts[lang].retry_payment) {
+          if (attempts >= MAX_PAYMENT_ATTEMPTS) {
+            await ctx.reply(
+              texts[lang].too_many_payment_attempts,
+              Markup.removeKeyboard()
+            );
+            return ctx.scene.leave();
+          }
+          // Increment attempts on retry
+          attempts++;
+          await pool.query(
+            "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, ?) ON DUPLICATE KEY UPDATE attempts = ?",
+            [phone, attempts, attempts]
+          );
+          ctx.wizard.state.invoiceSent = false; // Allow resend
+        } else if (ctx.message?.text === texts[lang].cancel_text) {
+          await ctx.reply(
+            texts[lang].booking_canceled,
+            Markup.removeKeyboard()
+          );
+          return ctx.scene.leave();
+        }
+
+        if (!ctx.wizard.state.invoiceSent) {
+          const payload = `booking_${ctx.from.id}_${
+            ctx.wizard.state.colony
+          }_${Date.now()}`;
+          ctx.wizard.state.invoicePayload = payload;
+          ctx.wizard.state.invoiceSent = true;
+
+          await ctx.reply(texts[lang].pay_prompt);
+
+          await ctx.telegram.sendInvoice(ctx.chat.id, {
+            title: lang === "ru" ? "Оплата за заявку" : "Ariza uchun to'lov",
+            description:
+              lang === "ru"
+                ? "2000 сум за обработку заявки"
+                : "Ariza ishlov berish uchun 2000 so'm",
+            payload,
+            provider_token: PROVIDER_TOKEN,
+            currency: "UZS",
+            prices: [
+              {
+                label: lang === "ru" ? "Обработка заявки" : "Ariza haqi",
+                amount: 2000,
+              },
+            ],
+            need_name: true, // Optional: Require user details
+            need_phone_number: true,
+          });
+
+          await ctx.reply(
+            " ",
+            Markup.keyboard([
+              [texts[lang].retry_payment],
+              [texts[lang].cancel_text],
+            ]).resize()
+          );
+        } else {
+          await ctx.reply(texts[lang].payment_wait);
+        }
+        return; // Stay on this step
+      }
+    } catch (err) {
+      console.error("Payment error:", err);
+      await ctx.reply(texts[lang].error);
+      return ctx.scene.leave();
+    }
+  },
+
+  // Step 5: Select visit type
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
@@ -473,10 +578,10 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
 
-  // Step 5: Full name
+  // Step 6: Full name
   async (ctx) => {
     const lang = ctx.session.language;
-    console.log(`Step 5: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
+    console.log(`Step 6: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (ctx.message?.text === texts[lang].cancel_text) {
       await ctx.reply(
         texts[lang].booking_canceled,
@@ -504,12 +609,12 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 6: Placeholder (not used)
+  // Step 7: Placeholder (not used)
   async (ctx) => {
     return ctx.wizard.next();
   },
 
-  // Step 7: Prisoner name
+  // Step 8: Prisoner name
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(`Step 7: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
@@ -522,7 +627,7 @@ const bookingWizard = new Scenes.WizardScene(
     return askAddMore(ctx);
   },
 
-  // Step 8: Add more or done
+  // Step 9: Add more or done
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
@@ -553,11 +658,11 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 9: Final confirm or cancel
+  // Step 10: Final confirm or cancel
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
-      `Step 9: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
+      `Step 10: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
     );
     if (ctx.callbackQuery) await ctx.answerCbQuery();
 
@@ -641,7 +746,7 @@ async function saveBooking(ctx) {
     // Изменено: добавлено сохранение language в БД
     const [result] = await pool.query(
       `INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id, colony_application_number, language)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,  // Добавлено language
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`, // Добавлено language
       [
         ctx.from.id,
         ctx.wizard.state.phone,
@@ -651,7 +756,7 @@ async function saveBooking(ctx) {
         colony,
         chatId,
         newColonyApplicationNumber,
-        lang,  // Добавлено: сохраняем выбранный язык
+        lang, // Добавлено: сохраняем выбранный язык
       ]
     );
 
@@ -662,7 +767,7 @@ async function saveBooking(ctx) {
     await sendApplicationToClient(ctx, {
       relatives,
       prisoner: prisoner_name,
-      id: newColonyApplicationNumber,  // Используем colony_application_number
+      id: newColonyApplicationNumber, // Используем colony_application_number
       visit_type,
       colony,
       lang,
@@ -685,7 +790,7 @@ async function saveBooking(ctx) {
       texts[lang].booking_saved(position),
       Markup.keyboard([
         [texts[lang].queue_status],
-        [texts[lang].cancel_application(newColonyApplicationNumber)],  // Изменено: используем colony_application_number вместо bookingId
+        [texts[lang].cancel_application(newColonyApplicationNumber)], // Изменено: используем colony_application_number вместо bookingId
       ])
         .resize()
         .oneTime(false)
