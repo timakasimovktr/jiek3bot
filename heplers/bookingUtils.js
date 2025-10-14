@@ -1,6 +1,6 @@
 const { Markup } = require("telegraf");
-const pool = require("../../db");
-const texts = require("../texts.js");
+const pool = require("../db.js");
+const texts = require("../bot/texts.js");
 const { MAX_RELATIVES } = require("../constants/config.js");
 
 async function askAddMore(ctx) {

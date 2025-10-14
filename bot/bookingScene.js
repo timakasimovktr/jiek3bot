@@ -1,6 +1,6 @@
 const { Scenes, Markup } = require("telegraf");
-const pool = require("../../db");
-const texts = require("../texts.js");
+const pool = require("../db");
+const texts = require("./texts.js");
 const { generateColonyKeyboard } = require("../helpers/keyboards.js");
 const { askAddMore, showSummary, saveBooking } = require("../helpers/bookingUtils.js");
 const { MAX_RELATIVES } = require("../constants/config.js");
