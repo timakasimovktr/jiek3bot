@@ -1186,10 +1186,10 @@ const app = express();
 const webhookPath = '/bot-webhook';  
 
 app.use(express.json());
-app.use('/bot-webhook', (req, res, next) => {
-  console.log('Webhook received:', req.method, req.body);
-  next();
-});
+// app.use('/bot-webhook', (req, res, next) => {
+//   console.log('Webhook received:', req.method, req.body);
+//   next();
+// });
 bot.webhookCallback('/bot-webhook');  
 
 // Запустите сервер
