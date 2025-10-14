@@ -3,6 +3,7 @@ require("dotenv").config();
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
 const { message } = require("telegraf/filters");
+const session = require('telegraf/session');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
@@ -532,28 +533,32 @@ bot.hears(texts.uz.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.ru.queue_status, async (ctx) => handleQueueStatus(ctx));
 
 // В index.js (глобальные платежные handlers)
-bot.on("pre_checkout_query", (ctx) => {
-  // НЕ используйте await на тяжелых операциях здесь!
-  // Если нужно валидировать payload (например, проверить в сессии или DB) — делайте это в фоне, но отвечайте сразу.
-  ctx
-    .answerPreCheckoutQuery(true) // Синхронно отвечаем OK
+// В index.js (глобальные handlers)
+bot.on('pre_checkout_query', (ctx) => {
+  console.time('pre_checkout_response');  // Таймер для отладки
+  console.log(`Pre-checkout received for user ${ctx.from.id}, payload: ${ctx.preCheckoutQuery.invoice_payload}`);
+  
+  // Мгновенная валидация (сравниваем payload с сессией, если храните)
+  const expectedPayload = ctx.session?.paymentPayload;  // Из bookingScene: ctx.session.paymentPayload = payload;
+  const isValid = !expectedPayload || ctx.preCheckoutQuery.invoice_payload === expectedPayload;
+  
+  // Отвечаем сразу (без await на DB или тяжелого!)
+  ctx.answerPreCheckoutQuery(isValid, isValid ? undefined : 'Invalid payload')
     .then(() => {
-      console.log(
-        `Pre-checkout approved for user ${ctx.from.id}, payload: ${ctx.preCheckoutQuery.invoice_payload}`
-      );
-      // Здесь можно асинхронно валидировать, если нужно (но не обязательно для простого случая)
-      // Например: optionalValidatePayload(ctx.preCheckoutQuery.invoice_payload);
+      console.timeEnd('pre_checkout_response');  // Должен быть <1 сек!
+      console.log(`Pre-checkout answered: ${isValid ? 'OK' : 'Rejected'} for user ${ctx.from.id}`);
     })
-    .catch((err) => console.error("Error answering pre_checkout:", err));
+    .catch((err) => {
+      console.timeEnd('pre_checkout_response');
+      console.error('Error answering pre_checkout:', err);
+    });
 });
 
-bot.on("successful_payment", async (ctx) => {
-  // Это дублирует логику в сцене, но на всякий случай: если сообщение пришло вне сцены
-  console.log(
-    `Payment successful for user ${ctx.from.id}:`,
-    ctx.message.successful_payment
-  );
-  // Не отвечаем здесь, логика в сцене (bookingScene.js) обработает в шаге платежа
+bot.on('successful_payment', (ctx) => {
+  console.time('successful_payment_response');
+  console.log(`Successful payment received globally for user ${ctx.from.id}:`, ctx.message.successful_payment);
+  console.timeEnd('successful_payment_response');
+  // Не отвечайте здесь — сцена в bookingScene обработает в шаге
 });
 
 async function handleQueueStatus(ctx) {
