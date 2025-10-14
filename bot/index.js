@@ -397,10 +397,6 @@ bot.hears(texts.uzl.book_meeting, async (ctx) => handleBookMeeting(ctx));
 bot.hears(texts.uz.book_meeting, async (ctx) => handleBookMeeting(ctx));
 bot.hears(texts.ru.book_meeting, async (ctx) => handleBookMeeting(ctx));
 
-bot.preCheckoutQuery(async (ctx) => {
-  await ctx.answerPreCheckoutQuery(true); 
-});
-
 async function handleBookMeeting(ctx) {
   try {
     await resetSessionAndScene(ctx);
@@ -535,6 +531,10 @@ bot.action("cancel", async (ctx) => {
 bot.hears(texts.uzl.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.uz.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.ru.queue_status, async (ctx) => handleQueueStatus(ctx));
+
+bot.preCheckoutQuery(async (ctx) => {
+  await ctx.answerPreCheckoutQuery(true); 
+});
 
 async function handleQueueStatus(ctx) {
   try {
