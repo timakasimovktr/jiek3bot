@@ -532,7 +532,6 @@ bot.hears(texts.uz.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.ru.queue_status, async (ctx) => handleQueueStatus(ctx));
 
 // В index.js (глобальные платежные handlers)
-// В index.js (глобальные handlers)
 bot.on("pre_checkout_query", (ctx) => {
   console.time("pre_checkout_handler_time"); // Измерит время выполнения handler
   console.log(`[DEBUG] pre_checkout_query triggered for user ${ctx.from.id}`);
@@ -1183,7 +1182,7 @@ app.get("/bot-webhook", (req, res) => {
 // Обработка POST от Telegram (обновления)
 app.post("/bot-webhook", (req, res) => {
   console.log("Incoming POST update from Telegram");
-  console.log("Raw POST body:", JSON.stringify(req.body));
+  console.log("Raw POST body:", JSON.stringify(req.body.pre_checkout_query));
   bot.webhookCallback("/bot-webhook")(req, res); // Явный callback для логов
 });
 
