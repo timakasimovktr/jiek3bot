@@ -1181,14 +1181,25 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 
 const express = require('express');
 const app = express();
+
 app.use(express.json());
 
-app.use('/bot-webhook', (req, res, next) => {
-  console.log('Webhook received:', req.method, req.url, req.body);
+// Добавь лог для всех хитов (отладка)
+app.use((req, res, next) => {
+  console.log('Incoming request:', req.method, req.url, req.body);
   next();
 });
 
-app.use(bot.webhookCallback('/bot-webhook'));  
+// Правильно зарегистрируй webhook как POST-маршрут
+app.post('/bot-webhook', (req, res) => {
+  console.log('Webhook POST hit:', req.body);  // Лог для Telegram updates
+  bot.webhookCallback('/bot-webhook')(req, res);  // Передай обработку Telegraf
+});
+
+// Опционально: обработай GET (для теста curl, вернёт 405 или кастом)
+app.get('/bot-webhook', (req, res) => {
+  res.status(200).send('Webhook OK (GET for test)');  // Telegram не шлёт GET, но для curl
+});
 
 const PORT = process.env.PORT || 4443;
 app.listen(PORT, () => {
