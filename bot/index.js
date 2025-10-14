@@ -532,8 +532,21 @@ bot.hears(texts.uzl.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.uz.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.ru.queue_status, async (ctx) => handleQueueStatus(ctx));
 
-bot.preCheckoutQuery(async (ctx) => {
-  await ctx.answerPreCheckoutQuery(true); 
+bot.on('pre_checkout_query', async (ctx) => {
+  try {
+    // Здесь можно валидировать payload, если нужно (например, сравнить с сессией)
+    await ctx.answerPreCheckoutQuery(true); // Одобряем оплату
+    console.log(`Pre-checkout approved for user ${ctx.from.id}`);
+  } catch (err) {
+    console.error('Error in pre_checkout_query:', err);
+    await ctx.answerPreCheckoutQuery(false, 'Ошибка валидации оплаты');
+  }
+});
+
+bot.on('successful_payment', async (ctx) => {
+  // Это дублирует логику в сцене, но на всякий случай: если сообщение пришло вне сцены
+  console.log(`Payment successful for user ${ctx.from.id}:`, ctx.message.successful_payment);
+  // Не отвечаем здесь, логика в сцене (bookingScene.js) обработает в шаге платежа
 });
 
 async function handleQueueStatus(ctx) {
