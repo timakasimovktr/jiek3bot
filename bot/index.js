@@ -1186,12 +1186,11 @@ const app = express();
 const webhookPath = '/bot-webhook';  
 
 app.use(express.json());
-app.use(bot.webhookCallback(webhookPath));
-
-// Установите webhook в Telegram (один раз)
-// bot.telegram.setWebhook(`https://test-dunyo.uz${webhookPath}`)
-//   .then(() => console.log('Webhook установлен'))
-//   .catch(err => console.error('Ошибка установки webhook:', err));
+app.use('/bot-webhook', (req, res, next) => {
+  console.log('Webhook received:', req.method, req.body);
+  next();
+});
+bot.webhookCallback('/bot-webhook');  
 
 // Запустите сервер
 const PORT = process.env.PORT || 4443;
