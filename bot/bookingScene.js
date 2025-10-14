@@ -2,6 +2,7 @@ const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const pool = require("../db");
 
 const PROVIDER_TOKEN = process.env.PAYMENT_PROVIDER_TOKEN;
+const MAX_PAYMENT_ATTEMPTS = 2;
 const MAX_RELATIVES = 3;
 
 const colonies = [
