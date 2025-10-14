@@ -1134,7 +1134,7 @@ app.listen(process.env.PORT || 4443, '0.0.0.0', async () => {
   
   try {
     await bot.telegram.setWebhook(
-      `https://test-dunyo.uz/bot-webhook`, 
+      `https://bot.test-dunyo.uz/bot-webhook`, 
       { 
         allowed_updates: ['message', 'callback_query'],
         drop_pending_updates: true 
