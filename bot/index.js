@@ -1158,10 +1158,22 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 
 const express = require('express');
 const app = express();
-
 app.use(express.json());
+app.use(bot.webhookCallback('/bot'));
 
-const PORT = process.env.PORT || 4443;
-app.listen(PORT, () => {
-  console.log(`Сервер запущен на порту ${PORT}`);
+app.listen(process.env.PORT || 4443, '0.0.0.0', async () => {
+  console.log('Webhook server started');
+  
+  try {
+    await bot.telegram.setWebhook(
+      `https://test-dunyo.uz/bot`, 
+      { 
+        allowed_updates: ['message', 'callback_query'],
+        drop_pending_updates: true 
+      }
+    );
+    console.log('✅ Webhook set');
+  } catch (err) {
+    console.error('❌ Webhook error:', err);
+  }
 });
