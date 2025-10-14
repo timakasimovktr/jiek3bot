@@ -4,7 +4,7 @@ const pool = require("../db");
 const bookingWizard = require("./bookingScene");
 const { message } = require("telegraf/filters");
 
-const bot = new Telegraf('8373923696:AAHxWLeCqoO0I-ZCgNCgn6yJTi6JJ-wOU3I');
+const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
 
 const fs = require("fs");
@@ -24,9 +24,7 @@ bot.use((ctx, next) => {
 
 bot.use(async (ctx, next) => {
   console.log(
-    `Middleware: user ${
-      ctx.from?.id
-    }, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
+    `Middleware: user ${ctx.from?.id}, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
       ctx.scene?.current?.id || "none"
     }`
   );
@@ -90,8 +88,6 @@ const texts = {
     status_approved: "одобрено",
     status_pending: "ожидает",
     change_language: "🌐 Сменить язык",
-    attempts_remaining:
-      "❗ У вас осталось {attempts} попыток на подачу заявки.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -147,7 +143,6 @@ const texts = {
     status_approved: "тасдиқланган",
     status_pending: "кутмоқда",
     change_language: "🌐 Тилни ўзгартириш",
-    attempts_remaining: "❗ Сизда қолган {attempts} та ариза юбориш имконияти.",
   },
   uzl: {
     // Uzbek Latin (original)
@@ -203,8 +198,6 @@ const texts = {
     status_approved: "tasdiqlangan",
     status_pending: "kutmoqda",
     change_language: "🌐 Tilni o‘zgartirish",
-    attempts_remaining:
-      "❗ Sizda qolgan {attempts} ta ariza yuborish imkoniyati.",
   },
 };
 
@@ -250,8 +243,7 @@ async function getUserBookingStatus(userId) {
 
 function buildMainMenu(lang, latestPendingNumber) {
   let rows = [];
-  if (latestPendingNumber) {
-    // Полное меню с кнопкой смены языка
+  if (latestPendingNumber) {  // Полное меню с кнопкой смены языка
     rows = [
       [texts[lang].queue_status, texts[lang].group_join],
       [texts[lang].application_copy, texts[lang].additional_info_button],
@@ -260,9 +252,12 @@ function buildMainMenu(lang, latestPendingNumber) {
     rows.push([
       texts[lang].cancel_application.replace("{id}", latestPendingNumber),
     ]);
-    rows.push([texts[lang].change_language]); // Добавлено: кнопка смены языка в полном меню
-  } else {
-    rows = [[texts[lang].book_meeting], [texts[lang].change_language]];
+    rows.push([texts[lang].change_language]);  // Добавлено: кнопка смены языка в полном меню
+  } else {  
+    rows = [
+      [texts[lang].book_meeting],
+      [texts[lang].change_language],
+    ];
   }
 
   return Markup.keyboard(rows).resize().persistent();
@@ -380,7 +375,7 @@ bot.start(async (ctx) => {
       if (latestBooking.status === "approved") {
         await ctx.reply(
           texts[lang].approved_status
-            .replace("{id}", latestNumber)
+            .replace("{id}", latestNumber) 
             .replace("{name}", name),
           buildMainMenu(lang, latestNumber)
         );
@@ -730,7 +725,7 @@ async function handleColonyLocation(ctx) {
     }
 
     const colony = latestBooking.colony;
-    const latestNumber = latestBooking.colony_application_number; // Изменено: для меню
+    const latestNumber = latestBooking.colony_application_number;  // Изменено: для меню
     const [coordRows] = await pool.query(
       "SELECT longitude, latitude FROM coordinates WHERE id = ?",
       [colony]
@@ -744,7 +739,7 @@ async function handleColonyLocation(ctx) {
     await ctx.replyWithLocation(longitude, latitude);
     await ctx.reply(
       texts[lang].colony_location.replace("{colony}", colony),
-      buildMainMenu(lang, latestNumber) // Изменено: latestNumber вместо id
+      buildMainMenu(lang, latestNumber)  // Изменено: latestNumber вместо id
     );
   } catch (err) {
     console.error("Error in colony location:", err);
@@ -786,8 +781,7 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitNumber =
-      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestNumber =
       explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
 
@@ -799,6 +793,7 @@ async function handleCancelApplication(ctx) {
       return;
     }
 
+    // Изменено: поиск по colony_application_number, а не по id
     const [bookingRows] = await pool.query(
       "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
       [latestNumber, ctx.from.id]
@@ -844,7 +839,7 @@ async function handleYesCancel(ctx) {
     ctx.session.confirmCancelId = null;
 
     const [bookingsRows] = await pool.query(
-      "SELECT colony, relatives, colony_application_number, phone_number FROM bookings WHERE id = ? AND user_id = ?",
+      "SELECT colony, relatives, colony_application_number FROM bookings WHERE id = ? AND user_id = ?",
       [bookingId, ctx.from.id]
     );
 
@@ -855,7 +850,6 @@ async function handleYesCancel(ctx) {
 
     const colony = bookingsRows[0].colony;
     const colonyApplicationNumber = bookingsRows[0].colony_application_number;
-    const phone = bookingsRows[0].phone_number;
     let bookingName =
       lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum";
 
@@ -883,32 +877,10 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
-    // Уменьшение попыток при отмене
-    let attempts = 0;
-    const [attemptRows] = await pool.query(
-      "SELECT attempts FROM users_attempts WHERE phone_number = ?",
-      [phone]
-    );
-    if (attemptRows.length) {
-      attempts = attemptRows[0].attempts - 1;
-      attempts = Math.max(0, attempts);
-    } else {
-      attempts = 1;
-    }
-    await pool.query(
-      "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, ?) ON DUPLICATE KEY UPDATE attempts = ?",
-      [phone, attempts, attempts]
-    );
-
-    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(
-      ctx.from.id
-    );
+    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(
       texts[lang].application_canceled,
       buildMainMenu(lang, latestNumberAfterDelete)
-    );
-    await ctx.reply(
-      texts[lang].attempts_remaining.replace("{attempts}", attempts)
     );
 
     await resetSessionAndScene(ctx);
@@ -943,7 +915,7 @@ bot.on(message("text"), async (ctx, next) => {
 
 bot.catch((err, ctx) => {
   console.error("Global error:", err);
-  const lang = ctx.session?.language || "uzl";
+  const lang = ctx.session?.language || "uzl"; 
   if (err.response && err.response.error_code === 403) {
     console.warn(`⚠️ User ${ctx.from?.id} blocked the bot, skip message`);
   } else {
@@ -952,6 +924,7 @@ bot.catch((err, ctx) => {
 });
 
 bot.hears("Yangi ariza yuborish", async (ctx) => {
+  // Legacy, assume uzl
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
@@ -1043,6 +1016,8 @@ async function handleApplicationCopy(ctx) {
       paragraphLoop: true,
       linebreaks: true,
     });
+
+    // const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
 
     doc.render({
       placeNumber: library.placeNumber,
@@ -1148,10 +1123,7 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(texts[lang].main_menu, buildMainMenu(lang, latestId));
   } catch (err) {
-    console.error(
-      `Error in change language selection for user ${ctx.from.id}:`,
-      err
-    );
+    console.error(`Error in change language selection for user ${ctx.from.id}:`, err);
     await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
   }
 });
