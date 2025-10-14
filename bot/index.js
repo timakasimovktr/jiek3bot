@@ -28,11 +28,6 @@ const {
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
 
-const fs = require("fs");
-const path = require("path");
-const PizZip = require("pizzip");
-const Docxtemplater = require("docxtemplater");
-
 bot.use(session());
 bot.use(stage.middleware());
 

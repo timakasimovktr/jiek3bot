@@ -10,6 +10,8 @@ const {
 } = require("./helpers.js");
 const fs = require("fs");
 const path = require("path");
+const PizZip = require("pizzip");
+const Docxtemplater = require("docxtemplater");
 
 // === handleBookMeeting ===
 async function handleBookMeeting(ctx) {
@@ -199,8 +201,241 @@ async function handleVisitorReminder(ctx) {
   }
 }
 
-// === handleCancelApplication / handleYesCancel / handleNoCancel / handleApplicationCopy ===
-// (аналогично вынеси сюда остальные handle-функции из твоего файла)
+async function handleCancelApplication(ctx) {
+  try {
+    const lang = ctx.session.language;
+    await resetSessionAndScene(ctx);
+    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const latestNumber =
+      explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
+
+    if (!latestNumber) {
+      await ctx.reply(
+        texts[lang].new_booking_prompt,
+        buildMainMenu(lang, null)
+      );
+      return;
+    }
+
+    // Изменено: поиск по colony_application_number, а не по id
+    const [bookingRows] = await pool.query(
+      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
+      [latestNumber, ctx.from.id]
+    );
+
+    if (!bookingRows.length) {
+      await ctx.reply(
+        texts[lang].booking_not_found_or_canceled,
+        buildMainMenu(lang, null)
+      );
+      return;
+    }
+
+    const bookingId = bookingRows[0].id;
+
+    ctx.session.confirmCancel = true;
+    ctx.session.confirmCancelId = bookingId;
+
+    await ctx.reply(
+      texts[lang].cancel_confirm,
+      Markup.keyboard([[texts[lang].yes, texts[lang].no]]).resize()
+    );
+  } catch (err) {
+    console.error("Error in cancel application:", err);
+    await ctx.reply(texts[ctx.session.language].error_occurred);
+  }
+}
+
+async function handleNoCancel(ctx) {
+  try {
+    const lang = ctx.session.language;
+    await resetSessionAndScene(ctx);
+    ctx.session.confirmCancel = false;
+    ctx.session.confirmCancelId = null;
+
+    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+
+    await ctx.reply(texts[lang].cancel_no, buildMainMenu(lang, latestId));
+  } catch (err) {
+    console.error("Error in no cancel:", err);
+    await ctx.reply(texts[ctx.session.language].error_occurred);
+  }
+}
+
+async function handleYesCancel(ctx) {
+  try {
+    const lang = ctx.session.language;
+    const bookingId = ctx.session.confirmCancelId;
+    if (!ctx.session.confirmCancel || !bookingId) {
+      await resetSessionAndScene(ctx);
+      return ctx.reply(texts[lang].no_cancel_booking);
+    }
+
+    ctx.session.confirmCancel = false;
+    ctx.session.confirmCancelId = null;
+
+    const [bookingsRows] = await pool.query(
+      "SELECT colony, relatives, colony_application_number FROM bookings WHERE id = ? AND user_id = ?",
+      [bookingId, ctx.from.id]
+    );
+
+    if (!bookingsRows.length) {
+      await resetSessionAndScene(ctx);
+      return ctx.reply(texts[lang].booking_not_found_or_canceled);
+    }
+
+    const colony = bookingsRows[0].colony;
+    const colonyApplicationNumber = bookingsRows[0].colony_application_number;
+    let bookingName =
+      lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum";
+
+    if (bookingsRows[0].relatives) {
+      try {
+        const relatives = JSON.parse(bookingsRows[0].relatives);
+        if (Array.isArray(relatives) && relatives.length > 0) {
+          bookingName = relatives[0].full_name || bookingName;
+        }
+      } catch (e) {
+        console.error("JSON parse error for booking cancellation:", e);
+      }
+    }
+
+    const [result] = await pool.query(
+      "DELETE FROM bookings WHERE id = ? AND user_id = ?",
+      [bookingId, ctx.from.id]
+    );
+
+    if (result.affectedRows === 0) {
+      console.log(
+        `Deletion failed: No rows affected for bookingId=${bookingId}, user_id=${ctx.from.id}`
+      );
+      await resetSessionAndScene(ctx);
+      return ctx.reply(texts[lang].booking_not_found_or_canceled);
+    }
+
+    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
+    await ctx.reply(
+      texts[lang].application_canceled,
+      buildMainMenu(lang, latestNumberAfterDelete)
+    );
+
+    await resetSessionAndScene(ctx);
+  } catch (err) {
+    console.error("Error in yes cancel:", err);
+    await ctx.reply(texts[ctx.session.language].error_occurred);
+  }
+}
+
+async function handleCancelApplication(ctx) {
+  try {
+    const lang = ctx.session.language;
+    await resetSessionAndScene(ctx);
+    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const latestNumber =
+      explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
+
+    if (!latestNumber) {
+      await ctx.reply(
+        texts[lang].new_booking_prompt,
+        buildMainMenu(lang, null)
+      );
+      return;
+    }
+
+    // Изменено: поиск по colony_application_number, а не по id
+    const [bookingRows] = await pool.query(
+      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
+      [latestNumber, ctx.from.id]
+    );
+
+    if (!bookingRows.length) {
+      await ctx.reply(
+        texts[lang].booking_not_found_or_canceled,
+        buildMainMenu(lang, null)
+      );
+      return;
+    }
+
+    const bookingId = bookingRows[0].id;
+
+    ctx.session.confirmCancel = true;
+    ctx.session.confirmCancelId = bookingId;
+
+    await ctx.reply(
+      texts[lang].cancel_confirm,
+      Markup.keyboard([[texts[lang].yes, texts[lang].no]]).resize()
+    );
+  } catch (err) {
+    console.error("Error in cancel application:", err);
+    await ctx.reply(texts[ctx.session.language].error_occurred);
+  }
+}
+
+async function handleApplicationCopy(ctx) {
+  try {
+    const lang = ctx.session.language;
+    await resetSessionAndScene(ctx);
+    const latestBooking = await getLatestBooking(ctx.from.id);
+    if (!latestBooking) {
+      return ctx.reply(texts[lang].no_application, buildMainMenu(lang, null));
+    }
+    const booking = latestBooking;
+
+    const [libRows] = await pool.query("SELECT * FROM library LIMIT 1");
+    const library = libRows[0] || { placeNumber: "", commander: "" };
+
+    let relatives = [];
+    try {
+      relatives = booking.relatives ? JSON.parse(booking.relatives) : [];
+    } catch (e) {
+      console.error(
+        `JSON parse error for booking ${booking.id} in document generation:`,
+        e
+      );
+    }
+
+    const rel1 = relatives[0] || {};
+    const rel2 = relatives[1] || {};
+    const rel3 = relatives[2] || {};
+
+    let templatePath = path.join(__dirname, `ariza_${lang}.docx`);
+    if (!fs.existsSync(templatePath)) {
+      templatePath = path.join(__dirname, "ariza.docx"); // Fallback
+    }
+    const content = fs.readFileSync(templatePath, "binary");
+    const zip = new PizZip(content);
+
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+    });
+
+    doc.render({
+      placeNumber: library.placeNumber,
+      commander: library.commander,
+      fullname: rel1.full_name || "",
+      fullname2:
+        rel2.full_name ||
+        "____________________________________________________",
+      fullname3:
+        rel3.full_name ||
+        "____________________________________________________",
+      prisoner: booking.prisoner_name || "",
+      arizaNumber: booking.colony_application_number || "",
+      today: new Date().toLocaleDateString("uz-UZ"),
+    });
+
+    const buf = doc.getZip().generate({ type: "nodebuffer" });
+
+    await ctx.replyWithDocument({
+      source: buf,
+      filename: `ariza_${booking.colony_application_number}.docx`,
+    });
+  } catch (err) {
+    console.error("Error in application copy:", err);
+    await ctx.reply(texts[ctx.session.language].error_occurred);
+  }
+}
 
 module.exports = {
   handleBookMeeting,
