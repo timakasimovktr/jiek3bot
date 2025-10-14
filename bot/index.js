@@ -799,7 +799,6 @@ async function handleCancelApplication(ctx) {
       return;
     }
 
-    // Изменено: поиск по colony_application_number, а не по id
     const [bookingRows] = await pool.query(
       "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
       [latestNumber, ctx.from.id]
@@ -918,31 +917,6 @@ async function handleYesCancel(ctx) {
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
-
-bot.on("pre_checkout_query", async (ctx) => {
-  const startTime = Date.now();
-  console.log(
-    `pre_checkout_query started at ${startTime} for user ${ctx.from.id}`
-  );
-  try {
-    await ctx.answerPreCheckoutQuery(true);
-    console.log(`pre_checkout_query completed in ${Date.now() - startTime}ms`);
-  } catch (err) {
-    console.error(
-      `Error in pre_checkout_query after ${Date.now() - startTime}ms:`,
-      err
-    );
-    await ctx.answerPreCheckoutQuery(
-      false,
-      "Произошла ошибка при обработке заказа. Попробуйте позже."
-    );
-  }
-});
-
-bot.on('successful_payment', async (ctx) => {
-  console.log('Payment successful:', ctx.message.successful_payment);
-  await ctx.reply('Спасибо за оплату! Ваша заявка будет обработана в ближайшее время.');
-});
 
 bot.on(message("text"), async (ctx, next) => {
   try {
@@ -1070,8 +1044,6 @@ async function handleApplicationCopy(ctx) {
       linebreaks: true,
     });
 
-    // const locale = lang === "ru" ? "ru-RU" : "uz-UZ";
-
     doc.render({
       placeNumber: library.placeNumber,
       commander: library.commander,
@@ -1188,23 +1160,6 @@ const express = require('express');
 const app = express();
 
 app.use(express.json());
-
-// Добавь лог для всех хитов (отладка)
-app.use((req, res, next) => {
-  console.log('Incoming request:', req.method, req.url, req.body);
-  next();
-});
-
-// Правильно зарегистрируй webhook как POST-маршрут
-app.post('/bot-webhook', (req, res) => {
-  console.log('Webhook POST hit:', req.body);  // Лог для Telegram updates
-  bot.webhookCallback('/bot-webhook')(req, res);  // Передай обработку Telegraf
-});
-
-// Опционально: обработай GET (для теста curl, вернёт 405 или кастом)
-app.get('/bot-webhook', (req, res) => {
-  res.status(200).send('Webhook OK (GET for test)');  // Telegram не шлёт GET, но для curl
-});
 
 const PORT = process.env.PORT || 4443;
 app.listen(PORT, () => {
