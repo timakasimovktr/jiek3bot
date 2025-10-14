@@ -1,9 +1,7 @@
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const pool = require("../db");
-import texts from './texts.js';
-
+const texts = require("./texts.js");
 const MAX_RELATIVES = 3;
-
 const colonies = [
   "1",
   "2",

@@ -2,7 +2,6 @@
 const pool = require("../db");
 const { Markup } = require("telegraf");
 const texts = require("./texts.js");
-
 async function getLatestPendingOrApprovedId(userId) {
   try {
     const [rows] = await pool.query(

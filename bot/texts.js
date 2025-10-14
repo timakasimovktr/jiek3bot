@@ -31,20 +31,16 @@ const texts = {
       "❌ Произошла ошибка, пожалуйста, отправьте /start заново.",
     existing_application:
       "❌ У вас уже есть заявка (№: {id}, Статус: {status}, Заявитель: {name}). Чтобы подать новую, сначала отмените текущую.",
-    booking_canceled: "❌ Запись на встречу отменена.",
     no_application: "❌ У вас нет активной заявки.",
     file_not_found: "❌ Файл не найден.",
     additional_info:
       "📗 Дополнительная информация: Здесь может быть полезный текст или ссылки.", // Placeholder
     language_prompt: "🌐 Пожалуйста, выберите язык:",
-    queue_status: "📊 Статус очереди",
     group_join: "🫂 Перейти в группу",
     application_copy: "🖨️ Получить копию заявки",
     additional_info_button: "📗 Дополнительная информация",
     visitor_reminder: "📃 Памятка для посетителей",
     colony_location_button: "🏛️ Локация колонии",
-    cancel_application: "❌ Отменить заявку #{id}",
-    book_meeting: "📅 Записаться на встречу",
     yes: "✅ Да",
     no: "❌ Нет",
     status_approved: "одобрено",
@@ -145,20 +141,16 @@ const texts = {
       "❌ Хатолик юз берди, илтимос, /start буйруғини қайта юборинг.",
     existing_application:
       "❌ Сизда аллақачон ариза мавжуд (№: {id}, Ҳолат: {status}, Аризачи: {name}). Янги ариза юбориш учун аввал жорий аризани бекор қилинг.",
-    booking_canceled: "❌ Учрашув ёзуви бекор қилинди.",
     no_application: "❌ Сизда ҳозирда кутаётган ариза йўқ.",
     file_not_found: "❌ Файл топилмади.",
     additional_info:
       "📗 Қўшимча маълумот: Бу ерда фойдали матн ёки ҳаволалар бўлиши мумкин.", // Placeholder
     language_prompt: "🌐 Илтимос, тилни танланг:",
-    queue_status: "📊 Навбат ҳолати",
     group_join: "🫂 Гуруҳга ўтиш",
     application_copy: "🖨️ Ариза нусхасини олиш",
     additional_info_button: "📗 Қўшимча маълумот",
     visitor_reminder: "📃 Ташриф буюрувчилар учун эслатма",
     colony_location_button: "🏛️ Колониа локацияси",
-    cancel_application: "❌ Аризани бекор қилиш #{id}",
-    book_meeting: "📅 Учрашувга ёзилиш",
     yes: "✅ Ҳа",
     no: "❌ Йўқ",
     status_approved: "тасдиқланган",
@@ -264,14 +256,11 @@ const texts = {
     additional_info:
       "📗 Qo‘shimcha ma’lumot: Bu yerda foydali matn yoki havolalar bo‘lishi mumkin.", // Placeholder
     language_prompt: "🌐 Iltimos, tilni tanlang:",
-    queue_status: "📊 Navbat holati",
     group_join: "🫂 Grupaga otish",
     application_copy: "🖨️ Ariza nusxasini olish",
     additional_info_button: "📗 Qo‘shimcha ma’lumot",
     visitor_reminder: "📃 Tashrif buyuruvchilar uchun eslatma",
     colony_location_button: "🏛️ Koloniya lokatsiyasi",
-    cancel_application: "❌ Arizani bekor qilish #{id}",
-    book_meeting: "📅 Uchrashuvga yozilish",
     yes: "✅ Ha",
     no: "❌ Yo‘q",
     status_approved: "tasdiqlangan",
@@ -319,7 +308,6 @@ const texts = {
     confirm_prompt: "❓ Ushbu ma’lumotlarni tasdiqlaysizmi?",
     confirm_button: "✅ Tasdiqlash",
     cancel_button: "❌ Bekor qilish ariza",
-    booking_canceled: "❌ Uchrashuv yozuvi bekor qilindi.",
     booking_saved: (position) =>
       `✅ Uchrashuv arizani berish uchun yuborildi!\n📊 Sizning navbatingiz: ${position}`,
     queue_status: "📊 Navbat holati",
