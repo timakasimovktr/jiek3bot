@@ -21,9 +21,8 @@ const {
   handleYesCancel,
   handleNoCancel,
   handleApplicationCopy,
-  handleVisitorReminder
+  handleVisitorReminder,
 } = require("./processHelpers.js");
-
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
@@ -276,35 +275,36 @@ bot.hears(texts.ru.yes, async (ctx) => handleYesCancel(ctx));
 const getInvoice = (id) => {
   const invoice = {
     chat_id: id, // Уникальный идентификатор целевого чата или имя пользователя целевого канала
-    provider_token: process.env.PROVIDER_TOKEN, // токен выданный через бот @SberbankPaymentBot 
-    start_parameter: 'get_access', //Уникальный параметр глубинных ссылок. Если оставить поле пустым, переадресованные копии отправленного сообщения будут иметь кнопку «Оплатить», позволяющую нескольким пользователям производить оплату непосредственно из пересылаемого сообщения, используя один и тот же счет. Если не пусто, перенаправленные копии отправленного сообщения будут иметь кнопку URL с глубокой ссылкой на бота (вместо кнопки оплаты) со значением, используемым в качестве начального параметра.
-    title: 'InvoiceTitle', // Название продукта, 1-32 символа
-    description: 'InvoiceDescription', // Описание продукта, 1-255 знаков
-    currency: 'UZS', // Трехбуквенный код валюты ISO 4217
-    prices: [{ label: 'Invoice Title', amount: 5000 * 100 }], // Разбивка цен, сериализованный список компонентов в формате JSON 100 копеек * 100 = 100 рублей
-    photo_url: './images/pay.png', // URL фотографии товара для счета-фактуры. Это может быть фотография товара или рекламное изображение услуги. Людям больше нравится, когда они видят, за что платят.
+    provider_token: process.env.PROVIDER_TOKEN, // токен выданный через бот @SberbankPaymentBot
+    start_parameter: "get_access", //Уникальный параметр глубинных ссылок. Если оставить поле пустым, переадресованные копии отправленного сообщения будут иметь кнопку «Оплатить», позволяющую нескольким пользователям производить оплату непосредственно из пересылаемого сообщения, используя один и тот же счет. Если не пусто, перенаправленные копии отправленного сообщения будут иметь кнопку URL с глубокой ссылкой на бота (вместо кнопки оплаты) со значением, используемым в качестве начального параметра.
+    title: "InvoiceTitle", // Название продукта, 1-32 символа
+    description: "InvoiceDescription", // Описание продукта, 1-255 знаков
+    currency: "UZS", // Трехбуквенный код валюты ISO 4217
+    prices: [{ label: "Invoice Title", amount: 5000 * 100 }], // Разбивка цен, сериализованный список компонентов в формате JSON 100 копеек * 100 = 100 рублей
+    photo_url: "./images/pay.png", // URL фотографии товара для счета-фактуры. Это может быть фотография товара или рекламное изображение услуги. Людям больше нравится, когда они видят, за что платят.
     photo_width: 500, // Ширина фото
     photo_height: 281, // Длина фото
-    payload: { // Полезные данные счета-фактуры, определенные ботом, 1–128 байт. Это не будет отображаться пользователю, используйте его для своих внутренних процессов.
+    payload: {
+      // Полезные данные счета-фактуры, определенные ботом, 1–128 байт. Это не будет отображаться пользователю, используйте его для своих внутренних процессов.
       unique_id: `${id}_${Number(new Date())}`,
-      provider_token: process.env.PROVIDER_TOKEN 
-    }
-  }
+      provider_token: process.env.PROVIDER_TOKEN,
+    },
+  };
 
-  return invoice
-}
+  return invoice;
+};
 
-bot.use(Telegraf.log())
+bot.use(Telegraf.log());
 
 bot.hears("Оплатить", async (ctx) => {
-  return ctx.replyWithInvoice(getInvoice(ctx.from.id))
+  return ctx.replyWithInvoice(getInvoice(ctx.from.id));
 });
 
-bot.on('pre_checkout_query', (ctx) => ctx.answerPreCheckoutQuery(true))
+bot.on("pre_checkout_query", (ctx) => ctx.answerPreCheckoutQuery(true));
 
-bot.on('successful_payment', async (ctx, next) => { 
-  await ctx.reply('SuccessfulPayment')
-})
+bot.on("successful_payment", async (ctx, next) => {
+  await ctx.reply("SuccessfulPayment");
+});
 
 bot.on(message("text"), async (ctx, next) => {
   try {
@@ -465,18 +465,52 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 const express = require("express");
 const app = express();
 app.use(express.json());
-app.use(bot.webhookCallback("/bot-webhook"));
 
-app.listen(process.env.PORT || 4443, "0.0.0.0", async () => {
-  console.log("Webhook server started");
+// Обработка GET для health-check Telegram (вернёт 200 OK)
+app.get("/bot-webhook", (req, res) => {
+  console.log("Webhook health-check GET from Telegram or user");
+  res.status(200).send("OK"); // Простой текст, без HTML
+});
+
+// Обработка POST от Telegram (обновления)
+app.post("/bot-webhook", (req, res) => {
+  console.log("Incoming POST update from Telegram");
+  console.log("Raw POST body:", JSON.stringify(req.body));
+  bot.webhookCallback("/bot-webhook")(req, res); // Явный callback для логов
+});
+
+// Catch-all для других маршрутов (опционально, чтобы не было дефолтного HTML 404)
+app.use((req, res) => {
+  res.status(404).send("Not Found");
+});
+
+const PORT = process.env.PORT || 4443;
+app.listen(PORT, "0.0.0.0", async () => {
+  console.log(`Express server listening on port ${PORT} (bound to 0.0.0.0)`);
 
   try {
-    await bot.telegram.setWebhook(`https://bot.test-dunyo.uz/bot-webhook`, {
-      allowed_updates: ["message", "callback_query"],
+    // Установка webhook с explicit allowed_updates для платежей
+    await bot.telegram.setWebhook("https://test-dunyo.uz/bot-webhook", {
+      allowed_updates: [
+        "message",
+        "callback_query",
+        "pre_checkout_query",
+        "successful_payment",
+        "chat_member",
+      ], // Добавьте все нужные
       drop_pending_updates: true,
     });
-    console.log("✅ Webhook set");
+    console.log(
+      "Webhook set successfully to https://test-dunyo.uz/bot-webhook"
+    );
+
+    // Проверьте статус сразу
+    const info = await bot.telegram.getWebhookInfo();
+    console.log("Webhook info:", JSON.stringify(info, null, 2));
   } catch (err) {
-    console.error("❌ Webhook error:", err);
+    console.error(
+      "Error setting webhook:",
+      err.response ? err.response.data : err
+    );
   }
 });
