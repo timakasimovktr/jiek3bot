@@ -1181,18 +1181,15 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 
 const express = require('express');
 const app = express();
-
-// Путь для webhook (сделайте секретным, напр. /bot-your-token)
-const webhookPath = '/bot-webhook';  
-
 app.use(express.json());
-// app.use('/bot-webhook', (req, res, next) => {
-//   console.log('Webhook received:', req.method, req.body);
-//   next();
-// });
-bot.webhookCallback('/bot-webhook');  
 
-// Запустите сервер
+app.use('/bot-webhook', (req, res, next) => {
+  console.log('Webhook received:', req.method, req.url, req.body);
+  next();
+});
+
+app.use(bot.webhookCallback('/bot-webhook'));  
+
 const PORT = process.env.PORT || 4443;
 app.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
