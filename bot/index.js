@@ -24,7 +24,9 @@ bot.use((ctx, next) => {
 
 bot.use(async (ctx, next) => {
   console.log(
-    `Middleware: user ${ctx.from?.id}, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
+    `Middleware: user ${
+      ctx.from?.id
+    }, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
       ctx.scene?.current?.id || "none"
     }`
   );
@@ -239,7 +241,7 @@ async function getLatestBooking(userId) {
 
 function buildMainMenu(lang, latestPendingNumber) {
   let rows = [];
-  if (latestPendingNumber) {  
+  if (latestPendingNumber) {
     rows = [
       [texts[lang].queue_status, texts[lang].group_join],
       [texts[lang].application_copy, texts[lang].additional_info_button],
@@ -248,12 +250,9 @@ function buildMainMenu(lang, latestPendingNumber) {
     rows.push([
       texts[lang].cancel_application.replace("{id}", latestPendingNumber),
     ]);
-    rows.push([texts[lang].change_language]);  
-  } else {  
-    rows = [
-      [texts[lang].book_meeting],
-      [texts[lang].change_language],
-    ];
+    rows.push([texts[lang].change_language]);
+  } else {
+    rows = [[texts[lang].book_meeting], [texts[lang].change_language]];
   }
 
   return Markup.keyboard(rows).resize().persistent();
@@ -371,7 +370,7 @@ bot.start(async (ctx) => {
       if (latestBooking.status === "approved") {
         await ctx.reply(
           texts[lang].approved_status
-            .replace("{id}", latestNumber) 
+            .replace("{id}", latestNumber)
             .replace("{name}", name),
           buildMainMenu(lang, latestNumber)
         );
@@ -532,20 +531,28 @@ bot.hears(texts.uzl.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.uz.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.ru.queue_status, async (ctx) => handleQueueStatus(ctx));
 
-bot.on('pre_checkout_query', async (ctx) => {
-  try {
-    // Здесь можно валидировать payload, если нужно (например, сравнить с сессией)
-    await ctx.answerPreCheckoutQuery(true); // Одобряем оплату
-    console.log(`Pre-checkout approved for user ${ctx.from.id}`);
-  } catch (err) {
-    console.error('Error in pre_checkout_query:', err);
-    await ctx.answerPreCheckoutQuery(false, 'Ошибка валидации оплаты');
-  }
+// В index.js (глобальные платежные handlers)
+bot.on("pre_checkout_query", (ctx) => {
+  // НЕ используйте await на тяжелых операциях здесь!
+  // Если нужно валидировать payload (например, проверить в сессии или DB) — делайте это в фоне, но отвечайте сразу.
+  ctx
+    .answerPreCheckoutQuery(true) // Синхронно отвечаем OK
+    .then(() => {
+      console.log(
+        `Pre-checkout approved for user ${ctx.from.id}, payload: ${ctx.preCheckoutQuery.invoice_payload}`
+      );
+      // Здесь можно асинхронно валидировать, если нужно (но не обязательно для простого случая)
+      // Например: optionalValidatePayload(ctx.preCheckoutQuery.invoice_payload);
+    })
+    .catch((err) => console.error("Error answering pre_checkout:", err));
 });
 
-bot.on('successful_payment', async (ctx) => {
+bot.on("successful_payment", async (ctx) => {
   // Это дублирует логику в сцене, но на всякий случай: если сообщение пришло вне сцены
-  console.log(`Payment successful for user ${ctx.from.id}:`, ctx.message.successful_payment);
+  console.log(
+    `Payment successful for user ${ctx.from.id}:`,
+    ctx.message.successful_payment
+  );
   // Не отвечаем здесь, логика в сцене (bookingScene.js) обработает в шаге платежа
 });
 
@@ -738,7 +745,7 @@ async function handleColonyLocation(ctx) {
     }
 
     const colony = latestBooking.colony;
-    const latestNumber = latestBooking.colony_application_number;  // Изменено: для меню
+    const latestNumber = latestBooking.colony_application_number; // Изменено: для меню
     const [coordRows] = await pool.query(
       "SELECT longitude, latitude FROM coordinates WHERE id = ?",
       [colony]
@@ -752,7 +759,7 @@ async function handleColonyLocation(ctx) {
     await ctx.replyWithLocation(longitude, latitude);
     await ctx.reply(
       texts[lang].colony_location.replace("{colony}", colony),
-      buildMainMenu(lang, latestNumber)  // Изменено: latestNumber вместо id
+      buildMainMenu(lang, latestNumber) // Изменено: latestNumber вместо id
     );
   } catch (err) {
     console.error("Error in colony location:", err);
@@ -794,7 +801,8 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const explicitNumber =
+      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestNumber =
       explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
 
@@ -890,7 +898,9 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
-    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
+    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(
+      ctx.from.id
+    );
     await ctx.reply(
       texts[lang].application_canceled,
       buildMainMenu(lang, latestNumberAfterDelete)
@@ -928,7 +938,7 @@ bot.on(message("text"), async (ctx, next) => {
 
 bot.catch((err, ctx) => {
   console.error("Global error:", err);
-  const lang = ctx.session?.language || "uzl"; 
+  const lang = ctx.session?.language || "uzl";
   if (err.response && err.response.error_code === 403) {
     console.warn(`⚠️ User ${ctx.from?.id} blocked the bot, skip message`);
   } else {
@@ -1136,7 +1146,10 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(texts[lang].main_menu, buildMainMenu(lang, latestId));
   } catch (err) {
-    console.error(`Error in change language selection for user ${ctx.from.id}:`, err);
+    console.error(
+      `Error in change language selection for user ${ctx.from.id}:`,
+      err
+    );
     await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
   }
 });
@@ -1144,21 +1157,40 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 const express = require('express');
 const app = express();
 app.use(express.json());
-app.use(bot.webhookCallback('/bot-webhook'));
 
-app.listen(process.env.PORT || 4443, '0.0.0.0', async () => {
-  console.log('Webhook server started');
-  
+// Обработка GET для health-check Telegram (вернёт 200 OK)
+app.get('/bot-webhook', (req, res) => {
+  console.log('Webhook health-check GET from Telegram or user');
+  res.status(200).send('OK');  // Простой текст, без HTML
+});
+
+// Обработка POST от Telegram (обновления)
+app.post('/bot-webhook', (req, res) => {
+  console.log('Incoming POST update from Telegram');
+  bot.webhookCallback('/bot-webhook')(req, res);  // Явный callback для логов
+});
+
+// Catch-all для других маршрутов (опционально, чтобы не было дефолтного HTML 404)
+app.use((req, res) => {
+  res.status(404).send('Not Found');
+});
+
+const PORT = process.env.PORT || 4443;
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`Express server listening on port ${PORT} (bound to 0.0.0.0)`);
+
   try {
-    await bot.telegram.setWebhook(
-      `https://test-dunyo.uz/bot-webhook`, 
-      { 
-        allowed_updates: ['message', 'callback_query'],
-        drop_pending_updates: true 
-      }
-    );
-    console.log('✅ Webhook set');
+    // Установка webhook с explicit allowed_updates для платежей
+    await bot.telegram.setWebhook('https://test-dunyo.uz/bot-webhook', {
+      allowed_updates: ['message', 'callback_query', 'pre_checkout_query', 'successful_payment'],
+      drop_pending_updates: true
+    });
+    console.log('Webhook set successfully to https://test-dunyo.uz/bot-webhook');
+
+    // Проверьте статус сразу
+    const info = await bot.telegram.getWebhookInfo();
+    console.log('Webhook info:', JSON.stringify(info, null, 2));
   } catch (err) {
-    console.error('❌ Webhook error:', err);
+    console.error('Error setting webhook:', err.response ? err.response.data : err);
   }
 });

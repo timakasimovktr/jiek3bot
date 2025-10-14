@@ -458,15 +458,15 @@ const bookingWizard = new Scenes.WizardScene(
     ctx.wizard.state.prisoner_name = null;
     ctx.wizard.state.visit_type = null;
 
-    await ctx.reply(
-      texts[lang].select_visit_type,
-      Markup.inlineKeyboard([
-        [
-          Markup.button.callback(texts[lang].short_visit, "short"),
-          Markup.button.callback(texts[lang].long_visit, "long"),
-        ],
-      ])
-    );
+    // await ctx.reply(
+    //   texts[lang].select_visit_type,
+    //   Markup.inlineKeyboard([
+    //     [
+    //       Markup.button.callback(texts[lang].short_visit, "short"),
+    //       Markup.button.callback(texts[lang].long_visit, "long"),
+    //     ],
+    //   ])
+    // );
     return ctx.wizard.next();
   },
 
