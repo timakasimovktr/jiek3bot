@@ -489,22 +489,6 @@ app.listen(PORT, "0.0.0.0", async () => {
   console.log(`Express server listening on port ${PORT} (bound to 0.0.0.0)`);
 
   try {
-    // Установка webhook с explicit allowed_updates для платежей
-    await bot.telegram.setWebhook("https://test-dunyo.uz/bot-webhook", {
-      allowed_updates: [
-        "message",
-        "callback_query",
-        "pre_checkout_query",
-        "successful_payment",
-        "chat_member",
-      ], // Добавьте все нужные
-      drop_pending_updates: true,
-    });
-    console.log(
-      "Webhook set successfully to https://test-dunyo.uz/bot-webhook"
-    );
-
-    // Проверьте статус сразу
     const info = await bot.telegram.getWebhookInfo();
     console.log("Webhook info:", JSON.stringify(info, null, 2));
   } catch (err) {
