@@ -545,7 +545,7 @@ const bookingWizard = new Scenes.WizardScene(
             prices: [
               {
                 label: lang === "ru" ? "Обработка заявки" : "Ariza haqi",
-                amount: 2000,
+                amount: 2000 * 100
               },
             ],
             need_name: true, // Optional: Require user details
