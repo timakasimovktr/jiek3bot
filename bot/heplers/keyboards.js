@@ -1,5 +1,5 @@
 const { Markup } = require("telegraf");
-const texts = require("../bot/texts.js");
+const texts = require("../texts.js");
 const colonies = require("../constants/colonies.js");
 
 function generateColonyKeyboard(lang) {
