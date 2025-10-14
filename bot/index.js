@@ -1159,14 +1159,14 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 const express = require('express');
 const app = express();
 app.use(express.json());
-app.use(bot.webhookCallback('/bot'));
+app.use(bot.webhookCallback('/bot-webhook'));
 
 app.listen(process.env.PORT || 4443, '0.0.0.0', async () => {
   console.log('Webhook server started');
   
   try {
     await bot.telegram.setWebhook(
-      `https://test-dunyo.uz/bot`, 
+      `https://test-dunyo.uz/bot-webhook`, 
       { 
         allowed_updates: ['message', 'callback_query'],
         drop_pending_updates: true 
