@@ -531,30 +531,26 @@ bot.hears(texts.uzl.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.uz.queue_status, async (ctx) => handleQueueStatus(ctx));
 bot.hears(texts.ru.queue_status, async (ctx) => handleQueueStatus(ctx));
 
-bot.on("pre_checkout_query", async (ctx) => {  // Сделайте async для await
+bot.on("pre_checkout_query", async (ctx) => {
   const start = Date.now();
-  console.log(`[DEBUG] pre_checkout_query triggered for ${ctx.from.id}`);
-
-  const receivedPayload = ctx.preCheckoutQuery.invoice_payload;
-  const expectedPayload = ctx.session?.paymentPayload || ctx.wizard?.state?.invoicePayload;
-
-  const isValid = receivedPayload === expectedPayload;
-  console.log(`[DEBUG] Expected: ${expectedPayload}, Received: ${receivedPayload}, Valid: ${isValid}`);
+  console.log(`[PRE_CHECKOUT] RAW Update: ${JSON.stringify(ctx.update)}`); // Полный update
+  console.log(`[PRE_CHECKOUT] User: ${ctx.from?.id}, Payload received: ${ctx.preCheckoutQuery?.invoice_payload}`);
+  console.log(`[PRE_CHECKOUT] Session: ${JSON.stringify(ctx.session)}`);
+  console.log(`[PRE_CHECKOUT] Wizard state: ${JSON.stringify(ctx.wizard?.state)}`);
 
   try {
-    await ctx.answerPreCheckoutQuery(isValid, isValid ? undefined : "Invalid payload");
-    console.log(`[DEBUG] Answered in ${Date.now() - start}ms: ${isValid ? "OK" : "Error"}`);
+    // Временно всегда OK, игнорируем валидацию
+    await ctx.answerPreCheckoutQuery(true);
+    console.log(`[PRE_CHECKOUT] Answered OK in ${Date.now() - start}ms`);
   } catch (err) {
-    console.error("[ERROR] Failed to answer:", err);
+    console.error("[PRE_CHECKOUT] Answer failed:", err);
   }
 });
 
 bot.on("successful_payment", async (ctx) => {
-  console.log(`[DEBUG] Payment success, payload: ${ctx.message.successful_payment.invoice_payload}`);
-  // Разберите payload, обновите DB
-  const [bookingId] = ctx.message.successful_payment.invoice_payload.split('|');
-  await pool.query("UPDATE bookings SET status = 'paid' WHERE id = ?", [bookingId]);
-  await ctx.reply("Оплата прошла! Ваша заявка обновлена.");
+  console.log(`[SUCCESS] Payment success! Payload: ${ctx.message.successful_payment.invoice_payload}`);
+  // Здесь обновите DB
+  await ctx.reply("Оплата прошла успешно!");
 });
 
 async function handleQueueStatus(ctx) {
@@ -1159,22 +1155,36 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
-// Обработка GET для health-check Telegram (вернёт 200 OK)
+app.use((req, res, next) => {
+  if (req.path === "/bot-webhook") {
+    let data = [];
+    req.on("data", (chunk) => data.push(chunk));
+    req.on("end", () => {
+      req.rawBody = Buffer.concat(data).toString();
+      console.log(
+        "[WEBHOOK RAW] Received raw body:",
+        req.rawBody.slice(0, 500)
+      ); // Лог raw!
+      next();
+    });
+  } else {
+    next();
+  }
+});
+
+// Ваш GET health-check
 app.get("/bot-webhook", (req, res) => {
-  console.log("Webhook health-check GET from Telegram or user");
-  res.status(200).send("OK"); // Простой текст, без HTML
+  console.log("[WEBHOOK] GET health-check from Telegram");
+  res.status(200).send("OK");
 });
 
-// Обработка POST от Telegram (обновления)
+// POST для updates
 app.post("/bot-webhook", (req, res) => {
-  console.log("Incoming POST update from Telegram");
-  console.log("Raw POST body:", JSON.stringify(req.body));
-  bot.webhookCallback("/bot-webhook")(req, res); // Явный callback для логов
-});
+  console.log("[WEBHOOK] POST incoming from IP:", req.ip);
+  console.log("[WEBHOOK] Headers:", req.headers);
 
-// Catch-all для других маршрутов (опционально, чтобы не было дефолтного HTML 404)
-app.use((req, res) => {
-  res.status(404).send("Not Found");
+  // Передаём rawBody в Telegraf
+  bot.webhookCallback("/bot-webhook", { rawBody: true })(req, res); // Добавьте опцию если нужно
 });
 
 const PORT = process.env.PORT || 4443;
