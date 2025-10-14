@@ -24,8 +24,6 @@ const colonies = [
   "24",
 ];
 
-const paidColonies = ["24"]; // Измените на список платных колоний, напр. ["1", "2", "23"]
-
 const texts = {
   ru: {
     internal_error: "❌ Внутренняя ошибка бота. Пожалуйста, попробуйте снова.",
@@ -453,31 +451,16 @@ const bookingWizard = new Scenes.WizardScene(
     const colony = ctx.wizard.state.colony;
     const phone = ctx.wizard.state.phone;
 
-    const needsPayment = paidColonies.includes(colony);
-
-    if (!needsPayment) {
-      await ctx.reply(
-        texts[lang].select_visit_type,
-        Markup.inlineKeyboard([
-          [
-            Markup.button.callback(texts[lang].short_visit, "short"),
-            Markup.button.callback(texts[lang].long_visit, "long"),
-          ],
-        ])
-      );
-      return ctx.wizard.selectStep(5);
-    } else {
-      await ctx.replyWithInvoice({
-        title: `Smart Meet Pay ${ctx.from.id}`,
-        description: `Koloniya ${colony} Telefon: ${phone}`,
-        payload: `booking_${ctx.from.id}_${colony}`,
-        provider_token:
-          "333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3",
-        currency: "UZS",
-        prices: [{ label: "Услуга", amount: 100000 }],
-      });
-      return ctx.wizard.next();
-    }
+    await ctx.reply(
+      texts[lang].select_visit_type,
+      Markup.inlineKeyboard([
+        [
+          Markup.button.callback(texts[lang].short_visit, "short"),
+          Markup.button.callback(texts[lang].long_visit, "long"),
+        ],
+      ])
+    );
+    return ctx.wizard.selectStep(5);
   },
 
   // Step 4: Select visit type
@@ -691,7 +674,7 @@ async function saveBooking(ctx) {
     );
 
     const bookingId = result.insertId;
-  
+
     await ctx.scene.leave();
 
     await sendApplicationToClient(ctx, {
