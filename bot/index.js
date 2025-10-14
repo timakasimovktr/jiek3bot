@@ -465,6 +465,7 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 const express = require("express");
 const app = express();
 app.use(express.json());
+app.use(bot.webhookCallback("/bot-webhook"));
 
 // Обработка GET для health-check Telegram (вернёт 200 OK)
 app.get("/bot-webhook", (req, res) => {
@@ -484,17 +485,16 @@ app.use((req, res) => {
   res.status(404).send("Not Found");
 });
 
-const PORT = process.env.PORT || 4443;
-app.listen(PORT, "0.0.0.0", async () => {
-  console.log(`Express server listening on port ${PORT} (bound to 0.0.0.0)`);
+app.listen(process.env.PORT || 4443, "0.0.0.0", async () => {
+  console.log("Webhook server started");
 
   try {
-    const info = await bot.telegram.getWebhookInfo();
-    console.log("Webhook info:", JSON.stringify(info, null, 2));
+    await bot.telegram.setWebhook(`https://bot.test-dunyo.uz/bot-webhook`, {
+      allowed_updates: ["message", "callback_query"],
+      drop_pending_updates: true,
+    });
+    console.log("✅ Webhook set");
   } catch (err) {
-    console.error(
-      "Error setting webhook:",
-      err.response ? err.response.data : err
-    );
+    console.error("❌ Webhook error:", err);
   }
 });
