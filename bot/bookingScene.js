@@ -85,6 +85,7 @@ const texts = {
     error: "❌ Произошла ошибка. Пожалуйста, попробуйте позже.",
     not_found: "❌ Ошибка: Ваша заявка не найдена.",
     book_meeting: "📅 Записаться на встречу",
+    pay_button: "💳 Оплатить",
   },
   uz: {
     // Uzbek Cyrillic
@@ -146,6 +147,7 @@ const texts = {
     error: "❌ Хатолик юз берди. Илтимос, кейинроқ уриниб кўринг.",
     not_found: "❌ Хатолик: Аризангиз топилмади.",
     book_meeting: "📅 Учрашувга ёзилиш",
+    pay_button: "💳 Тўлов қилиш",
   },
   uzl: {
     // Uzbek Latin (original)
@@ -208,6 +210,7 @@ const texts = {
     error: "❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring.",
     not_found: "❌ Xatolik: Arizangiz topilmadi.",
     book_meeting: "📅 Uchrashuvga yozilish",
+    pay_button: "💳 Tўlov qilish",
   },
 };
 
@@ -613,17 +616,40 @@ async function showSummary(ctx) {
   });
   text += texts[lang].confirm_prompt;
 
-  await ctx.reply(
-    text,
-    Markup.inlineKeyboard([
+  const phone = ctx.wizard.state.phone;
+  const [attemptRows] = await pool.query(
+    "SELECT attempts FROM users_attempts WHERE phone_number = ?",
+    [phone]
+  );
+  const attempts = attemptRows.length ? attemptRows[0].attempts : 0;
+
+  let keyboard = [];
+  if (attempts < 2) {
+    // Бесплатно: confirm
+    keyboard = [
       [Markup.button.callback(texts[lang].confirm_button, "confirm")],
       [Markup.button.callback(texts[lang].cancel_button, "cancel")],
-    ])
-  );
+    ];
+    await ctx.reply(
+      text + "\n✅ Бесплатно (осталось отмен: " + (2 - attempts) + ")",
+      Markup.inlineKeyboard(keyboard)
+    );
+  } else {
+    // Требуем оплату
+    ctx.session.tempBooking = ctx.wizard.state; // Сохраняем временно
+    await ctx.reply(
+      text +
+        "\n⚠️ Требуется оплата (вы исчерпали бесплатные отмены). Нажмите кнопку ниже:",
+      Markup.keyboard([[texts[lang].pay_button]]).resize() // Текстовая кнопка для hears
+    );
+    // Не переходим к confirm, ждем оплаты
+    return ctx.wizard.selectStep(9); // Но step 9 игнори, т.к. hears в index
+  }
   return ctx.wizard.selectStep(9);
 }
 
 async function saveBooking(ctx) {
+  ctx.wizard.state.payment_status = 'free';
   const lang = ctx.session.language;
   const { prisoner_name, relatives, visit_type, colony } = ctx.wizard.state;
   const chatId = ctx.chat.id;
@@ -641,7 +667,7 @@ async function saveBooking(ctx) {
     // Изменено: добавлено сохранение language в БД
     const [result] = await pool.query(
       `INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id, colony_application_number, language)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,  // Добавлено language
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`, // Добавлено language
       [
         ctx.from.id,
         ctx.wizard.state.phone,
@@ -651,7 +677,7 @@ async function saveBooking(ctx) {
         colony,
         chatId,
         newColonyApplicationNumber,
-        lang,  // Добавлено: сохраняем выбранный язык
+        lang, // Добавлено: сохраняем выбранный язык
       ]
     );
 
@@ -662,7 +688,7 @@ async function saveBooking(ctx) {
     await sendApplicationToClient(ctx, {
       relatives,
       prisoner: prisoner_name,
-      id: newColonyApplicationNumber,  // Используем colony_application_number
+      id: newColonyApplicationNumber, // Используем colony_application_number
       visit_type,
       colony,
       lang,
@@ -685,13 +711,14 @@ async function saveBooking(ctx) {
       texts[lang].booking_saved(position),
       Markup.keyboard([
         [texts[lang].queue_status],
-        [texts[lang].cancel_application(newColonyApplicationNumber)],  // Изменено: используем colony_application_number вместо bookingId
+        [texts[lang].cancel_application(newColonyApplicationNumber)], // Изменено: используем colony_application_number вместо bookingId
       ])
         .resize()
         .oneTime(false)
     );
 
-    let groupUrl = `https://t.me/SmartJIEK${colony}` || "https://t.me/+qWg7Qh3t_OIxMDBi";
+    let groupUrl =
+      `https://t.me/SmartJIEK${colony}` || "https://t.me/+qWg7Qh3t_OIxMDBi";
 
     await ctx.reply(
       texts[lang].join_group,
