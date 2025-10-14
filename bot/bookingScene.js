@@ -534,7 +534,7 @@ const bookingWizard = new Scenes.WizardScene(
     console.log(`Step 7: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (!ctx.message?.text) {
       await ctx.reply(texts[lang].invalid_prisoner);
-      return ctx.wizard.selectStep(8);
+      return ctx.wizard.selectStep(9);
     }
 
     ctx.wizard.state.prisoner_name = ctx.message.text.toUpperCase();
