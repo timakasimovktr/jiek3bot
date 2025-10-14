@@ -534,21 +534,18 @@ const bookingWizard = new Scenes.WizardScene(
           await ctx.reply(texts[lang].pay_prompt);
 
           await ctx.telegram.sendInvoice(ctx.chat.id, {
-            title: lang === "ru" ? "Оплата за заявку" : "Ariza uchun to'lov",
-            description:
-              lang === "ru"
-                ? "2000 сум за обработку заявки"
-                : "Ariza ishlov berish uchun 2000 so'm",
+            title: "Ariza uchun to'lov",
+            description: "Ariza ishlov berish uchun 2000 so'm",
             payload,
             provider_token: PROVIDER_TOKEN,
             currency: "UZS",
             prices: [
               {
-                label: lang === "ru" ? "Обработка заявки" : "Ariza haqi",
+                label: "Ariza haqi",
                 amount: 2000 * 100
               },
             ],
-            need_name: true, // Optional: Require user details
+            need_name: true, 
             need_phone_number: true,
           });
 
