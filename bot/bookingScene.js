@@ -473,8 +473,6 @@ const bookingWizard = new Scenes.WizardScene(
   // Шаг 4: Платёж (в bookingScene.js, внутри new Scenes.WizardScene('booking-wizard', ...))
   async (ctx) => {
     const lang = ctx.session.language || "uzl";
-    const texts = require("./index").texts; // Или импортируйте texts глобально, чтобы использовать
-    // Если texts не доступны — передайте через ctx или импортируйте
 
     try {
       // --- Обработка pre_checkout_query (в начале шага!) ---
@@ -528,13 +526,13 @@ const bookingWizard = new Scenes.WizardScene(
           );
 
           await ctx.reply(
-            texts[lang].payment_success || "Оплата прошла успешно!",
+            "Оплата прошла успешно!",
             Markup.removeKeyboard()
           );
           console.timeEnd("successful_payment_in_scene");
           return ctx.wizard.next(); // Переход к следующему шагу (тип встречи или конец)
         } else {
-          await ctx.reply(texts[lang].invalid_payment || "Неверная оплата.");
+          await ctx.reply("Неверная оплата.");
           console.timeEnd("successful_payment_in_scene");
           return;
         }
@@ -546,7 +544,7 @@ const bookingWizard = new Scenes.WizardScene(
       }
 
       // --- Обработка ретрая или отмены (кнопки) ---
-      if (ctx.message?.text === texts[lang].retry_payment) {
+      if (ctx.message?.text === "Оплатить заново") {
         // Инкремент attempts (ваша логика с БД users_attempts)
         const phone = ctx.wizard.state.phone;
         const [attemptRows] = await pool.query(
@@ -558,7 +556,7 @@ const bookingWizard = new Scenes.WizardScene(
         if (attempts > 3) {
           // Лимит, как у вас
           await ctx.reply(
-            texts[lang].too_many_attempts || "Слишком много попыток.",
+            "Слишком много попыток.",
             Markup.removeKeyboard()
           );
           return ctx.scene.leave();
@@ -570,10 +568,10 @@ const bookingWizard = new Scenes.WizardScene(
         );
 
         ctx.wizard.state.invoiceSent = false; // Разрешаем переотправку инвойса
-        await ctx.reply(texts[lang].retry_prompt || "Повторите оплату.");
+        await ctx.reply("Повторите оплату.");
         // Продолжаем шаг для отправки инвойса ниже
-      } else if (ctx.message?.text === texts[lang].cancel_text) {
-        await ctx.reply(texts[lang].booking_canceled, Markup.removeKeyboard());
+      } else if (ctx.message?.text === "Отмена") {
+        await ctx.reply("Запись отменена.", Markup.removeKeyboard());
         return ctx.scene.leave();
       }
 
@@ -585,7 +583,7 @@ const bookingWizard = new Scenes.WizardScene(
         ctx.wizard.state.invoicePayload = payload;
         ctx.wizard.state.invoiceSent = true;
 
-        await ctx.reply(texts[lang].pay_prompt || "Оплатите заявку:");
+        await ctx.reply("Оплатите заявку:");
 
         await ctx.telegram.sendInvoice(ctx.chat.id, {
           title: lang === "ru" ? "Оплата за заявку" : "Ariza uchun to'lov",
@@ -608,23 +606,23 @@ const bookingWizard = new Scenes.WizardScene(
 
         // Клавиатура ожидания
         await ctx.reply(
-          texts[lang].payment_wait || "Ожидайте завершения оплаты...",
+          "Ожидайте завершения оплаты...",
           Markup.keyboard([
-            [texts[lang].retry_payment || "Оплатить заново"],
-            [texts[lang].cancel_text || "Отмена"],
+            ["Оплатить заново"],
+            ["Отмена"],
           ]).resize()
         );
       } else {
         // Напоминание, если инвойс уже отправлен
         await ctx.reply(
-          texts[lang].payment_wait || "Завершите оплату в открывшемся окне."
+          "Завершите оплату в открывшемся окне."
         );
       }
 
       return; // Остаёмся на шаге до оплаты
     } catch (err) {
       console.error("Payment step error:", err);
-      await ctx.reply(texts[lang].error || "Ошибка оплаты.");
+      await ctx.reply("Ошибка оплаты.");
       return ctx.scene.leave();
     }
   },
