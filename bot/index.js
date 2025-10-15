@@ -1,4 +1,3 @@
-// index.js
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 require("dotenv").config();
 const pool = require("../db");
@@ -13,7 +12,6 @@ const {
   resetSessionAndScene,
 } = require("./helpers/helpers.js");
 const bodyParser = require("body-parser");
-const crypto = require('crypto');
 
 const {
   handleBookMeeting,
@@ -96,18 +94,6 @@ bot.start(async (ctx) => {
     const userId = ctx.from.id;
     const latestBooking = await getLatestBooking(userId);
     const latestNumber = await getLatestPendingOrApprovedId(userId);
-
-    // Check for pending paid booking to resume
-    if (latestBooking && latestBooking.colony === '24' && latestBooking.payment_status === 'paid' && !latestBooking.visit_type) {
-      ctx.wizard.state = {};
-      ctx.wizard.state.phone = latestBooking.phone_number;
-      ctx.wizard.state.colony = latestBooking.colony;
-      ctx.wizard.state.offer_accepted = true;
-      ctx.wizard.state.bookingId = latestBooking.id;
-      ctx.session.language = latestBooking.language;
-      await ctx.scene.enter("booking-wizard");
-      return ctx.wizard.selectStep(4); // Resume at visit type selection
-    }
 
     if (latestBooking && latestBooking.status !== "canceled") {
       let relatives = [];
@@ -298,27 +284,49 @@ const getInvoice = (id) => ({
   payload: `payload_${id}_${Date.now()}`, 
 });
 
-bot.command('pay', (ctx) => {
-  return ctx.replyWithInvoice({
-    title: 'Тестовая покупка',
-    description: 'Описание продукта',
-    payload: 'order-24',
-    provider_token: '333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3',
-    currency: 'UZS',
-    prices: [{ label: 'Товар', amount: 100000 }],
-    // need_name: true,
-    // need_phone_number: true,
-  });
+bot.command('bot', async (ctx) => {
+  const userId = ctx.from.id;
+  const payload = `payment_${userId}_${Date.now()}`; 
+
+  const providerData = {
+    service_id: 84549, // Из .env
+    merchant_id: 52682, // Добавьте в .env ваш merchant_id из Click
+    // Если нужно merchant_user_id или другие — добавьте
+  };
+
+  try {
+    await ctx.replyWithInvoice({
+      chat_id: userId,
+      title: 'Оплата услуги',
+      description: 'Тестовая оплата 1000 сум',
+      payload: payload,
+      provider_token: '333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3', // Для Click — пусто
+      currency: 'UZS',
+      prices: [{ label: 'Услуга', amount: 100000 }], // 1000 UZS в тиынах
+      provider_data: JSON.stringify(providerData),
+      need_name: false,
+      need_phone_number: true, // Если нужно собирать данные
+      need_shipping_address: false,
+      start_parameter: 'bot-payment',
+      // URL для Click
+      prepare_url: 'https://bot.test-dunyo.uz/prepare', // Ваша Prepare URL
+      complete_url: 'https://bot.test-dunyo.uz/complete', // Ваша Complete URL
+    });
+  } catch (err) {
+    console.error('Error sending invoice:', err);
+    await ctx.reply('Ошибка при создании инвойса.');
+  }
 });
 
-bot.on('pre_checkout_query', async (ctx) => {
+  bot.on('pre_checkout_query', async (ctx) => {
   await ctx.answerPreCheckoutQuery(true);
   console.log('✅ pre_checkout_query получен и подтверждён');
 });
 
-bot.on('successful_payment', (ctx) => {
+bot.on('successful_payment', async (ctx) => {
   console.log('💰 Оплата прошла успешно:', ctx.message.successful_payment);
-  ctx.reply('Спасибо за оплату!');
+  const payload = ctx.message.successful_payment.invoice_payload;
+    await ctx.reply('Спасибо за успешную оплату! Ваш платеж на 1000 сум подтвержден.'); // Ваше сообщение
 });
 
 
@@ -483,125 +491,55 @@ require("dotenv").config();
 
 const app = express();
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(bot.webhookCallback("/bot-webhook"));
 
 app.get("/", (req, res) => res.send("Bot server is alive"));
 
-// Return handler
-app.get("/return", async (req, res) => {
+// Prepare handler (Called by Click/TG for preparation)
+app.post('/prepare', async (req, res) => {
   try {
-    const trans = req.query.trans;
-    if (!trans) {
-      return res.send("<h1>Invalid request</h1>");
-    }
-    const parts = trans.split('_');
-    if (parts[0] !== 'booking' || parts.length !== 2) {
-      return res.send("<h1>Invalid transaction</h1>");
-    }
-    const bookingId = parseInt(parts[1]);
-    const [rows] = await pool.query("SELECT payment_status FROM bookings WHERE id = ?", [bookingId]);
-    if (rows.length && rows[0].payment_status === "paid") {
-      res.send(`<h1>Payment successful!</h1><p>Click <a href="https://t.me/${process.env.BOT_USERNAME}">here</a> to return to the bot.</p>`);
-    } else {
-      res.send("<h1>Payment failed or pending.</h1><p>Please check in the bot.</p>");
-    }
+    const { payload, amount, currency } = req.body; // Данные от Telegram/Click
+    if (amount !== 100000) return res.json({ error: 'Invalid amount' });
+
+    // Генерируем merchant_trans_id (связь с вашим заказом)
+    const merchant_trans_id = payload; // Используем payload от инвойса
+    const merchant_prepare_id = Date.now(); // Уникальный ID подготовки
+
+    // Сохраните в БД: payment_status = 'preparing', etc.
+    // await pool.query('INSERT INTO payments (payload, status) VALUES (?, ?)', [payload, 'preparing']);
+
+    res.json({
+      allow: true,
+      merchant_trans_id,
+      merchant_prepare_id,
+      // Другие поля по docs Click/TG
+    });
   } catch (err) {
-    console.error("Error in return handler:", err);
-    res.send("<h1>Error occurred</h1>");
+    console.error(err);
+    res.json({ error: 'Server error' });
   }
 });
 
-// CLICK callback handler
-app.post("/click_callback", async (req, res) => {
+// Complete handler (Called after payment)
+app.post('/complete', async (req, res) => {
   try {
-    const body = req.body;
-    const {
-      click_trans_id,
-      service_id,
-      merchant_trans_id,
-      amount,
-      action,
-      error,
-      error_note,
-      sign_time,
-      sign_string,
-      merchant_prepare_id,
-      click_paydoc_id,
-    } = body;
+    const { merchant_trans_id, merchant_prepare_id, error } = req.body;
 
-    if (service_id != process.env.CLICK_SERVICE_ID) {
-      return res.json({ error: -5, error_note: "Invalid service" });
+    if (error !== 0) {
+      // Update DB to failed
+      return res.json({ success: false });
     }
 
-    const secret_key = process.env.CLICK_SECRET_KEY;
-    let calculated_sign;
-    if (action == 0) {
-      calculated_sign = crypto
-        .createHash("md5")
-        .update(`${click_trans_id}${service_id}${secret_key}${merchant_trans_id}${amount}${action}${sign_time}`)
-        .digest("hex");
-    } else if (action == 1) {
-      calculated_sign = crypto
-        .createHash("md5")
-        .update(`${click_trans_id}${service_id}${secret_key}${merchant_trans_id}${merchant_prepare_id}${amount}${action}${sign_time}`)
-        .digest("hex");
-    } else {
-      return res.json({ error: -4, error_note: "Invalid action" });
-    }
+    // Update DB to paid по merchant_trans_id (payload)
+    // await pool.query('UPDATE payments SET status = "paid" WHERE payload = ?', [merchant_trans_id]);
 
-    if (calculated_sign !== sign_string) {
-      return res.json({ error: -8, error_note: "Sign check failed" });
-    }
+    // Здесь можно уведомить пользователя через bot.telegram.sendMessage(...)
 
-    const parts = merchant_trans_id.split('_');
-    if (parts[0] !== 'booking' || parts.length !== 2) {
-      return res.json({ error: -1, error_note: "Invalid trans id" });
-    }
-    const bookingId = parseInt(parts[1]);
-    const [rows] = await pool.query("SELECT * FROM bookings WHERE id = ? AND payment_status = 'pending'", [bookingId]);
-    if (!rows.length) {
-      return res.json({ error: -6, error_note: "Transaction not found" });
-    }
-
-    if (action == 0) {
-      if (parseFloat(amount) !== 1000.00) {
-        return res.json({ error: -2, error_note: "Invalid amount" });
-      }
-      return res.json({
-        click_trans_id,
-        merchant_trans_id,
-        merchant_prepare_id: bookingId,
-        error: 0,
-        error_note: "OK",
-      });
-    } else if (action == 1) {
-      if (error < 0) {
-        await pool.query("UPDATE bookings SET payment_status = 'failed' WHERE id = ?", [bookingId]);
-        return res.json({
-          click_trans_id,
-          merchant_trans_id,
-          merchant_confirm_id: bookingId,
-          error: -9,
-          error_note: "Canceled",
-        });
-      } else {
-        await pool.query("UPDATE bookings SET payment_status = 'paid', merchant_prepare_id = ? WHERE id = ?", [merchant_prepare_id, bookingId]);
-        const phone = rows[0].phone_number;
-        await pool.query("UPDATE users_attempts SET attempts = 0 WHERE phone_number = ?", [phone]);
-        return res.json({
-          click_trans_id,
-          merchant_trans_id,
-          merchant_confirm_id: bookingId,
-          error: 0,
-          error_note: "OK",
-        });
-      }
-    }
+    res.json({ success: true });
   } catch (err) {
-    console.error("Error in click_callback:", err);
-    res.json({ error: -1, error_note: "Server error" });
+    console.error(err);
+    res.json({ error: 'Server error' });
   }
 });
 

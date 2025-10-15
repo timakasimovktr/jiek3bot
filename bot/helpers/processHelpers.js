@@ -134,8 +134,7 @@ async function handleGroupJoin(ctx) {
     }
 
     const colony = latestBooking.colony;
-    let groupUrl =
-      `https://t.me/SmartJIEK${colony}` || "https://t.me/+qWg7Qh3t_OIxMDBi";
+    let groupUrl = `https://t.me/SmartJIEK${colony}` || "https://t.me/+qWg7Qh3t_OIxMDBi";
 
     await ctx.reply(
       texts[lang].group_join_prompt,
@@ -206,10 +205,9 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitNumber =
-      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestNumber =
-      explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id)); // Это colony_application_number
+      explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
 
     if (!latestNumber) {
       await ctx.reply(
@@ -219,9 +217,9 @@ async function handleCancelApplication(ctx) {
       return;
     }
 
-    // Поиск внутреннего id по внешнему номеру
+    // Изменено: поиск по colony_application_number, а не по id
     const [bookingRows] = await pool.query(
-      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ? AND status IN ('pending', 'approved')",
+      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
       [latestNumber, ctx.from.id]
     );
 
@@ -233,7 +231,8 @@ async function handleCancelApplication(ctx) {
       return;
     }
 
-    const bookingId = bookingRows[0].id; // Внутренний id для сессии
+    const bookingId = bookingRows[0].id;
+
     ctx.session.confirmCancel = true;
     ctx.session.confirmCancelId = bookingId;
 
@@ -306,15 +305,6 @@ async function handleYesCancel(ctx) {
       [bookingId, ctx.from.id]
     );
 
-    const booking = await getLatestBooking(ctx.from.id);
-    if (booking.colony === "24" && booking.payment_status === "paid") {
-      const phone = booking.phone_number;
-      await pool.query(
-        `INSERT INTO users_attempts (phone_number, attempts) VALUES (?, 1) ON DUPLICATE KEY UPDATE attempts = attempts + 1`,
-        [phone]
-      );
-    }
-
     if (result.affectedRows === 0) {
       console.log(
         `Deletion failed: No rows affected for bookingId=${bookingId}, user_id=${ctx.from.id}`
@@ -323,12 +313,10 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
-    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(
-      ctx.from.id
-    ); 
+    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(
       texts[lang].application_canceled,
-      buildMainMenu(lang, latestNumberAfterDelete) 
+      buildMainMenu(lang, latestNumberAfterDelete)
     );
 
     await resetSessionAndScene(ctx);
@@ -342,8 +330,7 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitNumber =
-      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestNumber =
       explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
 
