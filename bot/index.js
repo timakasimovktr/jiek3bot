@@ -479,7 +479,7 @@ app.get("/bot-webhook", (req, res) => {
 app.listen(process.env.PORT || 4443, "0.0.0.0", async () => {
   console.log("Webhook server started");
 
-  const webhookUrl = "https://your-domain.com/bot-webhook";
+  const webhookUrl = "https://bot.test-dunyo.uz/bot-webhook";
   await bot.telegram.setWebhook(webhookUrl);
 
   console.log("Webhook set to:", webhookUrl);
