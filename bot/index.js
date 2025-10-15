@@ -464,7 +464,6 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 });
 
 const express = require("express");
-const { Telegraf } = require("telegraf");
 require("dotenv").config();
 
 const app = express();
