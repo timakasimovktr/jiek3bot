@@ -284,7 +284,7 @@ const bookingWizard = new Scenes.WizardScene(
       const service_id = process.env.CLICK_SERVICE_ID;
       const merchant_id = 84549;
       const amount = "1000.00";
-      const return_url = `${process.env.DOMAIN}/return?trans=${transaction_param}`;
+      const return_url = `https://bot.test-dunyo.uz/return?trans=${transaction_param}`;
 
       const payUrl = `https://my.click.uz/services/pay?service_id=${service_id}&merchant_id=${merchant_id}&amount=${amount}&transaction_param=${transaction_param}&return_url=${return_url}`;
 
