@@ -470,14 +470,7 @@ require("dotenv").config();
 const app = express();
 app.use(bodyParser.json());
 
-app.post("/bot-webhook", (req, res) => {
-  bot.handleUpdate(req.body)
-    .then(() => res.sendStatus(200))
-    .catch((err) => {
-      console.error("Error handling update:", err);
-      res.sendStatus(500);
-    });
-});
+app.use(bot.webhookCallback("/bot-webhook"));
 
 app.get("/", (req, res) => res.send("Bot server is alive"));
 
