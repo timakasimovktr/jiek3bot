@@ -318,9 +318,9 @@ bot.command('bot', async (ctx) => {
   }
 });
 
-  bot.on('pre_checkout_query', async (ctx) => {
-  await ctx.answerPreCheckoutQuery(true);
-  console.log('✅ pre_checkout_query получен и подтверждён');
+bot.on('pre_checkout_query', (ctx) => {
+  ctx.answerPreCheckoutQuery(true);  // Без await — это Promise, но Telegram ожидает немедленный ответ
+  console.log('✅ pre_checkout_query получен и подтверждён');  // Лог после, но не внутри
 });
 
 bot.on('successful_payment', async (ctx) => {
