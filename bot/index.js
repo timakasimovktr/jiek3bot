@@ -276,7 +276,7 @@ bot.hears(texts.ru.yes, async (ctx) => handleYesCancel(ctx));
 const getInvoice = (id) => {
   const invoice = {
     chat_id: id, 
-    provider_token: '333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3', 
+    provider_token: '371317599:TEST:1760526566768', 
     start_parameter: "get_access",
     title: "InvoiceTitle", 
     description: "InvoiceDescription",
@@ -287,7 +287,7 @@ const getInvoice = (id) => {
     photo_height: 281, 
     payload: {
       unique_id: `${id}_${Number(new Date())}`,
-      provider_token: '333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3',
+      provider_token: '371317599:TEST:1760526566768',
     },
   };
 
@@ -467,20 +467,17 @@ const app = express();
 app.use(express.json());
 app.use(bot.webhookCallback("/bot-webhook"));
 
-// Обработка GET для health-check Telegram (вернёт 200 OK)
 app.get("/bot-webhook", (req, res) => {
   console.log("Webhook health-check GET from Telegram or user");
-  res.status(200).send("OK"); // Простой текст, без HTML
+  res.status(200).send("OK"); 
 });
 
-// Обработка POST от Telegram (обновления)
 app.post("/bot-webhook", (req, res) => {
   console.log("Incoming POST update from Telegram");
   console.log("Raw POST body:", JSON.stringify(req.body));
-  bot.webhookCallback("/bot-webhook")(req, res); // Явный callback для логов
+  bot.webhookCallback("/bot-webhook")(req, res); 
 });
 
-// Catch-all для других маршрутов (опционально, чтобы не было дефолтного HTML 404)
 app.use((req, res) => {
   res.status(404).send("Not Found");
 });
