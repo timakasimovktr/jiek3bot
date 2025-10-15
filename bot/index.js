@@ -273,40 +273,39 @@ bot.hears(texts.uzl.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.uz.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.ru.yes, async (ctx) => handleYesCancel(ctx));
 
-const getInvoice = (id) => {
-  const invoice = {
-    chat_id: id, 
-    provider_token: '333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3', 
-    start_parameter: "get_access",
-    title: "InvoiceTitle", 
-    description: "InvoiceDescription",
-    currency: "UZS", 
-    prices: [{ label: "Invoice Title", amount: 1000 * 100 }], 
-    photo_url: "./images/pay.png", 
-    photo_width: 500, 
-    photo_height: 281, 
-    payload: {
-      unique_id: `${id}_${Number(new Date())}`,
-      provider_token: '333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3',
-    },
-  };
-
-  return invoice;
-};
-
-bot.use(Telegraf.log());
-
-bot.hears("pay", async (ctx) => {
-  return ctx.replyWithInvoice(getInvoice(ctx.from.id));
+const getInvoice = (id) => ({
+  chat_id: id,
+  start_parameter: "get_access",
+  title: "InvoiceTitle",
+  description: "InvoiceDescription",
+  currency: "UZS",
+  prices: [{ label: "Invoice Title", amount: 1000 * 100 }],
+  payload: `payload_${id}_${Date.now()}`, 
 });
 
-
-
-bot.on("pre_checkout_query", (ctx) => ctx.answerPreCheckoutQuery(true));
-
-bot.on("successful_payment", async (ctx, next) => {
-  await ctx.reply("SuccessfulPayment");
+bot.command('pay', (ctx) => {
+  return ctx.replyWithInvoice({
+    title: 'Тестовая покупка',
+    description: 'Описание продукта',
+    payload: 'order-24',
+    provider_token: '333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3',
+    currency: 'UZS',
+    prices: [{ label: 'Товар', amount: 100000 }],
+    // need_name: true,
+    // need_phone_number: true,
+  });
 });
+
+bot.on('pre_checkout_query', async (ctx) => {
+  await ctx.answerPreCheckoutQuery(true);
+  console.log('✅ pre_checkout_query получен и подтверждён');
+});
+
+bot.on('successful_payment', (ctx) => {
+  console.log('💰 Оплата прошла успешно:', ctx.message.successful_payment);
+  ctx.reply('Спасибо за оплату!');
+});
+
 
 bot.on(message("text"), async (ctx, next) => {
   try {
@@ -465,25 +464,25 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 });
 
 const express = require("express");
+const { Telegraf } = require("telegraf");
+require("dotenv").config();
+
 const app = express();
+
 app.use(express.json());
-app.use(bot.webhookCallback("/bot-webhook"));
+
+app.post("/bot-webhook", bot.webhookCallback("/bot-webhook"));
 
 app.get("/bot-webhook", (req, res) => {
-  console.log("Webhook health-check GET from Telegram or user");
-  res.status(200).send("OK"); 
-});
-
-app.post("/bot-webhook", (req, res) => {
-  console.log("Incoming POST update from Telegram");
-  console.log("Raw POST body:", JSON.stringify(req.body));
-  bot.webhookCallback("/bot-webhook")(req, res); 
-});
-
-app.use((req, res) => {
-  res.status(404).send("Not Found");
+  res.status(200).send("OK");
 });
 
 app.listen(process.env.PORT || 4443, "0.0.0.0", async () => {
   console.log("Webhook server started");
+
+  const webhookUrl = "https://your-domain.com/bot-webhook";
+  await bot.telegram.setWebhook(webhookUrl);
+
+  console.log("Webhook set to:", webhookUrl);
 });
+
