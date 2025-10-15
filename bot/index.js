@@ -276,7 +276,7 @@ bot.hears(texts.ru.yes, async (ctx) => handleYesCancel(ctx));
 const getInvoice = (id) => {
   const invoice = {
     chat_id: id, 
-    provider_token: '371317599:TEST:1760526566768', 
+    provider_token: '333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3', 
     start_parameter: "get_access",
     title: "InvoiceTitle", 
     description: "InvoiceDescription",
@@ -287,7 +287,7 @@ const getInvoice = (id) => {
     photo_height: 281, 
     payload: {
       unique_id: `${id}_${Number(new Date())}`,
-      provider_token: '371317599:TEST:1760526566768',
+      provider_token: '333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3',
     },
   };
 
