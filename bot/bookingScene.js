@@ -212,7 +212,7 @@ const bookingWizard = new Scenes.WizardScene(
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
 
-    const service_id = 84549; 
+    const service_id = 82170; 
     const amount = 100000;
     const transaction_param = `colony_${ctx.wizard.state.colony}_user_${ctx.from.id}_${Date.now()}`;
     const return_url = 'https://t.me/smartdunyomeetbot';
