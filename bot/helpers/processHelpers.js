@@ -276,7 +276,7 @@ async function handleYesCancel(ctx) {
     ctx.session.confirmCancelId = null;
 
     const [bookingsRows] = await pool.query(
-      "SELECT colony, relatives, colony_application_number FROM bookings WHERE id = ? AND user_id = ?",
+      "SELECT colony, relatives, colony_application_number, payment_status, phone_number FROM bookings WHERE id = ? AND user_id = ? AND status IN ('pending', 'approved')",
       [bookingId, ctx.from.id]
     );
 
@@ -285,14 +285,15 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
-    const colony = bookingsRows[0].colony;
-    const colonyApplicationNumber = bookingsRows[0].colony_application_number;
+    const booking = bookingsRows[0]; // Теперь используем актуальные данные из SELECT
+    const colony = booking.colony;
+    const colonyApplicationNumber = booking.colony_application_number;
     let bookingName =
       lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum";
 
-    if (bookingsRows[0].relatives) {
+    if (booking.relatives) {
       try {
-        const relatives = JSON.parse(bookingsRows[0].relatives);
+        const relatives = JSON.parse(booking.relatives);
         if (Array.isArray(relatives) && relatives.length > 0) {
           bookingName = relatives[0].full_name || bookingName;
         }
@@ -301,13 +302,14 @@ async function handleYesCancel(ctx) {
       }
     }
 
+    // Используем UPDATE для смены статуса вместо DELETE (чтобы сохранить запись и номер)
     const [result] = await pool.query(
-      "DELETE FROM bookings WHERE id = ? AND user_id = ?",
+      "UPDATE bookings SET status = 'canceled', updated_at = NOW() WHERE id = ? AND user_id = ? AND status IN ('pending', 'approved')",
       [bookingId, ctx.from.id]
     );
 
-    const booking = await getLatestBooking(ctx.from.id);
-    if (booking.colony === "24" && booking.payment_status === "paid") {
+    // Логика возврата попытки: проверяем по colony из SELECT и payment_status
+    if (PAID_COLONIES.includes(colony) && booking.payment_status === "paid") { // Добавьте импорт const { PAID_COLONIES } = require("../path/to/bookingScene"); если нужно, или хардкод ['24']
       const phone = booking.phone_number;
       await pool.query(
         `INSERT INTO users_attempts (phone_number, attempts) VALUES (?, 1) ON DUPLICATE KEY UPDATE attempts = attempts + 1`,
@@ -317,7 +319,7 @@ async function handleYesCancel(ctx) {
 
     if (result.affectedRows === 0) {
       console.log(
-        `Deletion failed: No rows affected for bookingId=${bookingId}, user_id=${ctx.from.id}`
+        `Cancel failed: No rows affected for bookingId=${bookingId}, user_id=${ctx.from.id}`
       );
       await resetSessionAndScene(ctx);
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
