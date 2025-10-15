@@ -476,7 +476,7 @@ app.get("/bot-webhook", (req, res) => {
   res.status(200).send("OK");
 });
 
-app.listen(process.env.PORT || 4443, "0.0.0.0", async () => {
+app.listen(4443, "0.0.0.0", async () => {
   console.log("Webhook server started");
 
   const webhookUrl = "https://bot.test-dunyo.uz/bot-webhook";
