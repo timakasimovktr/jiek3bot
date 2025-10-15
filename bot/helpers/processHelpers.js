@@ -275,7 +275,7 @@ async function handleYesCancel(ctx) {
     ctx.session.confirmCancelId = null;
 
     const [bookingsRows] = await pool.query(
-      "SELECT colony, relatives, colony_application_number FROM bookings WHERE id = ? AND user_id = ?",
+      "SELECT colony, relatives, colony_application_number, payment_status, phone_number FROM bookings WHERE id = ? AND user_id = ?",
       [bookingId, ctx.from.id]
     );
 
@@ -286,6 +286,8 @@ async function handleYesCancel(ctx) {
 
     const colony = bookingsRows[0].colony;
     const colonyApplicationNumber = bookingsRows[0].colony_application_number;
+    const payment_status = bookingsRows[0].payment_status;
+    const phone = bookingsRows[0].phone_number;
     let bookingName =
       lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum";
 
@@ -311,6 +313,13 @@ async function handleYesCancel(ctx) {
       );
       await resetSessionAndScene(ctx);
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
+    }
+
+    if (paidColonies.includes(colony) && payment_status === 'paid') {
+      await pool.query(
+        "UPDATE users_attempts SET attempts = attempts + 1 WHERE phone_number = ?",
+        [phone]
+      );
     }
 
     const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);

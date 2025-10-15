@@ -44,73 +44,92 @@ async function showSummary(ctx) {
 
 async function saveBooking(ctx) {
   const lang = ctx.session.language;
-  const { prisoner_name, relatives, visit_type, colony } = ctx.wizard.state;
+  const userId = ctx.from.id;
   const chatId = ctx.chat.id;
 
   try {
-    const [maxNumberRows] = await pool.query(
-      `SELECT MAX(colony_application_number) as max_number FROM bookings WHERE colony = ?`,
-      [colony]
+    const phone = ctx.wizard.state.phone;
+    const colony = ctx.wizard.state.colony;
+    const visit_type = ctx.wizard.state.visit_type;
+    const prisoner_name = ctx.wizard.state.prisoner_name.toUpperCase();
+    const relatives = JSON.stringify(ctx.wizard.state.relatives.map(rel => ({
+      full_name: rel.full_name.toUpperCase(),
+      passport: rel.passport || "AC1234567" // Или генерируйте паспорт, если нужно
+    })));
+
+    let bookingId = ctx.wizard.state.bookingId; // Если возобновляем после оплаты
+
+    if (bookingId) {
+      // Обновляем существующую запись после оплаты
+      await pool.query(
+        `UPDATE bookings 
+         SET visit_type = ?, prisoner_name = ?, relatives = ?, status = 'pending', language = ?
+         WHERE id = ? AND user_id = ? AND payment_status = 'paid'`,
+        [visit_type, prisoner_name, relatives, lang, bookingId, userId]
+      );
+
+      // Проверяем, обновилось ли
+      const [updatedRows] = await pool.query(
+        "SELECT id FROM bookings WHERE id = ? AND status = 'pending'",
+        [bookingId]
+      );
+      if (!updatedRows.length) {
+        await ctx.reply(texts[lang].error_occurred);
+        return ctx.scene.leave();
+      }
+    } else {
+      // Создаём новую запись (для неплатных колоний или после оплаты)
+      const payment_status = paidColonies.includes(colony) ? 'paid' : 'not_required'; // Если нужно отличать
+      const [insertResult] = await pool.query(
+        `INSERT INTO bookings 
+         (user_id, telegram_chat_id, phone_number, colony, visit_type, prisoner_name, relatives, language, status, payment_status) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+        [userId, chatId, phone, colony, visit_type, prisoner_name, relatives, lang, payment_status]
+      );
+      bookingId = insertResult.insertId;
+    }
+
+    // Генерация номера заявки в колонии (colony_application_number)
+    // Предполагаем, что есть логика генерации уникального номера для каждой колонии
+    const applicationNumber = await generateApplicationNumber(colony); // Реализуйте эту функцию отдельно
+    await pool.query(
+      "UPDATE bookings SET colony_application_number = ? WHERE id = ?",
+      [applicationNumber, bookingId]
     );
-    const maxNumber = maxNumberRows[0].max_number || 0;
-    const newColonyApplicationNumber = maxNumber + 1;
 
-    const [result] = await pool.query(
-      `INSERT INTO bookings (user_id, phone_number, visit_type, prisoner_name, relatives, colony, status, telegram_chat_id, colony_application_number, language)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
-      [
-        ctx.from.id,
-        ctx.wizard.state.phone,
-        visit_type,
-        prisoner_name,
-        JSON.stringify(relatives),
-        colony,
-        chatId,
-        newColonyApplicationNumber,
-        lang,
-      ]
-    );
+    // Здесь добавьте дополнительную логику: отправка в очередь, уведомления админам и т.д.
+    // Например, расчет позиции в очереди или сохранение в другую таблицу
 
-    const bookingId = result.insertId;
+    const latestNumber = applicationNumber; // Или используйте getLatestPendingOrApprovedId если нужно
 
-    await ctx.scene.leave();
-    await sendApplicationToClient(ctx, {
-      relatives,
-      prisoner: prisoner_name,
-      id: newColonyApplicationNumber,
-      visit_type,
-      colony,
-      lang,
-      telegram_id: ctx.from.id,
-    });
-
-    const [rows] = await pool.query(
-      `SELECT * FROM bookings WHERE status = 'pending' AND colony = ? ORDER BY colony_application_number ASC`,
-      [colony]
-    );
-    const myIndex = rows.findIndex((b) => b.id === bookingId);
-    const position = myIndex + 1;
+    // Показываем summary или подтверждение
+    let relativesList = ctx.wizard.state.relatives.map((rel, index) => 
+      `${index + 1}. ${rel.full_name}`
+    ).join('\n');
 
     await ctx.reply(
-      texts[lang].booking_saved(position),
-      Markup.keyboard([
-        [texts[lang].queue_status],
-        [texts[lang].cancel_application(newColonyApplicationNumber)],
-      ])
-        .resize()
-        .oneTime(false)
+      texts[lang].booking_summary
+        .replace("{colony}", colony)
+        .replace("{visit_type}", visit_type === 'short' ? texts[lang].short_visit : texts[lang].long_visit)
+        .replace("{prisoner}", prisoner_name)
+        .replace("{relatives}", relativesList)
+        .replace("{number}", latestNumber),
+      buildMainMenu(lang, latestNumber)
     );
 
-    const groupUrl = `https://t.me/SmartJIEK${colony}`;
-    await ctx.reply(
-      texts[lang].join_group,
-      Markup.inlineKeyboard([
-        [Markup.button.url(texts[lang].group_button, groupUrl)],
-      ])
-    );
+    // Уведомление об успехе
+    await ctx.reply(texts[lang].booking_saved);
+
+    // Если это платная колония, можно сбросить attempts или другую логику
+    if (paidColonies.includes(colony)) {
+      // Уже обработано в callback
+    }
+
+    return ctx.scene.leave();
   } catch (err) {
     console.error("Error in saveBooking:", err);
-    await ctx.reply(texts[lang].error);
+    await ctx.reply(texts[lang].error_occurred);
+    return ctx.scene.leave();
   }
 }
 

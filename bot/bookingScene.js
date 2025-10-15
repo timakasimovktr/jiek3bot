@@ -9,6 +9,8 @@ const {
 } = require("./helpers/bookingUtils.js");
 const { MAX_RELATIVES } = require("./constants/config.js");
 
+const paidColonies = ['24'];
+
 const bookingWizard = new Scenes.WizardScene(
   "booking-wizard",
 
@@ -211,34 +213,91 @@ const bookingWizard = new Scenes.WizardScene(
 
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
+    const colony = ctx.wizard.state.colony;
 
-    if (ctx.wizard.state.colony === "24") {
+    if (!paidColonies.includes(colony)) {
+      ctx.wizard.state.relatives = [];
+      ctx.wizard.state.currentRelative = {};
+      ctx.wizard.state.prisoner_name = null;
+      ctx.wizard.state.visit_type = null;
+
       await ctx.reply(
-        "Вы выбрали 24-ю колонию. Чтобы продолжить, нажмите кнопку ниже 👇",
-        // Markup.keyboard([["Оплатить"]]).resize()
-        // go to website to pay
-        // Markup.inlineKeyboard([
-        //   Markup.button.url("Оплатить", `https://my.click.uz/services/pay?service_id=${service_id}&merchant_id=${merchant_id}&amount=${amount}&transaction_param=${transaction_param}&return_url=${return_url}`),
-        // ])  
+        texts[lang].select_visit_type,
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(texts[lang].short_visit, "short"),
+            Markup.button.callback(texts[lang].long_visit, "long"),
+          ],
+        ])
       );
-      return ctx.scene.leave();
+      return ctx.wizard.next();
     }
 
-    ctx.wizard.state.relatives = [];
-    ctx.wizard.state.currentRelative = {};
-    ctx.wizard.state.prisoner_name = null;
-    ctx.wizard.state.visit_type = null;
-
-    await ctx.reply(
-      texts[lang].select_visit_type,
-      Markup.inlineKeyboard([
-        [
-          Markup.button.callback(texts[lang].short_visit, "short"),
-          Markup.button.callback(texts[lang].long_visit, "long"),
-        ],
-      ])
+    // Handle paid colony
+    const phone = ctx.wizard.state.phone;
+    let [attemptRows] = await pool.query(
+      "SELECT attempts FROM users_attempts WHERE phone_number = ?",
+      [phone]
     );
-    return ctx.wizard.next();
+    let attempts = attemptRows.length ? attemptRows[0].attempts : 0;
+
+    if (!attemptRows.length) {
+      await pool.query(
+        "INSERT INTO users_attempts (phone_number, attempts) VALUES (?, 0)",
+        [phone]
+      );
+    }
+
+    const [paidRows] = await pool.query(
+      "SELECT id FROM bookings WHERE phone_number = ? AND colony = ? AND payment_status = 'paid'",
+      [phone, colony]
+    );
+    const hasPaidBefore = paidRows.length > 0;
+
+    if (hasPaidBefore && attempts < 2) {
+      // Proceed without payment
+      ctx.wizard.state.relatives = [];
+      ctx.wizard.state.currentRelative = {};
+      ctx.wizard.state.prisoner_name = null;
+      ctx.wizard.state.visit_type = null;
+
+      await ctx.reply(
+        texts[lang].select_visit_type,
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(texts[lang].short_visit, "short"),
+            Markup.button.callback(texts[lang].long_visit, "long"),
+          ],
+        ])
+      );
+      return ctx.wizard.next();
+    } else {
+      // Require payment
+      // Create pending booking
+      const [insertResult] = await pool.query(
+        "INSERT INTO bookings (user_id, telegram_chat_id, phone_number, colony, payment_status, language) VALUES (?, ?, ?, ?, 'pending', ?)",
+        [ctx.from.id, ctx.chat.id, phone, colony, lang]
+      );
+      const bookingId = insertResult.insertId;
+      const transaction_param = `booking_${bookingId}`;
+
+      const service_id = process.env.CLICK_SERVICE_ID;
+      const merchant_id = 84549;
+      const amount = "1000.00";
+      const return_url = `${process.env.DOMAIN}/return?trans=${transaction_param}`;
+
+      const payUrl = `https://my.click.uz/services/pay?service_id=${service_id}&merchant_id=${merchant_id}&amount=${amount}&transaction_param=${transaction_param}&return_url=${return_url}`;
+
+      await ctx.reply(
+        "Вы выбрали 24-ю колонию. Чтобы продолжить, оплатите по ссылке ниже 👇",
+        Markup.inlineKeyboard([
+          Markup.button.url("Оплатить", payUrl),
+        ])
+      );
+
+      // Leave scene, user will return after payment
+      return ctx.scene.leave();
+    }
   },
 
   // Step 4: Select visit type

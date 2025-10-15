@@ -1,3 +1,4 @@
+// index.js
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 require("dotenv").config();
 const pool = require("../db");
@@ -12,6 +13,7 @@ const {
   resetSessionAndScene,
 } = require("./helpers/helpers.js");
 const bodyParser = require("body-parser");
+const crypto = require('crypto');
 
 const {
   handleBookMeeting,
@@ -94,6 +96,18 @@ bot.start(async (ctx) => {
     const userId = ctx.from.id;
     const latestBooking = await getLatestBooking(userId);
     const latestNumber = await getLatestPendingOrApprovedId(userId);
+
+    // Check for pending paid booking to resume
+    if (latestBooking && latestBooking.colony === '24' && latestBooking.payment_status === 'paid' && !latestBooking.visit_type) {
+      ctx.wizard.state = {};
+      ctx.wizard.state.phone = latestBooking.phone_number;
+      ctx.wizard.state.colony = latestBooking.colony;
+      ctx.wizard.state.offer_accepted = true;
+      ctx.wizard.state.bookingId = latestBooking.id;
+      ctx.session.language = latestBooking.language;
+      await ctx.scene.enter("booking-wizard");
+      return ctx.wizard.selectStep(4); // Resume at visit type selection
+    }
 
     if (latestBooking && latestBooking.status !== "canceled") {
       let relatives = [];
@@ -469,10 +483,127 @@ require("dotenv").config();
 
 const app = express();
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(bot.webhookCallback("/bot-webhook"));
 
 app.get("/", (req, res) => res.send("Bot server is alive"));
+
+// Return handler
+app.get("/return", async (req, res) => {
+  try {
+    const trans = req.query.trans;
+    if (!trans) {
+      return res.send("<h1>Invalid request</h1>");
+    }
+    const parts = trans.split('_');
+    if (parts[0] !== 'booking' || parts.length !== 2) {
+      return res.send("<h1>Invalid transaction</h1>");
+    }
+    const bookingId = parseInt(parts[1]);
+    const [rows] = await pool.query("SELECT payment_status FROM bookings WHERE id = ?", [bookingId]);
+    if (rows.length && rows[0].payment_status === "paid") {
+      res.send(`<h1>Payment successful!</h1><p>Click <a href="https://t.me/${process.env.BOT_USERNAME}">here</a> to return to the bot.</p>`);
+    } else {
+      res.send("<h1>Payment failed or pending.</h1><p>Please check in the bot.</p>");
+    }
+  } catch (err) {
+    console.error("Error in return handler:", err);
+    res.send("<h1>Error occurred</h1>");
+  }
+});
+
+// CLICK callback handler
+app.post("/click_callback", async (req, res) => {
+  try {
+    const body = req.body;
+    const {
+      click_trans_id,
+      service_id,
+      merchant_trans_id,
+      amount,
+      action,
+      error,
+      error_note,
+      sign_time,
+      sign_string,
+      merchant_prepare_id,
+      click_paydoc_id,
+    } = body;
+
+    if (service_id != process.env.CLICK_SERVICE_ID) {
+      return res.json({ error: -5, error_note: "Invalid service" });
+    }
+
+    const secret_key = process.env.CLICK_SECRET_KEY;
+    let calculated_sign;
+    if (action == 0) {
+      calculated_sign = crypto
+        .createHash("md5")
+        .update(`${click_trans_id}${service_id}${secret_key}${merchant_trans_id}${amount}${action}${sign_time}`)
+        .digest("hex");
+    } else if (action == 1) {
+      calculated_sign = crypto
+        .createHash("md5")
+        .update(`${click_trans_id}${service_id}${secret_key}${merchant_trans_id}${merchant_prepare_id}${amount}${action}${sign_time}`)
+        .digest("hex");
+    } else {
+      return res.json({ error: -4, error_note: "Invalid action" });
+    }
+
+    if (calculated_sign !== sign_string) {
+      return res.json({ error: -8, error_note: "Sign check failed" });
+    }
+
+    const parts = merchant_trans_id.split('_');
+    if (parts[0] !== 'booking' || parts.length !== 2) {
+      return res.json({ error: -1, error_note: "Invalid trans id" });
+    }
+    const bookingId = parseInt(parts[1]);
+    const [rows] = await pool.query("SELECT * FROM bookings WHERE id = ? AND payment_status = 'pending'", [bookingId]);
+    if (!rows.length) {
+      return res.json({ error: -6, error_note: "Transaction not found" });
+    }
+
+    if (action == 0) {
+      if (parseFloat(amount) !== 1000.00) {
+        return res.json({ error: -2, error_note: "Invalid amount" });
+      }
+      return res.json({
+        click_trans_id,
+        merchant_trans_id,
+        merchant_prepare_id: bookingId,
+        error: 0,
+        error_note: "OK",
+      });
+    } else if (action == 1) {
+      if (error < 0) {
+        await pool.query("UPDATE bookings SET payment_status = 'failed' WHERE id = ?", [bookingId]);
+        return res.json({
+          click_trans_id,
+          merchant_trans_id,
+          merchant_confirm_id: bookingId,
+          error: -9,
+          error_note: "Canceled",
+        });
+      } else {
+        await pool.query("UPDATE bookings SET payment_status = 'paid', merchant_prepare_id = ? WHERE id = ?", [merchant_prepare_id, bookingId]);
+        const phone = rows[0].phone_number;
+        await pool.query("UPDATE users_attempts SET attempts = 0 WHERE phone_number = ?", [phone]);
+        return res.json({
+          click_trans_id,
+          merchant_trans_id,
+          merchant_confirm_id: bookingId,
+          error: 0,
+          error_note: "OK",
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error in click_callback:", err);
+    res.json({ error: -1, error_note: "Server error" });
+  }
+});
 
 app.listen(4443, "0.0.0.0", () => {
   console.log("✅ Bot server running on port 4443");
