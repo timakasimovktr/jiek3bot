@@ -13,6 +13,9 @@ const path = require("path");
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 
+// Добавляем массив платных колоний здесь (дублируем из bookingScene для независимости)
+const PAID_COLONIES = ['24']; // Добавляйте/убирайте по необходимости
+
 // === handleBookMeeting ===
 async function handleBookMeeting(ctx) {
   try {
@@ -27,9 +30,9 @@ async function handleBookMeeting(ctx) {
       await ctx.reply(
         texts[ctx.session.language || "uzl"].language_prompt,
         Markup.inlineKeyboard([
-          [Markup.button.callback("🇺🇿 O‘zbekcha (lotin)", "lang_uzl")],
-          [Markup.button.callback("🇺🇿 Ўзбекча (кирилл)", "lang_uz")],
-          [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
+          [Markup.button.callback("O‘zbekcha (lotin)", "lang_uzl")],
+          [Markup.button.callback("Ўзбекча (кирилл)", "lang_uz")],
+          [Markup.button.callback("Русский", "lang_ru")],
         ])
       );
     } else {
@@ -309,7 +312,7 @@ async function handleYesCancel(ctx) {
     );
 
     // Логика возврата попытки: проверяем по colony из SELECT и payment_status
-    if (PAID_COLONIES.includes(colony) && booking.payment_status === "paid") { // Добавьте импорт const { PAID_COLONIES } = require("../path/to/bookingScene"); если нужно, или хардкод ['24']
+    if (PAID_COLONIES.includes(colony) && booking.payment_status === "paid") {
       const phone = booking.phone_number;
       await pool.query(
         `INSERT INTO users_attempts (phone_number, attempts) VALUES (?, 1) ON DUPLICATE KEY UPDATE attempts = attempts + 1`,
@@ -336,52 +339,6 @@ async function handleYesCancel(ctx) {
     await resetSessionAndScene(ctx);
   } catch (err) {
     console.error("Error in yes cancel:", err);
-    await ctx.reply(texts[ctx.session.language].error_occurred);
-  }
-}
-
-async function handleCancelApplication(ctx) {
-  try {
-    const lang = ctx.session.language;
-    await resetSessionAndScene(ctx);
-    const explicitNumber =
-      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
-    const latestNumber =
-      explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
-
-    if (!latestNumber) {
-      await ctx.reply(
-        texts[lang].new_booking_prompt,
-        buildMainMenu(lang, null)
-      );
-      return;
-    }
-
-    // Изменено: поиск по colony_application_number, а не по id
-    const [bookingRows] = await pool.query(
-      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
-      [latestNumber, ctx.from.id]
-    );
-
-    if (!bookingRows.length) {
-      await ctx.reply(
-        texts[lang].booking_not_found_or_canceled,
-        buildMainMenu(lang, null)
-      );
-      return;
-    }
-
-    const bookingId = bookingRows[0].id;
-
-    ctx.session.confirmCancel = true;
-    ctx.session.confirmCancelId = bookingId;
-
-    await ctx.reply(
-      texts[lang].cancel_confirm,
-      Markup.keyboard([[texts[lang].yes, texts[lang].no]]).resize()
-    );
-  } catch (err) {
-    console.error("Error in cancel application:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
