@@ -216,6 +216,7 @@ const bookingWizard = new Scenes.WizardScene(
     const amount = 100000;
     const transaction_param = `colony_${ctx.wizard.state.colony}_user_${ctx.from.id}_${Date.now()}`;
     const return_url = 'https://t.me/smartdunyomeetbot';
+    const merchant_id = 33635;
 
     if (ctx.wizard.state.colony === "24") {
       await ctx.reply(
@@ -223,7 +224,7 @@ const bookingWizard = new Scenes.WizardScene(
         // Markup.keyboard([["Оплатить"]]).resize()
         // go to website to pay
         Markup.inlineKeyboard([
-          Markup.button.url("Оплатить", `https://my.click.uz/services/pay?service_id=${service_id}&amount=${amount}&transaction_param=${transaction_param}&return_url=${return_url}`),
+          Markup.button.url("Оплатить", `https://my.click.uz/services/pay?service_id=${service_id}&merchant_id=${merchant_id}&amount=${amount}&transaction_param=${transaction_param}&return_url=${return_url}`),
         ])  
       );
       return ctx.scene.leave();
