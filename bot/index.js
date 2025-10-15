@@ -5,6 +5,7 @@ const pool = require("../db");
 const bookingWizard = require("./bookingScene");
 const { message } = require("telegraf/filters");
 const texts = require("./texts.js");
+const crypto = require("crypto");
 const {
   getLatestPendingOrApprovedId,
   getLatestBooking,
@@ -457,6 +458,8 @@ app.post("/click", async (req, res) => {
 
   const trans_id = params.merchant_trans_id; // booking_id
 
+  console.log(`Payment success for booking ${trans_id}, notifying user ${booking.telegram_chat_id}`);
+
   try {
     const [rows] = await pool.query(
       'SELECT * FROM bookings WHERE id = ? AND payment_status = "pending"',
@@ -533,10 +536,11 @@ app.post("/click", async (req, res) => {
 
 // Payment return page to close web app
 app.get("/payment_return", (req, res) => {
+  const bookingId = req.query.booking_id || '';
   res.send(`
     <html>
       <body>
-        <h1>Payment processed</h1>
+        <h1>Payment processed for booking #${bookingId}</h1>
         <script>
           if (window.Telegram && Telegram.WebApp) {
             Telegram.WebApp.close();
@@ -558,7 +562,6 @@ app.get("/", (req, res) => res.send("Bot server is alive"));
     console.error("❌ Error setting webhook:", err);
   }
 })();
-
 
 app.listen(4443, "0.0.0.0", () => {
   console.log("✅ Bot server running on port 4443");

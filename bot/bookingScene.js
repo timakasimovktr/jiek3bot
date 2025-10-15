@@ -10,7 +10,7 @@ const {
 // const { MAX_RELATIVES } = require("./constants/config.js");  // Не используется теперь
 
 // Добавлен массив платных колоний — легко добавлять/убирать
-const PAID_COLONIES = ['24']; // Добавляйте/убирайте ID колоний здесь, например ['24', '25']
+const PAID_COLONIES = ["24"]; // Добавляйте/убирайте ID колоний здесь, например ['24', '25']
 
 const bookingWizard = new Scenes.WizardScene(
   "booking-wizard",
@@ -202,8 +202,6 @@ const bookingWizard = new Scenes.WizardScene(
       `Step 3: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
     );
 
-    const data = ctx.callbackQuery?.data;
-
     if (
       !ctx.callbackQuery?.data ||
       !ctx.callbackQuery.data.startsWith("colony_")
@@ -240,8 +238,10 @@ const bookingWizard = new Scenes.WizardScene(
       ctx.wizard.state.booking_id = booking_id;
       ctx.wizard.state.waiting_for_payment = true;
 
+      console.log(`Preliminary booking created: ID ${booking_id}, user ${ctx.from.id}`);
+
       const return_url = encodeURIComponent(
-        `https://${process.env.DOMAIN}/payment_return?booking_id=${booking_id}`
+        `https://bot.test-dunyo.uz/payment_return?booking_id=${booking_id}`
       );
       const pay_url = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=84549&amount=1000&transaction_param=${booking_id}&return_url=${return_url}`;
 
@@ -273,21 +273,31 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.selectStep(5); // К Step 5 (тип визита)
   },
 
-  // Step 4: Ожидание оплаты (для платных, теперь на inline callbacks)
+  // Step 4: Ожидание оплаты
   async (ctx) => {
     const lang = ctx.session.language;
-
-    console.log(`Step 4: Waiting for payment, user input: ${ctx.callbackQuery?.data || ctx.message?.text}`);
+    console.log(
+      `Step 4: Waiting for payment, user input: ${
+        ctx.callbackQuery?.data || ctx.message?.text
+      }`
+    );
 
     if (ctx.callbackQuery) {
-      await ctx.answerCbQuery();
       const data = ctx.callbackQuery.data;
+      const messageId = ctx.callbackQuery.message.message_id; // Захватываем ID сообщения
+      const chatId = ctx.callbackQuery.message.chat.id;
 
       if (data === "cancel_booking") {
+        await ctx.answerCbQuery();
         await pool.query("DELETE FROM bookings WHERE id = ?", [
           ctx.wizard.state.booking_id,
         ]);
-        await ctx.editMessageText(texts[lang].booking_canceled);
+        await ctx.telegram.editMessageText(
+          chatId,
+          messageId,
+          undefined,
+          texts[lang].booking_canceled
+        ); // Используем telegram API напрямую
         return ctx.scene.leave();
       }
 
@@ -296,10 +306,21 @@ const bookingWizard = new Scenes.WizardScene(
           "SELECT payment_status FROM bookings WHERE id = ?",
           [ctx.wizard.state.booking_id]
         );
-        if (bookingRows.length > 0 && bookingRows[0].payment_status === "paid") {
-          await ctx.editMessageText(texts[lang].payment_success);
+
+        if (
+          bookingRows.length > 0 &&
+          bookingRows[0].payment_status === "paid"
+        ) {
+          await ctx.answerCbQuery();
+          await ctx.telegram.editMessageText(
+            chatId,
+            messageId,
+            undefined,
+            texts[lang].payment_success
+          ); // Редактируем на успех
           ctx.wizard.state.waiting_for_payment = false;
-          // Proceed to visit type
+
+          // Продолжаем к типу визита
           await ctx.reply(
             texts[lang].select_visit_type,
             Markup.inlineKeyboard([
@@ -309,15 +330,18 @@ const bookingWizard = new Scenes.WizardScene(
               ],
             ])
           );
-          return ctx.wizard.selectStep(5); // К типу визита
+          return ctx.wizard.selectStep(5);
         } else {
-          await ctx.answerCbQuery(texts[lang].payment_not_confirmed, { show_alert: true });
-          return;
+          await ctx.answerCbQuery(texts[lang].payment_not_confirmed, {
+            show_alert: true,
+          });
+          return; // Ничего не редактируем, кнопка остаётся
         }
       }
+      await ctx.answerCbQuery(); // Для других callbacks
     }
 
-    // Ignore other input (text or unexpected)
+    // Ignore text input
     if (ctx.message) {
       await ctx.reply(texts[lang].wait_for_payment_action);
     }
@@ -358,7 +382,10 @@ const bookingWizard = new Scenes.WizardScene(
     const lang = ctx.session.language;
     console.log(`Step 6: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (ctx.message?.text === texts[lang].cancel_text) {
-      if (ctx.wizard.state.booking_id && PAID_COLONIES.includes(ctx.wizard.state.colony)) {
+      if (
+        ctx.wizard.state.booking_id &&
+        PAID_COLONIES.includes(ctx.wizard.state.colony)
+      ) {
         await pool.query("DELETE FROM bookings WHERE id = ?", [
           ctx.wizard.state.booking_id,
         ]);
@@ -396,7 +423,10 @@ const bookingWizard = new Scenes.WizardScene(
     const lang = ctx.session.language;
     console.log(`Step 8: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (ctx.message?.text === texts[lang].cancel_text) {
-      if (ctx.wizard.state.booking_id && PAID_COLONIES.includes(ctx.wizard.state.colony)) {
+      if (
+        ctx.wizard.state.booking_id &&
+        PAID_COLONIES.includes(ctx.wizard.state.colony)
+      ) {
         await pool.query("DELETE FROM bookings WHERE id = ?", [
           ctx.wizard.state.booking_id,
         ]);
@@ -432,7 +462,10 @@ const bookingWizard = new Scenes.WizardScene(
     if (ctx.callbackQuery?.data === "confirm") {
       return saveBooking(ctx);
     } else if (ctx.callbackQuery?.data === "cancel") {
-      if (ctx.wizard.state.booking_id && PAID_COLONIES.includes(ctx.wizard.state.colony)) {
+      if (
+        ctx.wizard.state.booking_id &&
+        PAID_COLONIES.includes(ctx.wizard.state.colony)
+      ) {
         await pool.query("DELETE FROM bookings WHERE id = ?", [
           ctx.wizard.state.booking_id,
         ]);
