@@ -498,6 +498,7 @@ app.get("/", (req, res) => res.send("Bot server is alive"));
 
 // Prepare handler (Called by Click/TG for preparation)
 app.post('/prepare', async (req, res) => {
+  console.log('Prepare payload:', req.body);
   try {
     const { payload, amount, currency } = req.body; // Данные от Telegram/Click
     if (amount !== 100000) return res.json({ error: 'Invalid amount' });
@@ -523,6 +524,7 @@ app.post('/prepare', async (req, res) => {
 
 // Complete handler (Called after payment)
 app.post('/complete', async (req, res) => {
+  console.log('Complete payload:', req.body);
   try {
     const { merchant_trans_id, merchant_prepare_id, error } = req.body;
 
