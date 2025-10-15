@@ -1,6 +1,6 @@
-const texts = require("./texts.js");
+const texts = require("../texts.js");
 const { Markup } = require("telegraf");
-const pool = require("../db");
+const pool = require("../../db.js");
 const {
   getLatestPendingOrApprovedId,
   getLatestBooking,

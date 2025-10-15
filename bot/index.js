@@ -10,7 +10,7 @@ const {
   buildMainMenu,
   getQueuePosition,
   resetSessionAndScene,
-} = require("./helpers.js");
+} = require("./helpers/helpers.js");
 
 const {
   handleBookMeeting,
@@ -22,7 +22,7 @@ const {
   handleNoCancel,
   handleApplicationCopy,
   handleVisitorReminder,
-} = require("./processHelpers.js");
+} = require("./helpers/processHelpers.js");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
@@ -268,6 +268,7 @@ bot.hears(/^❌ Аризани бекор қилиш(?:\s*#(\d+))?$/i, async (ct
 bot.hears(/^❌ Отменить заявку(?:\s*#(\d+))?$/i, async (ctx) =>
   handleCancelApplication(ctx)
 ); // ru
+
 bot.hears(texts.uzl.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.uz.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.ru.yes, async (ctx) => handleYesCancel(ctx));
