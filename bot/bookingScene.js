@@ -261,7 +261,7 @@ const bookingWizard = new Scenes.WizardScene(
         ],
       ])
     );
-    return ctx.wizard.next();
+    return ctx.wizard.selectStep(5);
   },
 
   async (ctx) => {
