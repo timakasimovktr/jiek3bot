@@ -28,7 +28,6 @@ const {
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
 
-
 app.use(express.json());
 app.use(bot.webhookCallback("/bot-webhook"));
 bot.use(session());
@@ -549,6 +548,18 @@ app.get("/payment_return", (req, res) => {
 });
 
 app.get("/", (req, res) => res.send("Bot server is alive"));
+
+(async () => {
+  try {
+    const webhookUrl = "https://bot.test-dunyo.uz/bot-webhook";
+    await bot.telegram.setWebhook(webhookUrl);
+    console.log("✅ Webhook set to:", webhookUrl);
+  } catch (err) {
+    console.error("❌ Error setting webhook:", err);
+  }
+})();
+
+
 app.listen(4443, "0.0.0.0", () => {
   console.log("✅ Bot server running on port 4443");
 });
