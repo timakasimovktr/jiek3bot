@@ -1,5 +1,8 @@
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
-require("dotenv").config();
+const express = require("express");
+const app = express();
+app.use(express.json());
+app.use(bot.webhookCallback("/bot-webhook"));
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
 const { message } = require("telegraf/filters");
@@ -11,7 +14,6 @@ const {
   getQueuePosition,
   resetSessionAndScene,
 } = require("./helpers/helpers.js");
-const bodyParser = require("body-parser");
 
 const {
   handleBookMeeting,
@@ -30,14 +32,12 @@ const stage = new Scenes.Stage([bookingWizard]);
 
 bot.use(session());
 bot.use(stage.middleware());
-
 bot.use((ctx, next) => {
   if (ctx.chat?.type !== "private") {
     return;
   }
   return next();
 });
-
 bot.use(async (ctx, next) => {
   console.log(
     `Middleware: user ${
@@ -274,40 +274,6 @@ bot.hears(texts.uzl.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.uz.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.ru.yes, async (ctx) => handleYesCancel(ctx));
 
-const getInvoice = (id) => ({
-  chat_id: id,
-  start_parameter: "get_access",
-  title: "InvoiceTitle",
-  description: "InvoiceDescription",
-  currency: "UZS",
-  prices: [{ label: "Invoice Title", amount: 1000 * 100 }],
-  payload: `payload_${id}_${Date.now()}`, 
-});
-
-bot.command('pay', (ctx) => {
-  return ctx.replyWithInvoice({
-    title: 'Тестовая покупка',
-    description: 'Описание продукта',
-    payload: 'order-24',
-    provider_token: '333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3',
-    currency: 'UZS',
-    prices: [{ label: 'Товар', amount: 100000 }],
-    // need_name: true,
-    // need_phone_number: true,
-  });
-});
-
-bot.on('pre_checkout_query', async (ctx) => {
-  await ctx.answerPreCheckoutQuery(true);
-  console.log('✅ pre_checkout_query получен и подтверждён');
-});
-
-bot.on('successful_payment', (ctx) => {
-  console.log('💰 Оплата прошла успешно:', ctx.message.successful_payment);
-  ctx.reply('Спасибо за оплату!');
-});
-
-
 bot.on(message("text"), async (ctx, next) => {
   try {
     const lang = ctx.session.language;
@@ -342,7 +308,6 @@ bot.catch((err, ctx) => {
 });
 
 bot.hears("Yangi ariza yuborish", async (ctx) => {
-  // Legacy, assume uzl
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
@@ -464,17 +429,125 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
   }
 });
 
-const express = require("express");
-require("dotenv").config();
+app.post("/click", async (req, res) => {
+  const params = req.body;
+  const secret_key = process.env.CLICK_SECRET_KEY;
+  const service_id = process.env.CLICK_SERVICE_ID;
+  let calculated_sign;
 
-const app = express();
-app.use(bodyParser.json());
+  if (params.action === "0") {
+    calculated_sign = crypto
+      .createHash("md5")
+      .update(
+        `${params.click_trans_id}${service_id}${secret_key}${params.merchant_trans_id}${params.amount}0${params.sign_time}`
+      )
+      .digest("hex");
+  } else if (params.action === "1") {
+    calculated_sign = crypto
+      .createHash("md5")
+      .update(
+        `${params.click_trans_id}${service_id}${secret_key}${params.merchant_trans_id}${params.merchant_prepare_id}${params.amount}1${params.sign_time}`
+      )
+      .digest("hex");
+  }
 
-app.use(bot.webhookCallback("/bot-webhook"));
+  if (calculated_sign !== params.sign_string) {
+    return res.json({ error: -8, error_note: "Sign check failed" });
+  }
+
+  const trans_id = params.merchant_trans_id; // booking_id
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM bookings WHERE id = ? AND payment_status = "pending"',
+      [trans_id]
+    );
+    if (rows.length === 0) {
+      return res.json({ error: -5, error_note: "Transaction not found" });
+    }
+    const booking = rows[0];
+
+    if (parseFloat(params.amount) !== 1000.0) {
+      return res.json({ error: -2, error_note: "Incorrect amount" });
+    }
+
+    if (params.action === "0") {
+      // Prepare
+      const merchant_prepare_id = trans_id; // Use booking id
+      await pool.query(
+        "UPDATE bookings SET merchant_prepare_id = ? WHERE id = ?",
+        [merchant_prepare_id, trans_id]
+      );
+      return res.json({
+        click_trans_id: params.click_trans_id,
+        merchant_trans_id: params.merchant_trans_id,
+        merchant_prepare_id: merchant_prepare_id,
+        error: 0,
+        error_note: "",
+      });
+    } else if (params.action === "1") {
+      if (params.error < 0) {
+        // Error or cancel
+        await pool.query(
+          'UPDATE bookings SET payment_status = "failed" WHERE id = ?',
+          [trans_id]
+        );
+        await bot.telegram.sendMessage(
+          booking.telegram_chat_id,
+          texts[booking.language].payment_failed
+        );
+        return res.json({
+          click_trans_id: params.click_trans_id,
+          merchant_trans_id: params.merchant_trans_id,
+          merchant_confirm_id: null,
+          error: params.error,
+          error_note: params.error_note,
+        });
+      }
+      // Success
+      await pool.query(
+        'UPDATE bookings SET payment_status = "paid" WHERE id = ?',
+        [trans_id]
+      );
+      await pool.query(
+        `INSERT INTO users_attempts (phone_number, attempts) VALUES (?, 0) ON DUPLICATE KEY UPDATE attempts = 0`,
+        [booking.phone_number]
+      );
+      await bot.telegram.sendMessage(
+        booking.telegram_chat_id,
+        texts[booking.language].payment_success
+      );
+      return res.json({
+        click_trans_id: params.click_trans_id,
+        merchant_trans_id: params.merchant_trans_id,
+        merchant_confirm_id: trans_id,
+        error: 0,
+        error_note: "",
+      });
+    }
+  } catch (err) {
+    console.error("Click callback error:", err);
+    return res.json({ error: -99, error_note: "Server error" });
+  }
+});
+
+// Payment return page to close web app
+app.get("/payment_return", (req, res) => {
+  res.send(`
+    <html>
+      <body>
+        <h1>Payment processed</h1>
+        <script>
+          if (window.Telegram && Telegram.WebApp) {
+            Telegram.WebApp.close();
+          }
+        </script>
+      </body>
+    </html>
+  `);
+});
 
 app.get("/", (req, res) => res.send("Bot server is alive"));
-
 app.listen(4443, "0.0.0.0", () => {
   console.log("✅ Bot server running on port 4443");
 });
-

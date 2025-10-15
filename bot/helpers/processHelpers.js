@@ -134,7 +134,8 @@ async function handleGroupJoin(ctx) {
     }
 
     const colony = latestBooking.colony;
-    let groupUrl = `https://t.me/SmartJIEK${colony}` || "https://t.me/+qWg7Qh3t_OIxMDBi";
+    let groupUrl =
+      `https://t.me/SmartJIEK${colony}` || "https://t.me/+qWg7Qh3t_OIxMDBi";
 
     await ctx.reply(
       texts[lang].group_join_prompt,
@@ -205,7 +206,8 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const explicitNumber =
+      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestNumber =
       explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
 
@@ -301,9 +303,18 @@ async function handleYesCancel(ctx) {
     }
 
     const [result] = await pool.query(
-      "DELETE FROM bookings WHERE id = ? AND user_id = ?",
+      "UPDATE bookings SET status = 'canceled', updated_at = NOW() WHERE id = ? AND user_id = ? AND status IN ('pending', 'approved')",
       [bookingId, ctx.from.id]
     );
+
+    const booking = await getLatestBooking(ctx.from.id); 
+    if (booking.colony === "24" && booking.payment_status === "paid") {
+      const phone = booking.phone_number;
+      await pool.query(
+        `INSERT INTO users_attempts (phone_number, attempts) VALUES (?, 1) ON DUPLICATE KEY UPDATE attempts = attempts + 1`,
+        [phone]
+      );
+    }
 
     if (result.affectedRows === 0) {
       console.log(
@@ -313,7 +324,9 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
-    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
+    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(
+      ctx.from.id
+    );
     await ctx.reply(
       texts[lang].application_canceled,
       buildMainMenu(lang, latestNumberAfterDelete)
@@ -330,7 +343,8 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const explicitNumber =
+      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestNumber =
       explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
 

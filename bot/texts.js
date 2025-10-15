@@ -105,6 +105,12 @@ const texts = {
     error: "❌ Произошла ошибка. Пожалуйста, попробуйте позже.",
     not_found: "❌ Ошибка: Ваша заявка не найдена.",
     book_meeting: "📅 Записаться на встречу",
+    please_pay: "Для колонии 24 требуется оплата. Сумма: 1000 сум.",
+    pay_button: "Оплатить",
+    check_status: "Проверить статус оплаты",
+    payment_success: "Оплата успешно выполнена!",
+    payment_failed: "Оплата не выполнена.",
+    payment_not_confirmed: "Оплата еще не подтверждена. Пожалуйста, проверьте позже.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -214,6 +220,12 @@ const texts = {
     error: "❌ Хатолик юз берди. Илтимос, кейинроқ уриниб кўринг.",
     not_found: "❌ Хатолик: Аризангиз топилмади.",
     book_meeting: "📅 Учрашувга ёзилиш",
+    please_pay: "Kolonia 24 uchun to'lov talab qilinadi. Miqdor: 1000 so'm.",
+    pay_button: "To'lov qilish",
+    check_status: "To'lov holatini tekshirish",
+    payment_success: "To'lov muvaffaqiyatli amalga oshirildi!",
+    payment_failed: "To'lov amalga oshmadi.",
+    payment_not_confirmed: "To'lov hali tasdiqlanmagan. Iltimos, keyinroq tekshiring.",
   },
   uzl: {
     // Uzbek Latin (original)
@@ -324,6 +336,12 @@ const texts = {
     error: "❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring.",
     not_found: "❌ Xatolik: Arizangiz topilmadi.",
     book_meeting: "📅 Uchrashuvga yozilish",
+    please_pay: "Koloniya 24 uchun to'lov talab qilinadi. Miqdor: 1000 so'm.",
+    pay_button: "To'lov qilish",
+    check_status: "To'lov holatini tekshirish",
+    payment_success: "To'lov muvaffaqiyatli amalga oshirildi!",
+    payment_failed: "To'lov amalga oshmadi.",
+    payment_not_confirmed: "To'lov hali tasdiqlanmagan. Iltimos, keyinroq tekshiring.",
   },
 };
 

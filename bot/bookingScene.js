@@ -212,18 +212,41 @@ const bookingWizard = new Scenes.WizardScene(
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
 
-    if (ctx.wizard.state.colony === "24") {
-      await ctx.reply(
-        "Вы выбрали 24-ю колонию. Чтобы продолжить, нажмите кнопку ниже 👇",
-        // Markup.keyboard([["Оплатить"]]).resize()
-        // go to website to pay
-        // Markup.inlineKeyboard([
-        //   Markup.button.url("Оплатить", `https://my.click.uz/services/pay?service_id=${service_id}&merchant_id=${merchant_id}&amount=${amount}&transaction_param=${transaction_param}&return_url=${return_url}`),
-        // ])  
+    const phone = ctx.wizard.state.phone;
+    const [attemptRows] = await pool.query(
+      "SELECT attempts FROM users_attempts WHERE phone_number = ?",
+      [phone]
+    );
+    let attempts = attemptRows.length > 0 ? attemptRows[0].attempts : 0;
+
+    if (ctx.wizard.state.colony === "24" && attempts >= 2) {
+      // Create preliminary booking for payment
+      const [insertResult] = await pool.query(
+        "INSERT INTO bookings (user_id, phone_number, colony, language, payment_status, status, telegram_chat_id) VALUES (?, ?, ?, ?, 'pending', 'pending', ?)",
+        [ctx.from.id, phone, ctx.wizard.state.colony, lang, ctx.chat.id]
       );
-      return ctx.scene.leave();
+      const booking_id = insertResult.insertId;
+      ctx.wizard.state.booking_id = booking_id;
+      ctx.wizard.state.waiting_for_payment = true;
+
+      const return_url = encodeURIComponent(
+        `https://${process.env.DOMAIN}/payment_return?booking_id=${booking_id}`
+      );
+      const pay_url = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=84549&amount=1000&transaction_param=${booking_id}&return_url=${return_url}`;
+
+      await ctx.reply(
+        texts[lang].please_pay,
+        Markup.keyboard([
+          [Markup.button.webApp(texts[lang].pay_button, pay_url)],
+          [texts[lang].check_status],
+          [texts[lang].cancel_text],
+        ]).resize()
+      );
+
+      return ctx.wizard.selectStep(3); // Stay or move to wait step (adjust index if adding more steps)
     }
 
+    // Proceed for non-24 or if attempts < 2
     ctx.wizard.state.relatives = [];
     ctx.wizard.state.currentRelative = {};
     ctx.wizard.state.prisoner_name = null;
@@ -241,7 +264,48 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
 
-  // Step 4: Select visit type
+  async (ctx) => {
+    const lang = ctx.session.language;
+    const text = ctx.message?.text;
+
+    if (text === texts[lang].cancel_text) {
+      await pool.query("DELETE FROM bookings WHERE id = ?", [
+        ctx.wizard.state.booking_id,
+      ]);
+      await ctx.reply(texts[lang].booking_canceled, Markup.removeKeyboard());
+      return ctx.scene.leave();
+    }
+
+    if (text === texts[lang].check_status) {
+      const [bookingRows] = await pool.query(
+        "SELECT payment_status FROM bookings WHERE id = ?",
+        [ctx.wizard.state.booking_id]
+      );
+      if (bookingRows.length > 0 && bookingRows[0].payment_status === "paid") {
+        await ctx.reply(texts[lang].payment_success, Markup.removeKeyboard());
+        ctx.wizard.state.waiting_for_payment = false;
+        // Proceed to visit type selection
+        await ctx.reply(
+          texts[lang].select_visit_type,
+          Markup.inlineKeyboard([
+            [
+              Markup.button.callback(texts[lang].short_visit, "short"),
+              Markup.button.callback(texts[lang].long_visit, "long"),
+            ],
+          ])
+        );
+        return ctx.wizard.selectStep(4); // Adjust to the visit type step
+      } else {
+        await ctx.reply(texts[lang].payment_not_confirmed);
+        return; // Stay in wait step
+      }
+    }
+
+    // Ignore other input
+    return;
+  },
+
+  // Step 5: Select visit type
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
@@ -270,7 +334,7 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
 
-  // Step 5: Full name
+  // Step 6: Full name
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(`Step 5: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
@@ -286,7 +350,7 @@ const bookingWizard = new Scenes.WizardScene(
 
     if (!ctx.message?.text) {
       await ctx.reply(texts[lang].invalid_name);
-      return ctx.wizard.selectStep(5);
+      return ctx.wizard.selectStep(6);
     }
 
     ctx.wizard.state.currentRelative.full_name = ctx.message.text.toUpperCase();
@@ -295,31 +359,31 @@ const bookingWizard = new Scenes.WizardScene(
 
     if (!ctx.wizard.state.prisoner_name) {
       await ctx.reply(texts[lang].enter_prisoner_name);
-      return ctx.wizard.selectStep(7);
+      return ctx.wizard.selectStep(8);
     } else {
       return askAddMore(ctx);
     }
   },
 
-  // Step 6: Placeholder (not used)
+  // Step 7: Placeholder (not used)
   async (ctx) => {
     return ctx.wizard.next();
   },
 
-  // Step 7: Prisoner name
+  // Step 8: Prisoner name
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(`Step 7: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (!ctx.message?.text) {
       await ctx.reply(texts[lang].invalid_prisoner);
-      return ctx.wizard.selectStep(7);
+      return ctx.wizard.selectStep(8);
     }
 
     ctx.wizard.state.prisoner_name = ctx.message.text.toUpperCase();
     return askAddMore(ctx);
   },
 
-  // Step 8: Add more or done
+  // Step 9: Add more or done
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
@@ -331,7 +395,7 @@ const bookingWizard = new Scenes.WizardScene(
       if (ctx.wizard.state.relatives.length < MAX_RELATIVES) {
         ctx.wizard.state.currentRelative = {};
         await ctx.reply(texts[lang].new_relative);
-        return ctx.wizard.selectStep(5);
+        return ctx.wizard.selectStep(6);
       } else {
         await ctx.reply(texts[lang].max_reached);
         return showSummary(ctx);
@@ -350,7 +414,7 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 9: Final confirm or cancel
+  // Step 10: Final confirm or cancel
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
