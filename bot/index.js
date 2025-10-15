@@ -1,8 +1,6 @@
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const express = require("express");
 const app = express();
-app.use(express.json());
-app.use(bot.webhookCallback("/bot-webhook"));
 const pool = require("../db");
 const bookingWizard = require("./bookingScene");
 const { message } = require("telegraf/filters");
@@ -30,6 +28,9 @@ const {
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
 
+
+app.use(express.json());
+app.use(bot.webhookCallback("/bot-webhook"));
 bot.use(session());
 bot.use(stage.middleware());
 bot.use((ctx, next) => {
