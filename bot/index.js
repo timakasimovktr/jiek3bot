@@ -487,7 +487,7 @@ app.listen(process.env.PORT || 4443, "0.0.0.0", async () => {
 
   try {
     await bot.telegram.setWebhook(`https://bot.test-dunyo.uz/bot-webhook`, {
-      allowed_updates: ["message", "callback_query"],
+      allowed_updates: ["message", "callback_query", "pre_checkout_query", "successful_payment"],
       drop_pending_updates: true,
     });
     console.log("✅ Webhook set");
