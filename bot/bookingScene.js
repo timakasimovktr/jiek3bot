@@ -3,11 +3,11 @@ const pool = require("../db");
 const texts = require("./texts.js");
 const { generateColonyKeyboard } = require("./helpers/keyboards.js");
 const {
-  askAddMore,
+  askAddMore, // Если не используется, можно удалить импорт
   showSummary,
   saveBooking,
 } = require("./helpers/bookingUtils.js");
-const { MAX_RELATIVES } = require("./constants/config.js");
+// const { MAX_RELATIVES } = require("./constants/config.js");  // Не используется теперь
 
 const bookingWizard = new Scenes.WizardScene(
   "booking-wizard",
@@ -77,7 +77,7 @@ const bookingWizard = new Scenes.WizardScene(
         console.log(
           `Step 0: Moving to Step 2 for user ${ctx.from.id} with phone ${ctx.wizard.state.phone}`
         );
-        return ctx.wizard.selectStep(2);  // К оферте
+        return ctx.wizard.selectStep(2); // К оферте
       }
 
       ctx.wizard.state.offerRequested = false;
@@ -90,7 +90,7 @@ const bookingWizard = new Scenes.WizardScene(
           .oneTime()
       );
       console.log(`Step 0: Requesting phone number for user ${ctx.from.id}`);
-      return ctx.wizard.next();  // К Step 1
+      return ctx.wizard.next(); // К Step 1
     } catch (err) {
       console.error(`Error in Step 0 for user ${ctx.from.id}:`, err);
       await ctx.reply(texts[lang].error);
@@ -153,7 +153,7 @@ const bookingWizard = new Scenes.WizardScene(
         ])
       );
       console.log(`Step 1: Offer requested for user ${ctx.from.id}`);
-      return ctx.wizard.next();  // К Step 2
+      return ctx.wizard.next(); // К Step 2
     } catch (err) {
       console.error(`Error in Step 1 for user ${ctx.from.id}:`, err);
       await ctx.reply(texts[lang].error);
@@ -189,7 +189,7 @@ const bookingWizard = new Scenes.WizardScene(
 
     await ctx.reply(texts[lang].select_colony, generateColonyKeyboard(lang));
     console.log(`Step 2: Moving to colony selection for user ${ctx.from.id}`);
-    return ctx.wizard.next();  // К Step 3
+    return ctx.wizard.next(); // К Step 3
   },
 
   // Step 3: Select colony
@@ -213,23 +213,26 @@ const bookingWizard = new Scenes.WizardScene(
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
 
     const phone = ctx.wizard.state.phone;
-    const [attemptRows] = await pool.query(
-      "SELECT attempts FROM users_attempts WHERE phone_number = ?",
-      [phone]
-    );
-    let attempts = attemptRows.length > 0 ? attemptRows[0].attempts : 0;
 
+    // Инициализация для бронирования (только один родственник)
     ctx.wizard.state.relatives = [];
     ctx.wizard.state.currentRelative = {};
     ctx.wizard.state.prisoner_name = null;
     ctx.wizard.state.visit_type = null;
 
-    if (ctx.wizard.state.colony === "24" && attempts >= 2) {
-      // Create preliminary booking for payment
-      const [insertResult] = await pool.query(
-        "INSERT INTO bookings (user_id, phone_number, colony, language, payment_status, status, telegram_chat_id) VALUES (?, ?, ?, ?, 'pending', 'pending', ?)",
-        [ctx.from.id, phone, ctx.wizard.state.colony, lang, ctx.chat.id]
-      );
+    if (ctx.wizard.state.colony === "24") {
+      // Create preliminary booking for payment (всегда для 24)
+      let insertResult;
+      try {
+        [insertResult] = await pool.query(
+          "INSERT INTO bookings (user_id, phone_number, colony, language, payment_status, status, telegram_chat_id) VALUES (?, ?, ?, ?, 'pending', 'pending', ?)",
+          [ctx.from.id, phone, ctx.wizard.state.colony, lang, ctx.chat.id]
+        );
+      } catch (err) {
+        console.error("Error creating preliminary booking:", err);
+        await ctx.reply(texts[lang].error);
+        return ctx.scene.leave();
+      }
       const booking_id = insertResult.insertId;
       ctx.wizard.state.booking_id = booking_id;
       ctx.wizard.state.waiting_for_payment = true;
@@ -239,6 +242,9 @@ const bookingWizard = new Scenes.WizardScene(
       );
       const pay_url = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=84549&amount=1000&transaction_param=${booking_id}&return_url=${return_url}`;
 
+      console.log(
+        `Step 3: Showing payment for colony 24, booking_id=${booking_id}`
+      );
       await ctx.reply(
         texts[lang].please_pay,
         Markup.keyboard([
@@ -248,10 +254,10 @@ const bookingWizard = new Scenes.WizardScene(
         ]).resize()
       );
 
-      return ctx.wizard.next();  // К Step 4: ожидание оплаты
+      return ctx.wizard.next(); // К Step 4: ожидание оплаты
     }
 
-    // Proceed for non-24 or if attempts < 2
+    // Proceed for non-24: сразу к типу визита
     await ctx.reply(
       texts[lang].select_visit_type,
       Markup.inlineKeyboard([
@@ -261,13 +267,15 @@ const bookingWizard = new Scenes.WizardScene(
         ],
       ])
     );
-    return ctx.wizard.selectStep(5);  // Прямой переход к Step 5 (тип визита), пропуская оплату
+    return ctx.wizard.selectStep(5); // К Step 5 (тип визита)
   },
 
-  // Step 4: Ожидание оплаты (только для 24 с attempts >=2)
+  // Step 4: Ожидание оплаты (только для 24)
   async (ctx) => {
     const lang = ctx.session.language;
     const text = ctx.message?.text;
+
+    console.log(`Step 4: Waiting for payment, user input: ${text}`);
 
     if (text === texts[lang].cancel_text) {
       await pool.query("DELETE FROM bookings WHERE id = ?", [
@@ -285,7 +293,7 @@ const bookingWizard = new Scenes.WizardScene(
       if (bookingRows.length > 0 && bookingRows[0].payment_status === "paid") {
         await ctx.reply(texts[lang].payment_success, Markup.removeKeyboard());
         ctx.wizard.state.waiting_for_payment = false;
-        // Proceed to visit type selection
+        // Proceed to visit type
         await ctx.reply(
           texts[lang].select_visit_type,
           Markup.inlineKeyboard([
@@ -295,14 +303,15 @@ const bookingWizard = new Scenes.WizardScene(
             ],
           ])
         );
-        return ctx.wizard.selectStep(5);  // К выбору типа визита
+        return ctx.wizard.selectStep(5); // К типу визита
       } else {
         await ctx.reply(texts[lang].payment_not_confirmed);
-        return; // Оставаться в Step 4
+        return; // Оставаться в ожидании
       }
     }
 
     // Ignore other input
+    await ctx.reply(texts[lang].wait_for_payment_action); // Добавьте текст в texts.js, если нужно
     return;
   },
 
@@ -332,16 +341,18 @@ const bookingWizard = new Scenes.WizardScene(
     ctx.wizard.state.visit_type = ctx.callbackQuery.data;
 
     await ctx.reply(texts[lang].enter_full_name);
-    return ctx.wizard.next();  // К Step 6: ФИО
+    return ctx.wizard.next(); // К Step 6: ФИО (единственного родственника)
   },
 
-  // Step 6: Full name
+  // Step 6: Full name (единственного родственника)
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(`Step 6: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (ctx.message?.text === texts[lang].cancel_text) {
-      if (ctx.wizard.state.waiting_for_payment) {
-        await pool.query("DELETE FROM bookings WHERE id = ?", [ctx.wizard.state.booking_id]);
+      if (ctx.wizard.state.waiting_for_payment || ctx.wizard.state.booking_id) {
+        await pool.query("DELETE FROM bookings WHERE id = ?", [
+          ctx.wizard.state.booking_id,
+        ]);
       }
       await ctx.reply(
         texts[lang].booking_canceled,
@@ -357,17 +368,13 @@ const bookingWizard = new Scenes.WizardScene(
       return;
     }
 
-    ctx.wizard.state.currentRelative = {};  // Инициализация
+    ctx.wizard.state.currentRelative = {};
     ctx.wizard.state.currentRelative.full_name = ctx.message.text.toUpperCase();
     ctx.wizard.state.currentRelative.passport = "AC1234567";
-    ctx.wizard.state.relatives.push(ctx.wizard.state.currentRelative);
+    ctx.wizard.state.relatives = [ctx.wizard.state.currentRelative]; // Только один
 
-    if (!ctx.wizard.state.prisoner_name) {
-      await ctx.reply(texts[lang].enter_prisoner_name);
-      return ctx.wizard.selectStep(8);  // К Step 8: имя заключенного
-    } else {
-      return askAddMore(ctx);  // К Step 9
-    }
+    await ctx.reply(texts[lang].enter_prisoner_name);
+    return ctx.wizard.selectStep(8); // К Step 8: имя заключенного (пропускаем placeholder)
   },
 
   // Step 7: Placeholder (not used)
@@ -380,8 +387,10 @@ const bookingWizard = new Scenes.WizardScene(
     const lang = ctx.session.language;
     console.log(`Step 8: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (ctx.message?.text === texts[lang].cancel_text) {
-      if (ctx.wizard.state.waiting_for_payment) {
-        await pool.query("DELETE FROM bookings WHERE id = ?", [ctx.wizard.state.booking_id]);
+      if (ctx.wizard.state.waiting_for_payment || ctx.wizard.state.booking_id) {
+        await pool.query("DELETE FROM bookings WHERE id = ?", [
+          ctx.wizard.state.booking_id,
+        ]);
       }
       await ctx.reply(
         texts[lang].booking_canceled,
@@ -398,10 +407,49 @@ const bookingWizard = new Scenes.WizardScene(
     }
 
     ctx.wizard.state.prisoner_name = ctx.message.text.toUpperCase();
-    return askAddMore(ctx);  // К Step 9
+
+    // Поскольку нет добавления родственников — сразу к summary и подтверждению
+    return showSummary(ctx); // Это должно показать summary, затем next() вызовет Step 9 (confirm)
   },
 
-  // Step 9: Add more or done
+  // Step 9: Final confirm or cancel (былый Step 10, теперь нет add_more)
+  async (ctx) => {
+    const lang = ctx.session.language;
+    console.log(
+      `Step 9: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
+    );
+    if (ctx.callbackQuery) await ctx.answerCbQuery();
+
+    if (ctx.callbackQuery?.data === "confirm") {
+      return saveBooking(ctx);
+    } else if (ctx.callbackQuery?.data === "cancel") {
+      if (ctx.wizard.state.waiting_for_payment || ctx.wizard.state.booking_id) {
+        await pool.query("DELETE FROM bookings WHERE id = ?", [
+          ctx.wizard.state.booking_id,
+        ]);
+      }
+      await ctx.reply(
+        texts[lang].booking_canceled,
+        Markup.inlineKeyboard([
+          [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
+        ])
+      );
+      return ctx.scene.leave();
+    } else {
+      // Если showSummary вызывает это — покажите confirm
+      await ctx.reply(
+        texts[lang].confirm_prompt,
+        Markup.inlineKeyboard([
+          [Markup.button.callback(texts[lang].confirm_button, "confirm")],
+          [Markup.button.callback(texts[lang].cancel_button, "cancel")],
+        ])
+      );
+      return;
+    }
+  }
+
+  /*
+    // Step 9: Add more or done
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
@@ -431,39 +479,7 @@ const bookingWizard = new Scenes.WizardScene(
       return;
     }
   },
-
-  // Step 10: Final confirm or cancel
-  async (ctx) => {
-    const lang = ctx.session.language;
-    console.log(
-      `Step 10: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
-    );
-    if (ctx.callbackQuery) await ctx.answerCbQuery();
-
-    if (ctx.callbackQuery?.data === "confirm") {
-      return saveBooking(ctx);
-    } else if (ctx.callbackQuery?.data === "cancel") {
-      if (ctx.wizard.state.waiting_for_payment) {
-        await pool.query("DELETE FROM bookings WHERE id = ?", [ctx.wizard.state.booking_id]);
-      }
-      await ctx.reply(
-        texts[lang].booking_canceled,
-        Markup.inlineKeyboard([
-          [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
-        ])
-      );
-      return ctx.scene.leave();
-    } else {
-      await ctx.reply(
-        texts[lang].confirm_prompt,
-        Markup.inlineKeyboard([
-          [Markup.button.callback(texts[lang].confirm_button, "confirm")],
-          [Markup.button.callback(texts[lang].cancel_button, "cancel")],
-        ])
-      );
-      return;
-    }
-  }
+  */
 );
 
 module.exports = bookingWizard;
