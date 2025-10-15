@@ -9,6 +9,9 @@ const {
 } = require("./helpers/bookingUtils.js");
 // const { MAX_RELATIVES } = require("./constants/config.js");  // Не используется теперь
 
+// Добавлен массив платных колоний — легко добавлять/убирать
+const PAID_COLONIES = ['24']; // Добавляйте/убирайте ID колоний здесь, например ['24', '25']
+
 const bookingWizard = new Scenes.WizardScene(
   "booking-wizard",
 
@@ -220,8 +223,8 @@ const bookingWizard = new Scenes.WizardScene(
     ctx.wizard.state.prisoner_name = null;
     ctx.wizard.state.visit_type = null;
 
-    if (ctx.wizard.state.colony === "24") {
-      // Create preliminary booking for payment (всегда для 24)
+    if (PAID_COLONIES.includes(ctx.wizard.state.colony)) {
+      // Create preliminary booking for payment
       let insertResult;
       try {
         [insertResult] = await pool.query(
@@ -243,21 +246,21 @@ const bookingWizard = new Scenes.WizardScene(
       const pay_url = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=84549&amount=1000&transaction_param=${booking_id}&return_url=${return_url}`;
 
       console.log(
-        `Step 3: Showing payment for colony 24, booking_id=${booking_id}`
+        `Step 3: Showing payment for paid colony ${ctx.wizard.state.colony}, booking_id=${booking_id}`
       );
       await ctx.reply(
         texts[lang].please_pay,
-        Markup.keyboard([
-          [Markup.button.webApp(texts[lang].pay_button, pay_url)],
-          [texts[lang].check_status],
-          [texts[lang].cancel_text],
-        ]).resize()
+        Markup.inlineKeyboard([
+          [Markup.button.url(texts[lang].pay_button, pay_url)],
+          [Markup.button.callback(texts[lang].check_status, "check_payment")],
+          [Markup.button.callback(texts[lang].cancel_text, "cancel_booking")],
+        ])
       );
 
       return ctx.wizard.next(); // К Step 4: ожидание оплаты
     }
 
-    // Proceed for non-24: сразу к типу визита
+    // Proceed for non-paid: сразу к типу визита
     await ctx.reply(
       texts[lang].select_visit_type,
       Markup.inlineKeyboard([
@@ -270,48 +273,54 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.selectStep(5); // К Step 5 (тип визита)
   },
 
-  // Step 4: Ожидание оплаты (только для 24)
+  // Step 4: Ожидание оплаты (для платных, теперь на inline callbacks)
   async (ctx) => {
     const lang = ctx.session.language;
-    const text = ctx.message?.text;
 
-    console.log(`Step 4: Waiting for payment, user input: ${text}`);
+    console.log(`Step 4: Waiting for payment, user input: ${ctx.callbackQuery?.data || ctx.message?.text}`);
 
-    if (text === texts[lang].cancel_text) {
-      await pool.query("DELETE FROM bookings WHERE id = ?", [
-        ctx.wizard.state.booking_id,
-      ]);
-      await ctx.reply(texts[lang].booking_canceled, Markup.removeKeyboard());
-      return ctx.scene.leave();
-    }
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery();
+      const data = ctx.callbackQuery.data;
 
-    if (text === texts[lang].check_status) {
-      const [bookingRows] = await pool.query(
-        "SELECT payment_status FROM bookings WHERE id = ?",
-        [ctx.wizard.state.booking_id]
-      );
-      if (bookingRows.length > 0 && bookingRows[0].payment_status === "paid") {
-        await ctx.reply(texts[lang].payment_success, Markup.removeKeyboard());
-        ctx.wizard.state.waiting_for_payment = false;
-        // Proceed to visit type
-        await ctx.reply(
-          texts[lang].select_visit_type,
-          Markup.inlineKeyboard([
-            [
-              Markup.button.callback(texts[lang].short_visit, "short"),
-              Markup.button.callback(texts[lang].long_visit, "long"),
-            ],
-          ])
+      if (data === "cancel_booking") {
+        await pool.query("DELETE FROM bookings WHERE id = ?", [
+          ctx.wizard.state.booking_id,
+        ]);
+        await ctx.editMessageText(texts[lang].booking_canceled);
+        return ctx.scene.leave();
+      }
+
+      if (data === "check_payment") {
+        const [bookingRows] = await pool.query(
+          "SELECT payment_status FROM bookings WHERE id = ?",
+          [ctx.wizard.state.booking_id]
         );
-        return ctx.wizard.selectStep(5); // К типу визита
-      } else {
-        await ctx.reply(texts[lang].payment_not_confirmed);
-        return; // Оставаться в ожидании
+        if (bookingRows.length > 0 && bookingRows[0].payment_status === "paid") {
+          await ctx.editMessageText(texts[lang].payment_success);
+          ctx.wizard.state.waiting_for_payment = false;
+          // Proceed to visit type
+          await ctx.reply(
+            texts[lang].select_visit_type,
+            Markup.inlineKeyboard([
+              [
+                Markup.button.callback(texts[lang].short_visit, "short"),
+                Markup.button.callback(texts[lang].long_visit, "long"),
+              ],
+            ])
+          );
+          return ctx.wizard.selectStep(5); // К типу визита
+        } else {
+          await ctx.answerCbQuery(texts[lang].payment_not_confirmed, { show_alert: true });
+          return;
+        }
       }
     }
 
-    // Ignore other input
-    await ctx.reply(texts[lang].wait_for_payment_action); // Добавьте текст в texts.js, если нужно
+    // Ignore other input (text or unexpected)
+    if (ctx.message) {
+      await ctx.reply(texts[lang].wait_for_payment_action);
+    }
     return;
   },
 
@@ -349,7 +358,7 @@ const bookingWizard = new Scenes.WizardScene(
     const lang = ctx.session.language;
     console.log(`Step 6: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (ctx.message?.text === texts[lang].cancel_text) {
-      if (ctx.wizard.state.waiting_for_payment || ctx.wizard.state.booking_id) {
+      if (ctx.wizard.state.booking_id && PAID_COLONIES.includes(ctx.wizard.state.colony)) {
         await pool.query("DELETE FROM bookings WHERE id = ?", [
           ctx.wizard.state.booking_id,
         ]);
@@ -387,7 +396,7 @@ const bookingWizard = new Scenes.WizardScene(
     const lang = ctx.session.language;
     console.log(`Step 8: User ${ctx.from.id} sent text: ${ctx.message?.text}`);
     if (ctx.message?.text === texts[lang].cancel_text) {
-      if (ctx.wizard.state.waiting_for_payment || ctx.wizard.state.booking_id) {
+      if (ctx.wizard.state.booking_id && PAID_COLONIES.includes(ctx.wizard.state.colony)) {
         await pool.query("DELETE FROM bookings WHERE id = ?", [
           ctx.wizard.state.booking_id,
         ]);
@@ -423,7 +432,7 @@ const bookingWizard = new Scenes.WizardScene(
     if (ctx.callbackQuery?.data === "confirm") {
       return saveBooking(ctx);
     } else if (ctx.callbackQuery?.data === "cancel") {
-      if (ctx.wizard.state.waiting_for_payment || ctx.wizard.state.booking_id) {
+      if (ctx.wizard.state.booking_id && PAID_COLONIES.includes(ctx.wizard.state.colony)) {
         await pool.query("DELETE FROM bookings WHERE id = ?", [
           ctx.wizard.state.booking_id,
         ]);

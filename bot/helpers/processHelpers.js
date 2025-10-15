@@ -209,7 +209,7 @@ async function handleCancelApplication(ctx) {
     const explicitNumber =
       ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestNumber =
-      explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
+      explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id)); // Это colony_application_number
 
     if (!latestNumber) {
       await ctx.reply(
@@ -219,9 +219,9 @@ async function handleCancelApplication(ctx) {
       return;
     }
 
-    // Изменено: поиск по colony_application_number, а не по id
+    // Поиск внутреннего id по внешнему номеру
     const [bookingRows] = await pool.query(
-      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
+      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ? AND status IN ('pending', 'approved')",
       [latestNumber, ctx.from.id]
     );
 
@@ -233,8 +233,7 @@ async function handleCancelApplication(ctx) {
       return;
     }
 
-    const bookingId = bookingRows[0].id;
-
+    const bookingId = bookingRows[0].id; // Внутренний id для сессии
     ctx.session.confirmCancel = true;
     ctx.session.confirmCancelId = bookingId;
 
@@ -307,7 +306,7 @@ async function handleYesCancel(ctx) {
       [bookingId, ctx.from.id]
     );
 
-    const booking = await getLatestBooking(ctx.from.id); 
+    const booking = await getLatestBooking(ctx.from.id);
     if (booking.colony === "24" && booking.payment_status === "paid") {
       const phone = booking.phone_number;
       await pool.query(
@@ -326,10 +325,10 @@ async function handleYesCancel(ctx) {
 
     const latestNumberAfterDelete = await getLatestPendingOrApprovedId(
       ctx.from.id
-    );
+    ); 
     await ctx.reply(
       texts[lang].application_canceled,
-      buildMainMenu(lang, latestNumberAfterDelete)
+      buildMainMenu(lang, latestNumberAfterDelete) 
     );
 
     await resetSessionAndScene(ctx);
