@@ -11,6 +11,7 @@ const {
   getQueuePosition,
   resetSessionAndScene,
 } = require("./helpers/helpers.js");
+const bodyParser = require("body-parser");
 
 const {
   handleBookMeeting,
@@ -467,21 +468,14 @@ const express = require("express");
 require("dotenv").config();
 
 const app = express();
-
-app.use(express.json());
+app.use(bodyParser.json());
 
 app.post("/bot-webhook", bot.webhookCallback("/bot-webhook"));
 
-app.get("/bot-webhook", (req, res) => {
-  res.status(200).send("OK");
+app.post("/bot-webhook", (req, res) => {
+  bot.handleUpdate(req.body, res);
 });
 
-app.listen(4443, "0.0.0.0", async () => {
-  console.log("Webhook server started");
-
-  const webhookUrl = "https://bot.test-dunyo.uz/bot-webhook";
-  await bot.telegram.setWebhook(webhookUrl);
-
-  console.log("Webhook set to:", webhookUrl);
+app.listen(4443, "0.0.0.0", () => {
+  console.log("Bot server is running on port 4443");
 });
-
