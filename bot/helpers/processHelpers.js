@@ -302,7 +302,7 @@ async function handleYesCancel(ctx) {
     }
 
     const [result] = await pool.query(
-      "UPDATE bookings SET status = 'canceled', updated_at = NOW() WHERE id = ? AND user_id = ? AND status IN ('pending', 'approved')",
+      "DELETE FROM bookings WHERE id = ? AND user_id = ?",
       [bookingId, ctx.from.id]
     );
 
