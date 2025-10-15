@@ -273,38 +273,40 @@ bot.hears(texts.uzl.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.uz.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.ru.yes, async (ctx) => handleYesCancel(ctx));
 
-// const getInvoice = (id) => {
-//   const invoice = {
-//     chat_id: id, 
-//     provider_token: '371317599:TEST:1760526566768', 
-//     start_parameter: "get_access",
-//     title: "InvoiceTitle", 
-//     description: "InvoiceDescription",
-//     currency: "UZS", 
-//     prices: [{ label: "Invoice Title", amount: 1000 * 100 }], 
-//     photo_url: "./images/pay.png", 
-//     photo_width: 500, 
-//     photo_height: 281, 
-//     payload: {
-//       unique_id: `${id}_${Number(new Date())}`,
-//       provider_token: '371317599:TEST:1760526566768',
-//     },
-//   };
+const getInvoice = (id) => {
+  const invoice = {
+    chat_id: id, 
+    provider_token: '371317599:TEST:1760526566768', 
+    start_parameter: "get_access",
+    title: "InvoiceTitle", 
+    description: "InvoiceDescription",
+    currency: "UZS", 
+    prices: [{ label: "Invoice Title", amount: 1000 * 100 }], 
+    photo_url: "./images/pay.png", 
+    photo_width: 500, 
+    photo_height: 281, 
+    payload: {
+      unique_id: `${id}_${Number(new Date())}`,
+      provider_token: '371317599:TEST:1760526566768',
+    },
+  };
 
-//   return invoice;
-// };
+  return invoice;
+};
 
 bot.use(Telegraf.log());
 
-// bot.hears("Оплатить", async (ctx) => {
-//   return ctx.replyWithInvoice(getInvoice(ctx.from.id));
-// });
+bot.hears("pay", async (ctx) => {
+  return ctx.replyWithInvoice(getInvoice(ctx.from.id));
+});
 
-// bot.on("pre_checkout_query", (ctx) => ctx.answerPreCheckoutQuery(true));
 
-// bot.on("successful_payment", async (ctx, next) => {
-//   await ctx.reply("SuccessfulPayment");
-// });
+
+bot.on("pre_checkout_query", (ctx) => ctx.answerPreCheckoutQuery(true));
+
+bot.on("successful_payment", async (ctx, next) => {
+  await ctx.reply("SuccessfulPayment");
+});
 
 bot.on(message("text"), async (ctx, next) => {
   try {
