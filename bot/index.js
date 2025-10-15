@@ -470,12 +470,18 @@ require("dotenv").config();
 const app = express();
 app.use(bodyParser.json());
 
-app.post("/bot-webhook", bot.webhookCallback("/bot-webhook"));
-
 app.post("/bot-webhook", (req, res) => {
-  bot.handleUpdate(req.body, res);
+  bot.handleUpdate(req.body)
+    .then(() => res.sendStatus(200))
+    .catch((err) => {
+      console.error("Error handling update:", err);
+      res.sendStatus(500);
+    });
 });
+
+app.get("/", (req, res) => res.send("Bot server is alive"));
 
 app.listen(4443, "0.0.0.0", () => {
-  console.log("Bot server is running on port 4443");
+  console.log("✅ Bot server running on port 4443");
 });
+
