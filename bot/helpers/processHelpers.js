@@ -11,7 +11,7 @@ const {
 const fs = require("fs");
 const path = require("path");
 const PizZip = require("pizzip");
-const Docxtemplater = require("docxtemplater");
+const Docxtemplater = require("docxttemplater");
 
 // Добавляем массив платных колоний здесь (дублируем из bookingScene для независимости)
 const PAID_COLONIES = ['24']; // Добавляйте/убирайте по необходимости
@@ -306,8 +306,9 @@ async function handleYesCancel(ctx) {
     }
 
     // Используем UPDATE для смены статуса вместо DELETE (чтобы сохранить запись и номер)
+    // Убрали updated_at, если колонки нет в таблице
     const [result] = await pool.query(
-      "UPDATE bookings SET status = 'canceled', updated_at = NOW() WHERE id = ? AND user_id = ? AND status IN ('pending', 'approved')",
+      "UPDATE bookings SET status = 'canceled' WHERE id = ? AND user_id = ? AND status IN ('pending', 'approved')",
       [bookingId, ctx.from.id]
     );
 
