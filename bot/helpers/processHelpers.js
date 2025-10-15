@@ -301,11 +301,6 @@ async function handleYesCancel(ctx) {
       }
     }
 
-    const [result] = await pool.query(
-      "DELETE FROM bookings WHERE id = ? AND user_id = ?",
-      [bookingId, ctx.from.id]
-    );
-
     const booking = await getLatestBooking(ctx.from.id);
     if (booking.colony === "24" && booking.payment_status === "paid") {
       const phone = booking.phone_number;
@@ -314,6 +309,11 @@ async function handleYesCancel(ctx) {
         [phone]
       );
     }
+
+    const [result] = await pool.query(
+      "DELETE FROM bookings WHERE id = ? AND user_id = ?",
+      [bookingId, ctx.from.id]
+    );
 
     if (result.affectedRows === 0) {
       console.log(
@@ -325,10 +325,11 @@ async function handleYesCancel(ctx) {
 
     const latestNumberAfterDelete = await getLatestPendingOrApprovedId(
       ctx.from.id
-    ); 
+    );
+    
     await ctx.reply(
       texts[lang].application_canceled,
-      buildMainMenu(lang, latestNumberAfterDelete) 
+      buildMainMenu(lang, latestNumberAfterDelete)
     );
 
     await resetSessionAndScene(ctx);
