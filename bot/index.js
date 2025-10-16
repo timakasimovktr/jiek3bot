@@ -54,9 +54,14 @@ bot.use(async (ctx, next) => {
   return next();
 });
 
+bot.on("message", (ctx) => console.log("💬 message", ctx.update));
+bot.on("callback_query", (ctx) => console.log("🔘 callback", ctx.update));
+bot.on("pre_checkout_query", (ctx) => console.log("💰 pre_checkout_query", ctx.update));
+
+
 bot.on("pre_checkout_query", (ctx) => {
-  ctx.answerPreCheckoutQuery(true);
   console.log("✅ pre_checkout_query получен и подтверждён"); 
+  ctx.answerPreCheckoutQuery(true);
 });
 
 bot.on("successful_payment", async (ctx) => {
