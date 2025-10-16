@@ -54,6 +54,19 @@ bot.use(async (ctx, next) => {
   return next();
 });
 
+bot.on("pre_checkout_query", (ctx) => {
+  ctx.answerPreCheckoutQuery(true);
+  console.log("✅ pre_checkout_query получен и подтверждён"); 
+});
+
+bot.on("successful_payment", async (ctx) => {
+  console.log("💰 Оплата прошла успешно:", ctx.message.successful_payment);
+  const payload = ctx.message.successful_payment.invoice_payload;
+  await ctx.reply(
+    "Спасибо за успешную оплату! Ваш платеж на 1000 сум подтвержден."
+  ); 
+});
+
 bot.command("cancel", async (ctx) => {
   try {
     const lang = ctx.session.language;
@@ -281,12 +294,12 @@ const getInvoice = (id) => ({
   description: "InvoiceDescription",
   currency: "UZS",
   prices: [{ label: "Invoice Title", amount: 1000 * 100 }],
-  payload: `payload_${id}_${Date.now()}`, 
+  payload: `payload_${id}_${Date.now()}`,
 });
 
-bot.command('bot', async (ctx) => {
+bot.command("bot", async (ctx) => {
   const userId = ctx.from.id;
-  const payload = `payment_${userId}_${Date.now()}`; 
+  const payload = `payment_${userId}_${Date.now()}`;
 
   const providerData = {
     service_id: 84549, // Из .env
@@ -297,38 +310,27 @@ bot.command('bot', async (ctx) => {
   try {
     await ctx.replyWithInvoice({
       chat_id: userId,
-      title: 'Оплата услуги',
-      description: 'Тестовая оплата 1000 сум',
+      title: "Оплата услуги",
+      description: "Тестовая оплата 1000 сум",
       payload: payload,
-      provider_token: '333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3', // Для Click — пусто
-      currency: 'UZS',
-      prices: [{ label: 'Услуга', amount: 100000 }], // 1000 UZS в тиынах
+      provider_token:
+        "333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3", // Для Click — пусто
+      currency: "UZS",
+      prices: [{ label: "Услуга", amount: 100000 }], // 1000 UZS в тиынах
       provider_data: JSON.stringify(providerData),
       need_name: false,
       need_phone_number: true, // Если нужно собирать данные
       need_shipping_address: false,
-      start_parameter: 'bot-payment',
+      start_parameter: "bot-payment",
       // URL для Click
-      prepare_url: 'https://bot.test-dunyo.uz/prepare', // Ваша Prepare URL
-      complete_url: 'https://bot.test-dunyo.uz/complete', // Ваша Complete URL
+      prepare_url: "https://bot.test-dunyo.uz/prepare", // Ваша Prepare URL
+      complete_url: "https://bot.test-dunyo.uz/complete", // Ваша Complete URL
     });
   } catch (err) {
-    console.error('Error sending invoice:', err);
-    await ctx.reply('Ошибка при создании инвойса.');
+    console.error("Error sending invoice:", err);
+    await ctx.reply("Ошибка при создании инвойса.");
   }
 });
-
-bot.on('pre_checkout_query', (ctx) => {
-  ctx.answerPreCheckoutQuery(true);  // Без await — это Promise, но Telegram ожидает немедленный ответ
-  console.log('✅ pre_checkout_query получен и подтверждён');  // Лог после, но не внутри
-});
-
-bot.on('successful_payment', async (ctx) => {
-  console.log('💰 Оплата прошла успешно:', ctx.message.successful_payment);
-  const payload = ctx.message.successful_payment.invoice_payload;
-    await ctx.reply('Спасибо за успешную оплату! Ваш платеж на 1000 сум подтвержден.'); // Ваше сообщение
-});
-
 
 bot.on(message("text"), async (ctx, next) => {
   try {
@@ -497,34 +499,29 @@ app.use(bot.webhookCallback("/bot-webhook"));
 app.get("/", (req, res) => res.send("Bot server is alive"));
 
 // Prepare handler (Called by Click/TG for preparation)
-app.post('/prepare', async (req, res) => {
-  console.log('Prepare payload:', req.body);
+app.post("/prepare", async (req, res) => {
+  console.log("Prepare payload:", req.body);
   try {
-    const { payload, amount, currency } = req.body; // Данные от Telegram/Click
-    if (amount !== 100000) return res.json({ error: 'Invalid amount' });
+    const { payload, amount, currency } = req.body;
+    if (amount !== 100000) return res.json({ error: "Invalid amount" });
 
-    // Генерируем merchant_trans_id (связь с вашим заказом)
-    const merchant_trans_id = payload; // Используем payload от инвойса
-    const merchant_prepare_id = Date.now(); // Уникальный ID подготовки
-
-    // Сохраните в БД: payment_status = 'preparing', etc.
-    // await pool.query('INSERT INTO payments (payload, status) VALUES (?, ?)', [payload, 'preparing']);
+    const merchant_trans_id = payload;
+    const merchant_prepare_id = Date.now();
 
     res.json({
       allow: true,
       merchant_trans_id,
       merchant_prepare_id,
-      // Другие поля по docs Click/TG
     });
   } catch (err) {
     console.error(err);
-    res.json({ error: 'Server error' });
+    res.json({ error: "Server error" });
   }
 });
 
 // Complete handler (Called after payment)
-app.post('/complete', async (req, res) => {
-  console.log('Complete payload:', req.body);
+app.post("/complete", async (req, res) => {
+  console.log("Complete payload:", req.body);
   try {
     const { merchant_trans_id, merchant_prepare_id, error } = req.body;
 
@@ -541,7 +538,7 @@ app.post('/complete', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.json({ error: 'Server error' });
+    res.json({ error: "Server error" });
   }
 });
 
