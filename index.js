@@ -1,6 +1,6 @@
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 require("dotenv").config();
-const pool = require("../db");
+const pool = require("./db.js");
 const bookingWizard = require("./bookingScene");
 const { message } = require("telegraf/filters");
 const texts = require("./texts.js");

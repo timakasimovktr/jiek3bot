@@ -1,5 +1,5 @@
 const { Markup } = require("telegraf");
-const pool = require("../../db.js");
+const pool = require("../db.js");
 const texts = require("../texts.js");
 const { MAX_RELATIVES } = require("../constants/config.js");
 

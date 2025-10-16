@@ -1,5 +1,5 @@
 // helpers.js
-const pool = require("../../db.js");
+const pool = require("../db.js");
 const { Markup } = require("telegraf");
 const texts = require("../texts.js");
 async function getLatestPendingOrApprovedId(userId) {

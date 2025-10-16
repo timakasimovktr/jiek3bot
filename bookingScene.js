@@ -1,5 +1,5 @@
 const { Scenes, Markup } = require("telegraf");
-const pool = require("../db");
+const pool = require("./db.js");
 const texts = require("./texts.js");
 const { generateColonyKeyboard } = require("./helpers/keyboards.js");
 const {
