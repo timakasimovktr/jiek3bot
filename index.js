@@ -30,12 +30,13 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
 
 bot.on("pre_checkout_query", (ctx) => {
+  console.log("✅ pre_checkout_query получен и подтверждён", ctx.message);
   ctx.answerPreCheckoutQuery(true);
-  console.log("✅ pre_checkout_query получен и подтверждён");
 });
 
 // index.js (updated successful_payment to include cancel button in success message if needed, but mainly keep as is)
 bot.on("successful_payment", async (ctx) => {
+  console.log("✅ успешный платеж получен:", ctx.message);
   const lang = ctx.session?.language || "uzl"; // Safe access
   const payload = ctx.message.successful_payment.payload;
   const { telegram_payment_charge_id, provider_payment_charge_id } = ctx.message.successful_payment;
