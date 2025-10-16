@@ -19,6 +19,14 @@ async function getLatestPendingOrApprovedId(userId) {
   }
 }
 
+async function getCancelCount(userId) {
+  const [rows] = await pool.query(
+    `SELECT COUNT(*) as count FROM bookings WHERE user_id = ? AND status = 'canceled'`,
+    [userId]
+  );
+  return rows[0].count;
+}
+
 async function getLatestBooking(userId) {
   try {
     const [rows] = await pool.query(
@@ -100,4 +108,5 @@ module.exports = {
   buildMainMenu,
   getQueuePosition,
   resetSessionAndScene,
+  getCancelCount,
 };

@@ -1,3 +1,4 @@
+// bookingScene.js (updated)
 const { Scenes, Markup } = require("telegraf");
 const pool = require("./db.js");
 const texts = require("./texts.js");
@@ -8,6 +9,9 @@ const {
   saveBooking,
 } = require("./helpers/bookingUtils.js");
 const { MAX_RELATIVES } = require("./constants/config.js");
+const { getCancelCount } = require("./helpers/helpers.js"); // Ensure imported if needed
+
+const paidColonies = ['24']; // NEW: Array of paid colonies (add more as needed, e.g., ['1', '2', '24'])
 
 const bookingWizard = new Scenes.WizardScene(
   "booking-wizard",
@@ -192,7 +196,7 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
 
-  // Step 3: Select colony
+  // Step 3: Select colony (UPDATED with payment logic)
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
@@ -212,18 +216,36 @@ const bookingWizard = new Scenes.WizardScene(
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
 
-    if (ctx.wizard.state.colony === "24") {
-      await ctx.reply(
-        "Вы выбрали 24-ю колонию. Чтобы продолжить, нажмите кнопку ниже 👇",
-        // Markup.keyboard([["Оплатить"]]).resize()
-        // go to website to pay
-        // Markup.inlineKeyboard([
-        //   Markup.button.url("Оплатить", `https://my.click.uz/services/pay?service_id=${service_id}&merchant_id=${merchant_id}&amount=${amount}&transaction_param=${transaction_param}&return_url=${return_url}`),
-        // ])  
+    // NEW: Check if payment is required
+    const cancelCount = await getCancelCount(ctx.from.id);
+    const isPaid = paidColonies.includes(ctx.wizard.state.colony) || cancelCount >= 2;
+
+    if (isPaid) {
+      // Create pending payment entry
+      const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
+      const amount = 10500; // in sum
+      await pool.query(
+        `INSERT INTO payments (user_id, amount, currency, status, payload, created_at)
+         VALUES (?, ?, 'UZS', 'pending', ?, CURRENT_TIMESTAMP)`,
+        [ctx.from.id, amount, payload]
       );
-      return ctx.scene.leave();
+
+      // Send invoice
+      await ctx.replyWithInvoice({
+        title: texts[lang].payment_title || "Оплата заявки",
+        description: texts[lang].payment_desc || "Оплата 10500 сум за подачу заявки в платную колонию",
+        payload: payload,
+        provider_token: process.env.PROVIDER_TOKEN,
+        currency: "UZS",
+        prices: [{ label: "Заявка", amount: amount * 100 }], // in tiyin
+      });
+
+      ctx.wizard.state.paymentPayload = payload; // Store for verification if needed
+      console.log(`Step 3: Invoice sent for paid colony ${ctx.wizard.state.colony}, user ${ctx.from.id}`);
+      return; // Stay in this step until payment succeeds and continue button is pressed
     }
 
+    // If free, proceed
     ctx.wizard.state.relatives = [];
     ctx.wizard.state.currentRelative = {};
     ctx.wizard.state.prisoner_name = null;
@@ -350,7 +372,7 @@ const bookingWizard = new Scenes.WizardScene(
     }
   },
 
-  // Step 9: Final confirm or cancel
+  // Step 9: Final confirm or cancel (UPDATED: Link payment to booking)
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
@@ -359,7 +381,15 @@ const bookingWizard = new Scenes.WizardScene(
     if (ctx.callbackQuery) await ctx.answerCbQuery();
 
     if (ctx.callbackQuery?.data === "confirm") {
-      return saveBooking(ctx);
+      const bookingId = await saveBooking(ctx); // Assume saveBooking returns the new booking ID
+      if (bookingId && ctx.wizard.state.paymentPayload) {
+        // Link payment to booking
+        await pool.query(
+          `UPDATE payments SET booking_id = ? WHERE user_id = ? AND payload = ?`,
+          [bookingId, ctx.from.id, ctx.wizard.state.paymentPayload]
+        );
+      }
+      return;
     } else if (ctx.callbackQuery?.data === "cancel") {
       await ctx.reply(
         texts[lang].booking_canceled,

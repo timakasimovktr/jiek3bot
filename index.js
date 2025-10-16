@@ -1,3 +1,4 @@
+// index.js (updated)
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 require("dotenv").config();
 const pool = require("./db.js");
@@ -10,6 +11,7 @@ const {
   buildMainMenu,
   getQueuePosition,
   resetSessionAndScene,
+  getCancelCount, // NEW: Added this function import (define in helpers/helpers.js)
 } = require("./helpers/helpers.js");
 
 const {
@@ -32,9 +34,30 @@ bot.on("pre_checkout_query", (ctx) => {
   console.log("✅ pre_checkout_query получен и подтверждён");
 });
 
-bot.on("successful_payment", (ctx) => {
-  ctx.reply("Спасибо за оплату! 💸");
-  console.log("💰 Оплата прошла успешно:", ctx.message.successful_payment);
+bot.on("successful_payment", async (ctx) => { // UPDATED: Enhanced handler
+  const lang = ctx.session.language || "uzl";
+  const payload = ctx.message.successful_payment.payload;
+  const { telegram_payment_charge_id, provider_payment_charge_id } = ctx.message.successful_payment;
+
+  // Update payment status in DB
+  const [updateResult] = await pool.query(
+    `UPDATE payments SET status = 'successful', telegram_charge_id = ?, provider_charge_id = ?, updated_at = CURRENT_TIMESTAMP 
+     WHERE user_id = ? AND payload = ? AND status = 'pending'`,
+    [telegram_payment_charge_id, provider_payment_charge_id, ctx.from.id, payload]
+  );
+
+  if (updateResult.affectedRows > 0) {
+    console.log(`💰 Оплата прошла успешно для payload: ${payload}`);
+    await ctx.reply(
+      texts[lang].payment_success || "Спасибо за оплату! 💸",
+      Markup.inlineKeyboard([
+        [Markup.button.callback(texts[lang].continue || "Продолжить", "continue_after_payment")],
+      ])
+    );
+  } else {
+    console.error(`Ошибка обновления оплаты для payload: ${payload}`);
+    await ctx.reply(texts[lang].payment_error || "Ошибка обработки оплаты.");
+  }
 });
 
 bot.use(session());
@@ -65,7 +88,7 @@ bot.use(async (ctx, next) => {
   return next();
 });
 
-bot.command("bot", async (ctx) => {
+bot.command("bot", async (ctx) => { // This is test, keep as is
   await ctx.replyWithInvoice({
     title: "Оплата доступа к боту",
     description: "Покупка доступа к боту на 1 день",
@@ -261,6 +284,21 @@ bot.action("cancel", async (ctx) => {
     );
   } catch (err) {
     console.error("Error in cancel action:", err);
+    await ctx.reply(texts[ctx.session.language].error_occurred);
+  }
+});
+
+bot.action("continue_after_payment", async (ctx) => { // NEW: Action to continue after payment
+  try {
+    await ctx.answerCbQuery();
+    if (ctx.scene.current && ctx.scene.current.id === "booking-wizard" && ctx.wizard.cursor === 3) {
+      const nextHandler = ctx.wizard.next();
+      if (nextHandler) {
+        await nextHandler(ctx);
+      }
+    }
+  } catch (err) {
+    console.error("Error in continue_after_payment:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 });
