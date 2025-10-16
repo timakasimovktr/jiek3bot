@@ -499,7 +499,7 @@ require("dotenv").config();
 const app = express();
 app.use(bodyParser.json());
 
-app.use(bot.webhookCallback("/bot"));
+app.use(bot.webhookCallback("/bot-webhook"));
 
 app.get("/", (req, res) => res.send("Bot server is alive"));
 
