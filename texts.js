@@ -105,6 +105,10 @@ const texts = {
     error: "❌ Произошла ошибка. Пожалуйста, попробуйте позже.",
     not_found: "❌ Ошибка: Ваша заявка не найдена.",
     book_meeting: "📅 Записаться на встречу",
+    payment_title: "Оплата заявки",
+    payment_desc: "Оплата 10500 сум за подачу заявки",
+    payment_success: "Оплата прошла успешно! 💸",
+    continue: "Продолжить",
   },
   uz: {
     // Uzbek Cyrillic
@@ -214,6 +218,10 @@ const texts = {
     error: "❌ Хатолик юз берди. Илтимос, кейинроқ уриниб кўринг.",
     not_found: "❌ Хатолик: Аризангиз топилмади.",
     book_meeting: "📅 Учрашувга ёзилиш",
+    payment_title: "Тўлов ариза учун",
+    payment_desc: "Аризани топшириш учун 10500 сўм тўлов",
+    payment_success: "Тўлов муваффақиятли ўтказилди! 💸",
+    continue: "Давом эттириш",
   },
   uzl: {
     // Uzbek Latin (original)
@@ -324,6 +332,10 @@ const texts = {
     error: "❌ Xatolik yuz berdi. Iltimos, keyinroq urinib ko‘ring.",
     not_found: "❌ Xatolik: Arizangiz topilmadi.",
     book_meeting: "📅 Uchrashuvga yozilish",
+    payment_title: "To'lov ariza uchun",
+    payment_desc: "Arizani topshirish uchun 10500 so'm to'lov",
+    payment_success: "To'lov muvaffaqiyatli o'tkazildi! 💸",
+    continue: "Davom ettirish",
   },
 };
 
