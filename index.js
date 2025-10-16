@@ -30,7 +30,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
 
 bot.on("pre_checkout_query", (ctx) => {
-  console.log("✅ pre_checkout_query получен и подтверждён", ctx.message);
+  console.log("✅ pre_checkout_query получен и подтверждён", ctx);
   ctx.answerPreCheckoutQuery(true);
 });
 
@@ -40,7 +40,7 @@ bot.on("successful_payment", async (ctx) => {
     const payment = ctx.message.successful_payment;
     console.log("💸 successful_payment получен:", payment);
 
-    const payload = payment.payload;
+    const payload = payment.invoice_payload;
     if (!payload) {
       console.error("❌ payload отсутствует в successful_payment");
       await ctx.reply("Произошла ошибка при подтверждении оплаты.");
