@@ -36,35 +36,35 @@ bot.on("pre_checkout_query", (ctx) => {
 
 // index.js (updated successful_payment to include cancel button in success message if needed, but mainly keep as is)
 bot.on("successful_payment", async (ctx) => {
-  console.log("✅ успешный платеж получен:", ctx.message);
-  const lang = ctx.session?.language || "uzl"; // Safe access
-  const payload = ctx.message.successful_payment.payload;
-  const { telegram_payment_charge_id, provider_payment_charge_id } = ctx.message.successful_payment;
-
   try {
-    const [updateResult] = await pool.query(
-      `UPDATE payments SET status = 'successful', telegram_charge_id = ?, provider_charge_id = ?, updated_at = CURRENT_TIMESTAMP 
-       WHERE user_id = ? AND payload = ? AND status = 'pending'`,
-      [telegram_payment_charge_id, provider_payment_charge_id, ctx.from.id, payload]
+    const payment = ctx.message.successful_payment;
+    console.log("💸 successful_payment получен:", payment);
+
+    const payload = payment.payload;
+    if (!payload) {
+      console.error("❌ payload отсутствует в successful_payment");
+      await ctx.reply("Произошла ошибка при подтверждении оплаты.");
+      return;
+    }
+
+    // Обновляем запись в базе
+    await pool.query(
+      `UPDATE payments SET status = 'successful', updated_at = CURRENT_TIMESTAMP WHERE payload = ?`,
+      [payload]
     );
 
-    if (updateResult.affectedRows > 0) {
-      console.log(`Оплата прошла успешно для payload: ${payload}`);
-      await ctx.reply(
-        texts[lang].payment_success || "Спасибо за оплату! 💸",
-        Markup.inlineKeyboard([
-          [Markup.button.callback(texts[lang].continue || "Продолжить", "continue_after_payment")],
-        ])
-      );
-    } else {
-      console.error(`Ошибка обновления оплаты для payload: ${payload}`);
-      await ctx.reply(texts[lang].payment_error || "Ошибка обработки оплаты.");
-    }
+    await ctx.reply(
+      "✅ Оплата прошла успешно! Нажми ниже, чтобы продолжить:",
+      Markup.inlineKeyboard([
+        [Markup.button.callback("Продолжить", "continue_after_payment")],
+      ])
+    );
   } catch (err) {
-    console.error("Error updating payment:", err);
-    await ctx.reply(texts[lang].payment_error || "Ошибка обработки оплаты.");
+    console.error("Ошибка обработки successful_payment:", err);
+    await ctx.reply("Произошла ошибка при обработке оплаты.");
   }
 });
+
 
 bot.use(session());
 bot.use(stage.middleware());

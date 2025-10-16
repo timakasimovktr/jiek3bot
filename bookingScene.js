@@ -317,7 +317,7 @@ const bookingWizard = new Scenes.WizardScene(
         const amount = 10500; // in sum
         await pool.query(
           `INSERT INTO payments (user_id, amount, currency, status, payload, created_at)
-           VALUES (?, ?, 'UZS', 'pending', ?, CURRENT_TIMESTAMP)`,
+          VALUES (?, ?, 'UZS', 'pending', ?, CURRENT_TIMESTAMP)`,
           [ctx.from.id, amount, payload]
         );
         ctx.wizard.state.paymentPayload = payload;
