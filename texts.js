@@ -111,6 +111,9 @@ const texts = {
     continue: "Продолжить",
     payment_not_verified: "Оплата не подтверждена.",
     payment_error: "Произошла ошибка при оплате.",
+    pay_or_cancel: "Оплатите или отмените.",
+    payment_canceled: "Оплата отменена. Выберите колонию заново.",
+    payment_already_processed: "Оплата уже обработана.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -226,6 +229,9 @@ const texts = {
     continue: "Давом эттириш",
     payment_not_verified: "Тўлов тасдиқланмади.",
     payment_error: "Тўловда хатолик юз берди.",   
+    pay_or_cancel: "Тўловни амалга оширинг ёки бекор қилинг.",
+    payment_canceled: "Тўлов бекор қилинди. Колонияни қайта танланг.",
+    payment_already_processed: "Тўлов аллақачон қайта ишланди.", 
   },
   uzl: {
     // Uzbek Latin (original)
@@ -342,6 +348,9 @@ const texts = {
     continue: "Davom ettirish",
     payment_not_verified: "To'lov tasdiqlanmadi.",
     payment_error: "To'lovda xatolik yuz berdi.",
+    pay_or_cancel: "To'lovni amalga oshiring yoki bekor qiling.",
+    payment_canceled: "To'lov bekor qilindi. Koloniyani qayta tanlang.",
+    payment_already_processed: "To'lov allaqachon qayta ishlandi.",
   },
 };
 

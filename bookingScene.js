@@ -196,7 +196,7 @@ const bookingWizard = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
 
-  // Step 3: Select colony (UPDATED with payment logic)
+  // Step 3: Select colony (UPDATED with cancel and persistence)
   async (ctx) => {
     const lang = ctx.session.language;
     console.log(
@@ -236,6 +236,62 @@ const bookingWizard = new Scenes.WizardScene(
       return ctx.wizard.next();
     }
 
+    // Handle cancel payment action
+    if (ctx.callbackQuery?.data === "cancel_payment") {
+      await ctx.answerCbQuery();
+      await ctx.reply(
+        texts[lang].payment_canceled ||
+          "Оплата отменена. Выберите колонию заново.",
+        generateColonyKeyboard(lang)
+      );
+      ctx.wizard.state = {}; // Reset state to restart
+      return;
+    }
+
+    // If already in payment mode (paymentPayload exists), handle any input
+    if (ctx.wizard.state.paymentPayload) {
+      // If text or anything else, resend invoice
+      if (ctx.message || !ctx.callbackQuery) {
+        const [paymentRows] = await pool.query(
+          `SELECT status, amount FROM payments WHERE user_id = ? AND payload = ?`,
+          [ctx.from.id, ctx.wizard.state.paymentPayload]
+        );
+        if (paymentRows.length > 0 && paymentRows[0].status === "pending") {
+          const amount = paymentRows[0].amount;
+          await ctx.replyWithInvoice({
+            title: texts[lang].payment_title || "Оплата заявки",
+            description:
+              texts[lang].payment_desc ||
+              "Оплата 10500 сум за подачу заявки в платную колонию",
+            payload: ctx.wizard.state.paymentPayload,
+            provider_token: process.env.PROVIDER_TOKEN,
+            currency: "UZS",
+            prices: [{ label: "Заявка", amount: amount * 100 }], // in tiyin
+          });
+          await ctx.reply(
+            texts[lang].pay_or_cancel || "Оплатите или отмените.",
+            Markup.inlineKeyboard([
+              [
+                Markup.button.callback(
+                  texts[lang].cancel_button || "Отмена",
+                  "cancel_payment"
+                ),
+              ],
+            ])
+          );
+        } else {
+          // If payment already processed, proceed or handle
+          await ctx.reply(
+            texts[lang].payment_already_processed || "Оплата уже обработана."
+          );
+          return ctx.scene.leave();
+        }
+        return;
+      }
+      return;
+    }
+
+    // Initial colony selection
     const data = ctx.callbackQuery?.data;
 
     if (
@@ -249,34 +305,49 @@ const bookingWizard = new Scenes.WizardScene(
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
 
-    // NEW: Check if payment is required
+    // Check if payment is required
     const cancelCount = await getCancelCount(ctx.from.id);
     const requiresPayment =
       paidColonies.includes(ctx.wizard.state.colony) || cancelCount >= 2;
 
     if (requiresPayment) {
-      // Create pending payment entry
-      const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
-      const amount = 10500; // in sum
-      await pool.query(
-        `INSERT INTO payments (user_id, amount, currency, status, payload, created_at)
-         VALUES (?, ?, 'UZS', 'pending', ?, CURRENT_TIMESTAMP)`,
-        [ctx.from.id, amount, payload]
-      );
+      // Create pending payment entry if not exists
+      if (!ctx.wizard.state.paymentPayload) {
+        const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
+        const amount = 10500; // in sum
+        await pool.query(
+          `INSERT INTO payments (user_id, amount, currency, status, payload, created_at)
+           VALUES (?, ?, 'UZS', 'pending', ?, CURRENT_TIMESTAMP)`,
+          [ctx.from.id, amount, payload]
+        );
+        ctx.wizard.state.paymentPayload = payload;
+      }
 
-      // Send invoice
+      // Send invoice with cancel button
+      const amount = 10500;
       await ctx.replyWithInvoice({
         title: texts[lang].payment_title || "Оплата заявки",
         description:
           texts[lang].payment_desc ||
           "Оплата 10500 сум за подачу заявки в платную колонию",
-        payload: payload,
+        payload: ctx.wizard.state.paymentPayload,
         provider_token: process.env.PROVIDER_TOKEN,
         currency: "UZS",
         prices: [{ label: "Заявка", amount: amount * 100 }], // in tiyin
       });
 
-      ctx.wizard.state.paymentPayload = payload; // Store for verification
+      await ctx.reply(
+        texts[lang].pay_or_cancel || "Оплатите или отмените.",
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              texts[lang].cancel_button || "Отмена",
+              "cancel_payment"
+            ),
+          ],
+        ])
+      );
+
       console.log(
         `Step 3: Invoice sent for paid colony ${ctx.wizard.state.colony}, user ${ctx.from.id}`
       );

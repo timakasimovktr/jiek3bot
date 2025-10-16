@@ -34,23 +34,17 @@ bot.on("pre_checkout_query", (ctx) => {
   console.log("✅ pre_checkout_query получен и подтверждён");
 });
 
+// index.js (updated successful_payment to include cancel button in success message if needed, but mainly keep as is)
 bot.on("successful_payment", async (ctx) => {
-  const lang = ctx.session?.language || "uzl"; // UPDATED: Safe access with fallback
+  const lang = ctx.session?.language || "uzl"; // Safe access
   const payload = ctx.message.successful_payment.payload;
-  const { telegram_payment_charge_id, provider_payment_charge_id } =
-    ctx.message.successful_payment;
+  const { telegram_payment_charge_id, provider_payment_charge_id } = ctx.message.successful_payment;
 
-  // Update payment status in DB
   try {
     const [updateResult] = await pool.query(
       `UPDATE payments SET status = 'successful', telegram_charge_id = ?, provider_charge_id = ?, updated_at = CURRENT_TIMESTAMP 
        WHERE user_id = ? AND payload = ? AND status = 'pending'`,
-      [
-        telegram_payment_charge_id,
-        provider_payment_charge_id,
-        ctx.from.id,
-        payload,
-      ]
+      [telegram_payment_charge_id, provider_payment_charge_id, ctx.from.id, payload]
     );
 
     if (updateResult.affectedRows > 0) {
@@ -58,12 +52,7 @@ bot.on("successful_payment", async (ctx) => {
       await ctx.reply(
         texts[lang].payment_success || "Спасибо за оплату! 💸",
         Markup.inlineKeyboard([
-          [
-            Markup.button.callback(
-              texts[lang].continue || "Продолжить",
-              "continue_after_payment"
-            ),
-          ],
+          [Markup.button.callback(texts[lang].continue || "Продолжить", "continue_after_payment")],
         ])
       );
     } else {
