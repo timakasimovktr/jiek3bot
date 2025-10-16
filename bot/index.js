@@ -547,6 +547,6 @@ app.post("/complete", async (req, res) => {
   }
 });
 
-app.listen(443, "0.0.0.0", () => {
+app.listen(4443, "0.0.0.0", () => {
   console.log("✅ Bot server running on port 4443");
 });
