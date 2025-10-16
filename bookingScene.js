@@ -223,7 +223,7 @@ const bookingWizard = new Scenes.WizardScene(
     if (isPaid) {
       // Create pending payment entry
       const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
-      const amount = 10500; // in sum
+      const amount = 5500; // in sum
       await pool.query(
         `INSERT INTO payments (user_id, amount, currency, status, payload, created_at)
          VALUES (?, ?, 'UZS', 'pending', ?, CURRENT_TIMESTAMP)`,
