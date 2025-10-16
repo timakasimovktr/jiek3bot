@@ -241,9 +241,12 @@ const bookingWizard = new Scenes.WizardScene(
       await ctx.answerCbQuery();
       await ctx.reply(
         texts[lang].payment_canceled ||
-          "Оплата отменена. Выберите колонию заново.",
-        generateColonyKeyboard(lang)
+          "Оплата отменена. Выберите записаться на встречу заново.",
+        Markup.inlineKeyboard([
+          [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
+        ])
       );
+      ctx.session = {};
       ctx.wizard.state = {}; // Reset state to restart
       return;
     }
