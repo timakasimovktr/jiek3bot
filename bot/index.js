@@ -11,7 +11,6 @@ const {
   getQueuePosition,
   resetSessionAndScene,
 } = require("./helpers/helpers.js");
-const bodyParser = require("body-parser");
 
 const {
   handleBookMeeting,
@@ -52,24 +51,6 @@ bot.use(async (ctx, next) => {
     ctx.session.language = latest?.language || "uzl"; // По умолчанию uzl
   }
   return next();
-});
-
-bot.on("message", (ctx) => console.log("💬 message", ctx.update));
-bot.on("callback_query", (ctx) => console.log("🔘 callback", ctx.update));
-bot.on("pre_checkout_query", (ctx) => console.log("💰 pre_checkout_query", ctx.update));
-
-
-bot.on("pre_checkout_query", (ctx) => {
-  console.log("✅ pre_checkout_query получен и подтверждён"); 
-  ctx.answerPreCheckoutQuery(true);
-});
-
-bot.on("successful_payment", async (ctx) => {
-  console.log("💰 Оплата прошла успешно:", ctx.message.successful_payment);
-  const payload = ctx.message.successful_payment.invoice_payload;
-  await ctx.reply(
-    "Спасибо за успешную оплату! Ваш платеж на 1000 сум подтвержден."
-  ); 
 });
 
 bot.command("cancel", async (ctx) => {
@@ -292,51 +273,6 @@ bot.hears(texts.uzl.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.uz.yes, async (ctx) => handleYesCancel(ctx));
 bot.hears(texts.ru.yes, async (ctx) => handleYesCancel(ctx));
 
-const getInvoice = (id) => ({
-  chat_id: id,
-  start_parameter: "get_access",
-  title: "InvoiceTitle",
-  description: "InvoiceDescription",
-  currency: "UZS",
-  prices: [{ label: "Invoice Title", amount: 1000 * 100 }],
-  payload: `payload_${id}_${Date.now()}`,
-});
-
-bot.command("bot", async (ctx) => {
-  const userId = ctx.from.id;
-  const payload = `payment_${userId}_${Date.now()}`;
-
-  const providerData = {
-    service_id: 84549, // Из .env
-    merchant_id: 52682, // Добавьте в .env ваш merchant_id из Click
-    // Если нужно merchant_user_id или другие — добавьте
-  };
-
-  try {
-    await ctx.replyWithInvoice({
-      chat_id: userId,
-      title: "Оплата услуги",
-      description: "Тестовая оплата 1000 сум",
-      payload: payload,
-      provider_token:
-        "333605228:LIVE:36435_D1587AEFBAAF29A662FF887F2AAB20970D875DF3", // Для Click — пусто
-      currency: "UZS",
-      prices: [{ label: "Услуга", amount: 100000 }], // 1000 UZS в тиынах
-      provider_data: JSON.stringify(providerData),
-      need_name: false,
-      need_phone_number: true, // Если нужно собирать данные
-      need_shipping_address: false,
-      start_parameter: "bot-payment",
-      // URL для Click
-      prepare_url: "https://bot.test-dunyo.uz/prepare", // Ваша Prepare URL
-      complete_url: "https://bot.test-dunyo.uz/complete", // Ваша Complete URL
-    });
-  } catch (err) {
-    console.error("Error sending invoice:", err);
-    await ctx.reply("Ошибка при создании инвойса.");
-  }
-});
-
 bot.on(message("text"), async (ctx, next) => {
   try {
     const lang = ctx.session.language;
@@ -493,60 +429,5 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
   }
 });
 
-const express = require("express");
-require("dotenv").config();
-
-const app = express();
-app.use(bodyParser.json());
-
-app.use(bot.webhookCallback("/bot-webhook"));
-
-app.get("/", (req, res) => res.send("Bot server is alive"));
-
-// Prepare handler (Called by Click/TG for preparation)
-app.post("/prepare", async (req, res) => {
-  console.log("Prepare payload:", req.body);
-  try {
-    const { payload, amount, currency } = req.body;
-    if (amount !== 100000) return res.json({ error: "Invalid amount" });
-
-    const merchant_trans_id = payload;
-    const merchant_prepare_id = Date.now();
-
-    res.json({
-      allow: true,
-      merchant_trans_id,
-      merchant_prepare_id,
-    });
-  } catch (err) {
-    console.error(err);
-    res.json({ error: "Server error" });
-  }
-});
-
-// Complete handler (Called after payment)
-app.post("/complete", async (req, res) => {
-  console.log("Complete payload:", req.body);
-  try {
-    const { merchant_trans_id, merchant_prepare_id, error } = req.body;
-
-    if (error !== 0) {
-      // Update DB to failed
-      return res.json({ success: false });
-    }
-
-    // Update DB to paid по merchant_trans_id (payload)
-    // await pool.query('UPDATE payments SET status = "paid" WHERE payload = ?', [merchant_trans_id]);
-
-    // Здесь можно уведомить пользователя через bot.telegram.sendMessage(...)
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.json({ error: "Server error" });
-  }
-});
-
-app.listen(4443, "0.0.0.0", () => {
-  console.log("✅ Bot server running on port 4443");
-});
+bot.launch();
+console.log("🚀 Бот запущен!");
