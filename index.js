@@ -34,28 +34,44 @@ bot.on("pre_checkout_query", (ctx) => {
   console.log("✅ pre_checkout_query получен и подтверждён");
 });
 
-bot.on("successful_payment", async (ctx) => { // UPDATED: Enhanced handler
-  const lang = ctx.session.language || "uzl";
+bot.on("successful_payment", async (ctx) => {
+  const lang = ctx.session?.language || "uzl"; // UPDATED: Safe access with fallback
   const payload = ctx.message.successful_payment.payload;
-  const { telegram_payment_charge_id, provider_payment_charge_id } = ctx.message.successful_payment;
+  const { telegram_payment_charge_id, provider_payment_charge_id } =
+    ctx.message.successful_payment;
 
   // Update payment status in DB
-  const [updateResult] = await pool.query(
-    `UPDATE payments SET status = 'successful', telegram_charge_id = ?, provider_charge_id = ?, updated_at = CURRENT_TIMESTAMP 
-     WHERE user_id = ? AND payload = ? AND status = 'pending'`,
-    [telegram_payment_charge_id, provider_payment_charge_id, ctx.from.id, payload]
-  );
-
-  if (updateResult.affectedRows > 0) {
-    console.log(`💰 Оплата прошла успешно для payload: ${payload}`);
-    await ctx.reply(
-      texts[lang].payment_success || "Спасибо за оплату! 💸",
-      Markup.inlineKeyboard([
-        [Markup.button.callback(texts[lang].continue || "Продолжить", "continue_after_payment")],
-      ])
+  try {
+    const [updateResult] = await pool.query(
+      `UPDATE payments SET status = 'successful', telegram_charge_id = ?, provider_charge_id = ?, updated_at = CURRENT_TIMESTAMP 
+       WHERE user_id = ? AND payload = ? AND status = 'pending'`,
+      [
+        telegram_payment_charge_id,
+        provider_payment_charge_id,
+        ctx.from.id,
+        payload,
+      ]
     );
-  } else {
-    console.error(`Ошибка обновления оплаты для payload: ${payload}`);
+
+    if (updateResult.affectedRows > 0) {
+      console.log(`Оплата прошла успешно для payload: ${payload}`);
+      await ctx.reply(
+        texts[lang].payment_success || "Спасибо за оплату! 💸",
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              texts[lang].continue || "Продолжить",
+              "continue_after_payment"
+            ),
+          ],
+        ])
+      );
+    } else {
+      console.error(`Ошибка обновления оплаты для payload: ${payload}`);
+      await ctx.reply(texts[lang].payment_error || "Ошибка обработки оплаты.");
+    }
+  } catch (err) {
+    console.error("Error updating payment:", err);
     await ctx.reply(texts[lang].payment_error || "Ошибка обработки оплаты.");
   }
 });
@@ -64,7 +80,8 @@ bot.use(session());
 bot.use(stage.middleware());
 
 bot.use((ctx, next) => {
-  if (ctx.updateType === 'message' || ctx.updateType === 'callback_query') {  // Только для пользовательских обновлений
+  if (ctx.updateType === "message" || ctx.updateType === "callback_query") {
+    // Только для пользовательских обновлений
     if (ctx.chat?.type !== "private") {
       return;
     }
@@ -88,7 +105,8 @@ bot.use(async (ctx, next) => {
   return next();
 });
 
-bot.command("bot", async (ctx) => { // This is test, keep as is
+bot.command("bot", async (ctx) => {
+  // This is test, keep as is
   await ctx.replyWithInvoice({
     title: "Оплата доступа к боту",
     description: "Покупка доступа к боту на 1 день",
@@ -288,10 +306,15 @@ bot.action("cancel", async (ctx) => {
   }
 });
 
-bot.action("continue_after_payment", async (ctx) => { // NEW: Action to continue after payment
+bot.action("continue_after_payment", async (ctx) => {
+  // NEW: Action to continue after payment
   try {
     await ctx.answerCbQuery();
-    if (ctx.scene.current && ctx.scene.current.id === "booking-wizard" && ctx.wizard.cursor === 3) {
+    if (
+      ctx.scene.current &&
+      ctx.scene.current.id === "booking-wizard" &&
+      ctx.wizard.cursor === 3
+    ) {
       const nextHandler = ctx.wizard.next();
       if (nextHandler) {
         await nextHandler(ctx);

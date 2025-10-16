@@ -109,6 +109,8 @@ const texts = {
     payment_desc: "Оплата 10500 сум за подачу заявки",
     payment_success: "Оплата прошла успешно! 💸",
     continue: "Продолжить",
+    payment_not_verified: "Оплата не подтверждена.",
+    payment_error: "Произошла ошибка при оплате.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -222,6 +224,8 @@ const texts = {
     payment_desc: "Аризани топшириш учун 10500 сўм тўлов",
     payment_success: "Тўлов муваффақиятли ўтказилди! 💸",
     continue: "Давом эттириш",
+    payment_not_verified: "Тўлов тасдиқланмади.",
+    payment_error: "Тўловда хатолик юз берди.",   
   },
   uzl: {
     // Uzbek Latin (original)
@@ -336,6 +340,8 @@ const texts = {
     payment_desc: "Arizani topshirish uchun 10500 so'm to'lov",
     payment_success: "To'lov muvaffaqiyatli o'tkazildi! 💸",
     continue: "Davom ettirish",
+    payment_not_verified: "To'lov tasdiqlanmadi.",
+    payment_error: "To'lovda xatolik yuz berdi.",
   },
 };
 
