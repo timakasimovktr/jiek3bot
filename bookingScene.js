@@ -306,11 +306,11 @@ const bookingWizard = new Scenes.WizardScene(
 
     const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
     const attemptsLeft = await pool.query(
-      `SELECT attempts FROM payments WHERE phone_number = ?`,
+      `SELECT * FROM payments WHERE phone_number = ?`,
       [ctx.wizard.state.phone]
     );
     console.log(attemptsLeft[0]?.attempts, "ertyhjhtrrghhgrer");
-    if (requiresPayment && (!attemptsLeft.length || attemptsLeft <= 0)) {
+    if (requiresPayment) {
       if (!ctx.wizard.state.paymentPayload) {
         const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
         const amount = 12500;
