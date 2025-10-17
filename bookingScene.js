@@ -295,7 +295,6 @@ const bookingWizard = new Scenes.WizardScene(
       return;
     }
 
-    // Initial colony selection
     const data = ctx.callbackQuery?.data;
 
     if (
@@ -309,14 +308,12 @@ const bookingWizard = new Scenes.WizardScene(
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
 
-    // const cancelCount = await getCancelCount(ctx.from.id);
     const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
 
     if (requiresPayment) {
-      // Create pending payment entry if not exists
       if (!ctx.wizard.state.paymentPayload) {
         const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
-        const amount = 12500; // in sum
+        const amount = 12500;
         await pool.query(
           `INSERT INTO payments (user_id, amount, currency, status, payload, created_at)
           VALUES (?, ?, 'UZS', 'pending', ?, CURRENT_TIMESTAMP)`,
@@ -325,7 +322,6 @@ const bookingWizard = new Scenes.WizardScene(
         ctx.wizard.state.paymentPayload = payload;
       }
 
-      // Send invoice with cancel button
       const amount = 12500;
       await ctx.replyWithInvoice({
         title: texts[lang].payment_title || "Оплата заявки",
@@ -335,7 +331,7 @@ const bookingWizard = new Scenes.WizardScene(
         payload: ctx.wizard.state.paymentPayload,
         provider_token: process.env.PROVIDER_TOKEN,
         currency: "UZS",
-        prices: [{ label: "Заявка", amount: amount * 100 }], // in tiyin
+        prices: [{ label: "Заявка", amount: amount * 100 }], 
       });
 
       await ctx.reply(
@@ -353,7 +349,7 @@ const bookingWizard = new Scenes.WizardScene(
       console.log(
         `Step 3: Invoice sent for paid colony ${ctx.wizard.state.colony}, user ${ctx.from.id}`
       );
-      return; // Stay in this step
+      return; 
     }
 
     // If free, proceed directly
