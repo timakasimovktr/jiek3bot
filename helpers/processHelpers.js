@@ -210,9 +210,9 @@ async function handleVisitorReminder(ctx) {
     const compressedImagePath = path.join(__dirname, compressedImageFile);
 
     if (fs.existsSync(imagePath)) {
-      await ctx.replyWithPhoto({ source: imagePath }, { caption: "Сжатая версия" });
+      await ctx.replyWithPhoto({ source: imagePath });
 
-      await ctx.replyWithDocument({ source: imagePath }, { caption: "Без сжатия (оригинал)" });
+      await ctx.replyWithDocument({ source: imagePath });
     } else {
       await ctx.reply("Файл не найден 😕");
     }
