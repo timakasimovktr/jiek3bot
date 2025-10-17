@@ -267,7 +267,7 @@ const bookingWizard = new Scenes.WizardScene(
             title: texts[lang].payment_title || "Оплата заявки",
             description:
               texts[lang].payment_desc ||
-              "Оплата 10500 сум за подачу заявки в платную колонию",
+              "Оплата 12500 сум за подачу заявки в платную колонию",
             payload: ctx.wizard.state.paymentPayload,
             provider_token: process.env.PROVIDER_TOKEN,
             currency: "UZS",
@@ -316,7 +316,7 @@ const bookingWizard = new Scenes.WizardScene(
       // Create pending payment entry if not exists
       if (!ctx.wizard.state.paymentPayload) {
         const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
-        const amount = 10500; // in sum
+        const amount = 12500; // in sum
         await pool.query(
           `INSERT INTO payments (user_id, amount, currency, status, payload, created_at)
           VALUES (?, ?, 'UZS', 'pending', ?, CURRENT_TIMESTAMP)`,
@@ -326,12 +326,12 @@ const bookingWizard = new Scenes.WizardScene(
       }
 
       // Send invoice with cancel button
-      const amount = 10500;
+      const amount = 12500;
       await ctx.replyWithInvoice({
         title: texts[lang].payment_title || "Оплата заявки",
         description:
           texts[lang].payment_desc ||
-          "Оплата 10500 сум за подачу заявки в платную колонию",
+          "Оплата 12500 сум за подачу заявки в платную колонию",
         payload: ctx.wizard.state.paymentPayload,
         provider_token: process.env.PROVIDER_TOKEN,
         currency: "UZS",
