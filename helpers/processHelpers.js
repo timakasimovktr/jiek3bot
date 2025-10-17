@@ -276,7 +276,7 @@ async function handleYesCancel(ctx) {
     ctx.session.confirmCancelId = null;
 
     const [bookingsRows] = await pool.query(
-      "SELECT colony, relatives, colony_application_number, phone_number FROM bookings WHERE id = ? AND user_id = ?",
+      "SELECT colony, relatives, colony_application_number, phone_number, status FROM bookings WHERE id = ? AND user_id = ?",
       [bookingId, ctx.from.id]
     );
 
@@ -287,6 +287,7 @@ async function handleYesCancel(ctx) {
 
     const colony = bookingsRows[0].colony;
     const phoneNumber = bookingsRows[0].phone_number;
+    const status = bookingsRows[0].status;
     let bookingName =
       lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum";
 
@@ -306,7 +307,7 @@ async function handleYesCancel(ctx) {
       [bookingId, ctx.from.id]
     );
 
-    if (colony == 24) {
+    if (colony == 24 && status === "approved") {
       await pool.query(
         "UPDATE payments SET attempts = attempts - 1 WHERE phone_number = ?",
         [phoneNumber]
