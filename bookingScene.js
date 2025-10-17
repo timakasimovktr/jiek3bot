@@ -206,7 +206,7 @@ const bookingWizard = new Scenes.WizardScene(
         }
       }
 
-      const attemptsLeft = await pool.query(`SELECT attempts FROM payments WHERE phone_number = ?`, [ctx.wizard.state.phone]);
+      const attemptsLeft = await pool.query(`SELECT attempts FROM payments WHERE user_id = ?`, [ctx.from.id]);
       const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
 
       if (requiresPayment && (!attemptsLeft[0].length || attemptsLeft[0][0].attempts < 1)) {

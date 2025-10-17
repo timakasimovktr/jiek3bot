@@ -301,10 +301,12 @@ async function handleYesCancel(ctx) {
 
     if (colony == 24 && status === "approved") {
       await pool.query(
-        "UPDATE payments SET attempts = attempts - 1 WHERE phone_number = ?",
-        [phoneNumber]
+        "UPDATE payments SET attempts = attempts - 1 WHERE user_id = ?",
+        [ctx.from.id]
       );
     }
+
+    await pool.query(`DELETE FROM payments WHERE attempts <= 0`);
 
     if (result.affectedRows === 0) {
       await resetSessionAndScene(ctx);

@@ -115,6 +115,7 @@ const texts = {
     payment_canceled: "Оплата отменена. Запишитесь на встречу заново.",
     payment_already_processed: "Оплата уже обработана.",
     booking_payment_error: "❌ Произошла ошибка при оплате бронирования, Попробуйте еще раз.",
+    unexpected_input: "❌ Непредвиденный ввод. Пожалуйста, следуйте инструкциям.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -233,7 +234,8 @@ const texts = {
     pay_or_cancel: "Тўловни амалга оширинг ёки бекор қилинг.",
     payment_canceled: "Тўлов бекор қилинди. Учрашувга ёзилинг.",
     payment_already_processed: "Тўлов аллақачон қайта ишланди.",
-    booking_payment_error: "❌ Брон қилиш тўловида хатолик юз берди, Қайта уриниб кўринг.", 
+    booking_payment_error: "❌ Брон қилиш тўловида хатолик юз берди, Қайта уриниб кўринг.",
+    unexpected_input: "❌ Нотўғри киритиш. Илтимос, кўрсатмаларга риоя қилинг.",
   },
   uzl: {
     // Uzbek Latin (original)
@@ -354,6 +356,7 @@ const texts = {
     payment_canceled: "To'lov bekor qilindi. Uchrashuvga yoziling.",
     payment_already_processed: "To'lov allaqachon qayta ishlandi.",
     booking_payment_error: "❌ Bron qilish to‘lovida xatolik yuz berdi, Qayta urinib ko‘ring.",
+    unexpected_input: "❌ Noto‘g‘ri kiritish. Iltimos, ko‘rsatmalarga rioya qiling.",
   },
 };
 
