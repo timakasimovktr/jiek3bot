@@ -1,4 +1,4 @@
-// bookingScene.js (updated)
+// bookingScene.js 
 const { Scenes, Markup } = require("telegraf");
 const pool = require("./db.js");
 const texts = require("./texts.js");
@@ -9,9 +9,9 @@ const {
   saveBooking,
 } = require("./helpers/bookingUtils.js");
 const { MAX_RELATIVES } = require("./constants/config.js");
-const { getCancelCount } = require("./helpers/helpers.js"); // Ensure imported if needed
+const { getCancelCount } = require("./helpers/helpers.js");
 
-const paidColonies = ["24"]; // NEW: Array of paid colonies (add more as needed, e.g., ['1', '2', '24'])
+const paidColonies = ["24"];
 
 const bookingWizard = new Scenes.WizardScene(
   "booking-wizard",
@@ -203,10 +203,8 @@ const bookingWizard = new Scenes.WizardScene(
       `Step 3: User ${ctx.from.id} action: ${ctx.callbackQuery?.data}, message: ${ctx.message?.text}`
     );
 
-    // Handle continuation after payment via action
     if (ctx.callbackQuery?.data === "continue_after_payment") {
       await ctx.answerCbQuery();
-      // Verify payment was successful
       const [paymentRows] = await pool.query(
         `SELECT status FROM payments WHERE user_id = ? AND payload = ? AND status = 'successful'`,
         [ctx.from.id, ctx.wizard.state.paymentPayload]
@@ -218,7 +216,6 @@ const bookingWizard = new Scenes.WizardScene(
         return ctx.scene.leave();
       }
 
-      // Proceed as free now
       ctx.wizard.state.relatives = [];
       ctx.wizard.state.currentRelative = {};
       ctx.wizard.state.prisoner_name = null;
@@ -236,7 +233,6 @@ const bookingWizard = new Scenes.WizardScene(
       return ctx.wizard.next();
     }
 
-    // Handle cancel payment action
     if (ctx.callbackQuery?.data === "cancel_payment") {
       await ctx.answerCbQuery();
       await ctx.reply(
@@ -253,9 +249,7 @@ const bookingWizard = new Scenes.WizardScene(
       return;
     }
 
-    // If already in payment mode (paymentPayload exists), handle any input
     if (ctx.wizard.state.paymentPayload) {
-      // If text or anything else, resend invoice
       if (ctx.message || !ctx.callbackQuery) {
         const [paymentRows] = await pool.query(
           `SELECT status, amount FROM payments WHERE user_id = ? AND payload = ?`,
@@ -310,15 +304,19 @@ const bookingWizard = new Scenes.WizardScene(
     
     const cancelCount = await getCancelCount(ctx.from.id);
     const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
-
+    const [attemptsLeft] = await pool.query(
+      `SELECT attempts FROM payments WHERE phone_number = ?`,
+      [ctx.wizard.state.phone]
+    );
+    console.log("11111111111111111111111111111", attemptsLeft);
     if (requiresPayment) {
       if (!ctx.wizard.state.paymentPayload) {
         const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
         const amount = 12500;
         await pool.query(
-          `INSERT INTO payments (user_id, amount, currency, status, payload, created_at)
-          VALUES (?, ?, 'UZS', 'pending', ?, CURRENT_TIMESTAMP)`,
-          [ctx.from.id, amount, payload]
+          `INSERT INTO payments (user_id, amount, currency, status, payload, created_at, phone_number)
+          VALUES (?, ?, 'UZS', 'pending', ?, CURRENT_TIMESTAMP, ?)`,
+          [ctx.from.id, amount, payload, ctx.wizard.state.phone]
         );
         ctx.wizard.state.paymentPayload = payload;
       }
@@ -353,7 +351,6 @@ const bookingWizard = new Scenes.WizardScene(
       return;
     }
 
-    // If free, proceed directly
     ctx.wizard.state.relatives = [];
     ctx.wizard.state.currentRelative = {};
     ctx.wizard.state.prisoner_name = null;
@@ -489,9 +486,8 @@ const bookingWizard = new Scenes.WizardScene(
     if (ctx.callbackQuery) await ctx.answerCbQuery();
 
     if (ctx.callbackQuery?.data === "confirm") {
-      const bookingId = await saveBooking(ctx); // Assume saveBooking returns the new booking ID
+      const bookingId = await saveBooking(ctx);  
       if (bookingId && ctx.wizard.state.paymentPayload) {
-        // Link payment to booking
         await pool.query(
           `UPDATE payments SET booking_id = ? WHERE user_id = ? AND payload = ?`,
           [bookingId, ctx.from.id, ctx.wizard.state.paymentPayload]

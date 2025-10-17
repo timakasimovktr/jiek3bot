@@ -114,6 +114,7 @@ const texts = {
     pay_or_cancel: "Оплатите или отмените.",
     payment_canceled: "Оплата отменена. Выберите колонию заново.",
     payment_already_processed: "Оплата уже обработана.",
+    booking_payment_error: "❌ Произошла ошибка при оплате бронирования, Попробуйте еще раз.",
   },
   uz: {
     // Uzbek Cyrillic
@@ -231,7 +232,8 @@ const texts = {
     payment_error: "Тўловда хатолик юз берди.",   
     pay_or_cancel: "Тўловни амалга оширинг ёки бекор қилинг.",
     payment_canceled: "Тўлов бекор қилинди. Колонияни қайта танланг.",
-    payment_already_processed: "Тўлов аллақачон қайта ишланди.", 
+    payment_already_processed: "Тўлов аллақачон қайта ишланди.",
+    booking_payment_error: "❌ Брон қилиш тўловида хатолик юз берди, Қайта уриниб кўринг.", 
   },
   uzl: {
     // Uzbek Latin (original)
@@ -351,6 +353,7 @@ const texts = {
     pay_or_cancel: "To'lovni amalga oshiring yoki bekor qiling.",
     payment_canceled: "To'lov bekor qilindi. Koloniyani qayta tanlang.",
     payment_already_processed: "To'lov allaqachon qayta ishlandi.",
+    booking_payment_error: "❌ Bron qilish to‘lovida xatolik yuz berdi, Qayta urinib ko‘ring.",
   },
 };
 

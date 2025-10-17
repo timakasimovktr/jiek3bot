@@ -13,7 +13,6 @@ const path = require("path");
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 
-// === handleBookMeeting ===
 async function handleBookMeeting(ctx) {
   try {
     await resetSessionAndScene(ctx);
@@ -41,7 +40,6 @@ async function handleBookMeeting(ctx) {
   }
 }
 
-// === handleQueueStatus ===
 async function handleQueueStatus(ctx) {
   try {
     const lang = ctx.session.language;
@@ -122,7 +120,6 @@ async function handleQueueStatus(ctx) {
   }
 }
 
-// === handleGroupJoin ===
 async function handleGroupJoin(ctx) {
   try {
     const lang = ctx.session.language;
@@ -148,7 +145,6 @@ async function handleGroupJoin(ctx) {
   }
 }
 
-// === handleColonyLocation ===
 async function handleColonyLocation(ctx) {
   try {
     const lang = ctx.session.language;
@@ -183,23 +179,6 @@ async function handleColonyLocation(ctx) {
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
-
-// async function handleVisitorReminder(ctx) {
-//   try {
-//     const lang = ctx.session.language;
-//     await resetSessionAndScene(ctx);
-//     const pdfFile = `tashrif_${lang}.pdf`;
-//     const pdfPath = path.join(__dirname, pdfFile);
-//     if (fs.existsSync(pdfPath)) {
-//       await ctx.replyWithDocument({ source: pdfPath });
-//     } else {
-//       await ctx.reply(texts[lang].file_not_found);
-//     }
-//   } catch (err) {
-//     console.error("Error in visitor reminder:", err);
-//     await ctx.reply(texts[ctx.session.language].error_occurred);
-//   }
-// }
 
 async function handleVisitorReminder(ctx) {
   try {
@@ -238,7 +217,6 @@ async function handleCancelApplication(ctx) {
       return;
     }
 
-    // Изменено: поиск по colony_application_number, а не по id
     const [bookingRows] = await pool.query(
       "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
       [latestNumber, ctx.from.id]
@@ -363,7 +341,6 @@ async function handleCancelApplication(ctx) {
       return;
     }
 
-    // Изменено: поиск по colony_application_number, а не по id
     const [bookingRows] = await pool.query(
       "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
       [latestNumber, ctx.from.id]

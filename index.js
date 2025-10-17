@@ -34,7 +34,6 @@ bot.on("pre_checkout_query", (ctx) => {
   ctx.answerPreCheckoutQuery(true);
 });
 
-// index.js (updated successful_payment to include cancel button in success message if needed, but mainly keep as is)
 bot.on("successful_payment", async (ctx) => {
   try {
     const payment = ctx.message.successful_payment;
@@ -43,13 +42,24 @@ bot.on("successful_payment", async (ctx) => {
     const payload = payment.invoice_payload;
     if (!payload) {
       console.error("❌ payload отсутствует в successful_payment");
-      await ctx.reply("Произошла ошибка при подтверждении оплаты.");
+      await pool.query("DELETE FROM payments WHERE payload = ?", [payload]);
+      await ctx.scene.leave();
+      await ctx.reply(
+        ctx.session.language.booking_payment_error,
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              texts[ctx.session.language].book_meeting,
+              "start_booking"
+            ),
+          ],
+        ])
+      );
       return;
     }
 
-    // Обновляем запись в базе
     await pool.query(
-      `UPDATE payments SET status = 'successful', updated_at = CURRENT_TIMESTAMP WHERE payload = ?`,
+      `UPDATE payments SET status = 'successful', updated_at = CURRENT_TIMESTAMP, attempts = 2 WHERE payload = ?`,
       [payload]
     );
 
@@ -61,17 +71,30 @@ bot.on("successful_payment", async (ctx) => {
     );
   } catch (err) {
     console.error("Ошибка обработки successful_payment:", err);
-    await ctx.reply("Произошла ошибка при обработке оплаты.");
+    await ctx.reply(
+      "Произошла ошибка при обработке оплаты. Попробуйте еще раз."
+    );
+    await pool.query("DELETE FROM payments WHERE payload = ?", [payload]);
+    await ctx.scene.leave();
+    await ctx.reply(
+      ctx.session.language.booking_payment_error,
+      Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            texts[ctx.session.language].book_meeting,
+            "start_booking"
+          ),
+        ],
+      ])
+    );
   }
 });
-
 
 bot.use(session());
 bot.use(stage.middleware());
 
 bot.use((ctx, next) => {
   if (ctx.updateType === "message" || ctx.updateType === "callback_query") {
-    // Только для пользовательских обновлений
     if (ctx.chat?.type !== "private") {
       return;
     }
@@ -96,7 +119,6 @@ bot.use(async (ctx, next) => {
 });
 
 bot.command("bot", async (ctx) => {
-  // This is test, keep as is
   await ctx.replyWithInvoice({
     title: "Оплата доступа к боту",
     description: "Покупка доступа к боту на 1 день",
@@ -174,7 +196,7 @@ bot.start(async (ctx) => {
           buildMainMenu(lang, latestNumber)
         );
       } else if (latestBooking.status === "pending") {
-        const pos = await getQueuePosition(latestBooking.id); // Передаем id, так как getQueuePosition работает с id
+        const pos = await getQueuePosition(latestBooking.id);
         await ctx.reply(
           pos
             ? texts[lang].pending_status.replace("{pos}", pos)
@@ -297,7 +319,6 @@ bot.action("cancel", async (ctx) => {
 });
 
 bot.action("continue_after_payment", async (ctx) => {
-  // NEW: Action to continue after payment
   try {
     await ctx.answerCbQuery();
     if (
@@ -383,7 +404,6 @@ bot.catch((err, ctx) => {
 });
 
 bot.hears("Yangi ariza yuborish", async (ctx) => {
-  // Legacy, assume uzl
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
