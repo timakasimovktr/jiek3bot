@@ -218,6 +218,11 @@ async function handleCancelApplication(ctx) {
       [latestNumber, ctx.from.id]
     );
 
+    const attemptsLeft = await pool.query(
+      `SELECT attempts FROM payments WHERE user_id = ?`,
+      [ctx.from.id]
+    );
+
     if (!bookingRows.length) {
       await ctx.reply(
         texts[lang].booking_not_found_or_canceled,
@@ -230,6 +235,10 @@ async function handleCancelApplication(ctx) {
 
     ctx.session.confirmCancel = true;
     ctx.session.confirmCancelId = bookingId;
+
+    if(attemptsLeft < 2) {
+      await ctx.reply(texts[lang].cancel_application_attempts);
+    }
 
     await ctx.reply(
       texts[lang].cancel_confirm,
@@ -323,51 +332,6 @@ async function handleYesCancel(ctx) {
 
     await resetSessionAndScene(ctx);
   } catch (err) {
-    await ctx.reply(texts[ctx.session.language].error_occurred);
-  }
-}
-
-async function handleCancelApplication(ctx) {
-  try {
-    const lang = ctx.session.language;
-    await resetSessionAndScene(ctx);
-    const explicitNumber =
-      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
-    const latestNumber =
-      explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
-
-    if (!latestNumber) {
-      await ctx.reply(
-        texts[lang].new_booking_prompt,
-        buildMainMenu(lang, null)
-      );
-      return;
-    }
-
-    const [bookingRows] = await pool.query(
-      "SELECT id FROM bookings WHERE colony_application_number = ? AND user_id = ?",
-      [latestNumber, ctx.from.id]
-    );
-
-    if (!bookingRows.length) {
-      await ctx.reply(
-        texts[lang].booking_not_found_or_canceled,
-        buildMainMenu(lang, null)
-      );
-      return;
-    }
-
-    const bookingId = bookingRows[0].id;
-
-    ctx.session.confirmCancel = true;
-    ctx.session.confirmCancelId = bookingId;
-
-    await ctx.reply(
-      texts[lang].cancel_confirm,
-      Markup.keyboard([[texts[lang].yes, texts[lang].no]]).resize()
-    );
-  } catch (err) {
-    console.error("Error in cancel application:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
