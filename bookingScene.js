@@ -234,7 +234,9 @@ const bookingWizard = new Scenes.WizardScene(
 
     if (ctx.callbackQuery?.data === "cancel_payment") {
       await ctx.answerCbQuery();
-      await pool.query("DELETE FROM payments WHERE payload = ?", [ctx.wizard.state.paymentPayload]);
+      await pool.query("DELETE FROM payments WHERE payload = ?", [
+        ctx.wizard.state.paymentPayload,
+      ]);
       await ctx.reply(
         texts[lang].payment_canceled ||
           "Оплата отменена. Выберите записаться на встречу заново.",
@@ -307,7 +309,7 @@ const bookingWizard = new Scenes.WizardScene(
       `SELECT attempts FROM payments WHERE phone_number = ?`,
       [ctx.wizard.state.phone]
     );
-    if (requiresPayment) {
+    if (requiresPayment && (!attemptsLeft.length || attemptsLeft <= 0)) {
       if (!ctx.wizard.state.paymentPayload) {
         const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
         const amount = 12500;
