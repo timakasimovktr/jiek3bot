@@ -309,10 +309,8 @@ const bookingWizard = new Scenes.WizardScene(
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
 
-    // Check if payment is required
-    const cancelCount = await getCancelCount(ctx.from.id);
-    const requiresPayment =
-      paidColonies.includes(ctx.wizard.state.colony) || cancelCount >= 2;
+    // const cancelCount = await getCancelCount(ctx.from.id);
+    const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
 
     if (requiresPayment) {
       // Create pending payment entry if not exists
