@@ -4,7 +4,11 @@ const { Scenes, Markup } = require("telegraf");
 const pool = require("./db.js");
 const texts = require("./texts.js");
 const { generateColonyKeyboard } = require("./helpers/keyboards.js");
-const { askAddMore, showSummary, saveBooking } = require("./helpers/bookingUtils.js");
+const {
+  askAddMore,
+  showSummary,
+  saveBooking,
+} = require("./helpers/bookingUtils.js");
 const { MAX_RELATIVES } = require("./constants/config.js");
 
 const paidColonies = ["24"];
@@ -31,7 +35,10 @@ const bookingWizard = new Scenes.WizardScene(
       if (rows.length > 0) {
         await ctx.reply(
           texts[lang].existing_pending,
-          Markup.keyboard([[texts[lang].queue_status], [texts[lang].cancel_text]]).resize()
+          Markup.keyboard([
+            [texts[lang].queue_status],
+            [texts[lang].cancel_text],
+          ]).resize()
         );
         return ctx.scene.leave();
       }
@@ -53,7 +60,11 @@ const bookingWizard = new Scenes.WizardScene(
       ctx.wizard.state.offerRequested = false;
       await ctx.reply(
         texts[lang].request_phone,
-        Markup.keyboard([[Markup.button.contactRequest(texts[lang].contact_button)]]).resize().oneTime()
+        Markup.keyboard([
+          [Markup.button.contactRequest(texts[lang].contact_button)],
+        ])
+          .resize()
+          .oneTime()
       );
       return ctx.wizard.next();
     } catch (err) {
@@ -70,12 +81,19 @@ const bookingWizard = new Scenes.WizardScene(
       if (!ctx.message?.contact?.phone_number) {
         ctx.wizard.state.retryCount = (ctx.wizard.state.retryCount || 0) + 1;
         if (ctx.wizard.state.retryCount > 2) {
-          await ctx.reply(texts[lang].too_many_retries, Markup.removeKeyboard());
+          await ctx.reply(
+            texts[lang].too_many_retries,
+            Markup.removeKeyboard()
+          );
           return ctx.scene.leave();
         }
         await ctx.reply(
           texts[lang].retry_phone,
-          Markup.keyboard([[Markup.button.contactRequest(texts[lang].retry_contact_button)]]).resize().oneTime()
+          Markup.keyboard([
+            [Markup.button.contactRequest(texts[lang].retry_contact_button)],
+          ])
+            .resize()
+            .oneTime()
         );
         return;
       }
@@ -133,10 +151,14 @@ const bookingWizard = new Scenes.WizardScene(
       // Handle payment cancel
       if (ctx.callbackQuery?.data === "cancel_payment") {
         await ctx.answerCbQuery();
-        await pool.query("DELETE FROM payments WHERE payload = ?", [ctx.wizard.state.paymentPayload]);
+        await pool.query("DELETE FROM payments WHERE payload = ?", [
+          ctx.wizard.state.paymentPayload,
+        ]);
         await ctx.reply(
           texts[lang].payment_canceled,
-          Markup.inlineKeyboard([[Markup.button.callback(texts[lang].book_meeting, "start_booking")]])
+          Markup.inlineKeyboard([
+            [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
+          ])
         );
         ctx.session = { language: ctx.session.language };
         ctx.wizard.state = {};
@@ -144,7 +166,10 @@ const bookingWizard = new Scenes.WizardScene(
       }
 
       // Resend invoice if pending
-      if (ctx.wizard.state.paymentPayload && (ctx.message || !ctx.callbackQuery)) {
+      if (
+        ctx.wizard.state.paymentPayload &&
+        (ctx.message || !ctx.callbackQuery)
+      ) {
         const [paymentRows] = await pool.query(
           `SELECT status, amount FROM payments WHERE user_id = ? AND payload = ?`,
           [ctx.from.id, ctx.wizard.state.paymentPayload]
@@ -161,13 +186,16 @@ const bookingWizard = new Scenes.WizardScene(
       // Colony selection
       const data = ctx.callbackQuery?.data;
       if (!data || !data.startsWith("colony_")) {
-        await ctx.reply(texts[lang].select_colony, generateColonyKeyboard(lang));
+        await ctx.reply(
+          texts[lang].select_colony,
+          generateColonyKeyboard(lang)
+        );
         return;
       }
       await ctx.answerCbQuery();
       ctx.wizard.state.colony = data.replace("colony_", "");
       const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
-
+      console.log(ctx.wizard.state.phone, 11111111111);
       if (requiresPayment) {
         if (!ctx.wizard.state.paymentPayload) {
           const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
@@ -195,11 +223,17 @@ const bookingWizard = new Scenes.WizardScene(
   async (ctx) => {
     const lang = ctx.session.language || "uzl";
     try {
-      if (!ctx.callbackQuery?.data || !["long", "short"].includes(ctx.callbackQuery.data)) {
+      if (
+        !ctx.callbackQuery?.data ||
+        !["long", "short"].includes(ctx.callbackQuery.data)
+      ) {
         await ctx.reply(
           texts[lang].select_visit_type,
           Markup.inlineKeyboard([
-            [Markup.button.callback(texts[lang].short_visit, "short"), Markup.button.callback(texts[lang].long_visit, "long")],
+            [
+              Markup.button.callback(texts[lang].short_visit, "short"),
+              Markup.button.callback(texts[lang].long_visit, "long"),
+            ],
           ])
         );
         return;
@@ -222,7 +256,9 @@ const bookingWizard = new Scenes.WizardScene(
       if (ctx.message?.text === texts[lang].cancel_text) {
         await ctx.reply(
           texts[lang].booking_canceled,
-          Markup.inlineKeyboard([[Markup.button.callback(texts[lang].book_meeting, "start_booking")]])
+          Markup.inlineKeyboard([
+            [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
+          ])
         );
         return ctx.scene.leave();
       }
@@ -231,7 +267,10 @@ const bookingWizard = new Scenes.WizardScene(
         return;
       }
       ctx.wizard.state.relatives = ctx.wizard.state.relatives || [];
-      ctx.wizard.state.currentRelative = { full_name: ctx.message.text.toUpperCase(), passport: "AC1234567" };
+      ctx.wizard.state.currentRelative = {
+        full_name: ctx.message.text.toUpperCase(),
+        passport: "AC1234567",
+      };
       ctx.wizard.state.relatives.push(ctx.wizard.state.currentRelative);
 
       if (!ctx.wizard.state.prisoner_name) {
@@ -318,7 +357,9 @@ const bookingWizard = new Scenes.WizardScene(
       } else if (ctx.callbackQuery?.data === "cancel") {
         await ctx.reply(
           texts[lang].booking_canceled,
-          Markup.inlineKeyboard([[Markup.button.callback(texts[lang].book_meeting, "start_booking")]])
+          Markup.inlineKeyboard([
+            [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
+          ])
         );
         return ctx.scene.leave();
       } else {
@@ -344,7 +385,12 @@ async function sendOfferPrompt(ctx) {
   await ctx.reply(
     texts[lang].offer_prompt,
     Markup.inlineKeyboard([
-      [Markup.button.url(texts[lang].read_offer, "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7")],
+      [
+        Markup.button.url(
+          texts[lang].read_offer,
+          "https://telegra.ph/PUBLICHNAYA-OFERTA-09-14-7"
+        ),
+      ],
       [Markup.button.callback(texts[lang].accept_offer, "accept_offer")],
     ])
   );
@@ -360,7 +406,10 @@ async function proceedToVisitType(ctx) {
   await ctx.reply(
     texts[lang].select_visit_type,
     Markup.inlineKeyboard([
-      [Markup.button.callback(texts[lang].short_visit, "short"), Markup.button.callback(texts[lang].long_visit, "long")],
+      [
+        Markup.button.callback(texts[lang].short_visit, "short"),
+        Markup.button.callback(texts[lang].long_visit, "long"),
+      ],
     ])
   );
 }
@@ -369,7 +418,9 @@ async function sendPaymentInvoice(ctx, amount) {
   const lang = ctx.session.language || "uzl";
   await ctx.replyWithInvoice({
     title: texts[lang].payment_title || "Оплата заявки",
-    description: texts[lang].payment_desc || "Оплата 12500 сум за подачу заявки в платную колонию",
+    description:
+      texts[lang].payment_desc ||
+      "Оплата 12500 сум за подачу заявки в платную колонию",
     payload: ctx.wizard.state.paymentPayload,
     provider_token: process.env.PROVIDER_TOKEN,
     currency: "UZS",
@@ -377,7 +428,14 @@ async function sendPaymentInvoice(ctx, amount) {
   });
   await ctx.reply(
     texts[lang].pay_or_cancel || "Оплатите или отмените.",
-    Markup.inlineKeyboard([[Markup.button.callback(texts[lang].cancel_button || "Отмена", "cancel_payment")]])
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          texts[lang].cancel_button || "Отмена",
+          "cancel_payment"
+        ),
+      ],
+    ])
   );
 }
 
