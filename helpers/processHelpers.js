@@ -304,9 +304,6 @@ async function handleYesCancel(ctx) {
         "UPDATE payments SET attempts = attempts - 1 WHERE phone_number = ?",
         [phoneNumber]
       );
-      await ctx.reply(
-        "У вас осталась 1 попытка бесплатного бронирования. В следующий раз при отмене бронирования будет взиматься плата за повторное бронирование."
-      );
     }
 
     if (result.affectedRows === 0) {
