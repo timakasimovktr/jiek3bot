@@ -184,20 +184,41 @@ async function handleColonyLocation(ctx) {
   }
 }
 
+// async function handleVisitorReminder(ctx) {
+//   try {
+//     const lang = ctx.session.language;
+//     await resetSessionAndScene(ctx);
+//     const pdfFile = `tashrif_${lang}.pdf`;
+//     const pdfPath = path.join(__dirname, pdfFile);
+//     if (fs.existsSync(pdfPath)) {
+//       await ctx.replyWithDocument({ source: pdfPath });
+//     } else {
+//       await ctx.reply(texts[lang].file_not_found);
+//     }
+//   } catch (err) {
+//     console.error("Error in visitor reminder:", err);
+//     await ctx.reply(texts[ctx.session.language].error_occurred);
+//   }
+// }
+
 async function handleVisitorReminder(ctx) {
   try {
     const lang = ctx.session.language;
-    await resetSessionAndScene(ctx);
-    const pdfFile = `tashrif_${lang}.pdf`;
-    const pdfPath = path.join(__dirname, pdfFile);
-    if (fs.existsSync(pdfPath)) {
-      await ctx.replyWithDocument({ source: pdfPath });
+    const imageFile = `btashrif_${lang}.jpg`;          
+    const compressedImageFile = `tashrif_${lang}.png`; 
+    const imagePath = path.join(__dirname, imageFile);
+    const compressedImagePath = path.join(__dirname, compressedImageFile);
+
+    if (fs.existsSync(imagePath)) {
+      await ctx.replyWithPhoto({ source: imagePath }, { caption: "Сжатая версия" });
+
+      await ctx.replyWithDocument({ source: imagePath }, { caption: "Без сжатия (оригинал)" });
     } else {
-      await ctx.reply(texts[lang].file_not_found);
+      await ctx.reply("Файл не найден 😕");
     }
   } catch (err) {
-    console.error("Error in visitor reminder:", err);
-    await ctx.reply(texts[ctx.session.language].error_occurred);
+    console.error("Ошибка в handleVisitorReminder:", err);
+    await ctx.reply("Произошла ошибка.");
   }
 }
 
