@@ -205,7 +205,7 @@ const bookingWizard = new Scenes.WizardScene(
       await ctx.answerCbQuery();
       await pool.query("DELETE FROM payments WHERE payload = ?", [ctx.wizard.state.paymentPayload]);
       await ctx.reply(
-        texts[lang].payment_canceled || "Оплата отменена. Выберите записаться на встречу заново.",
+        texts[lang].payment_canceled || "Оплата отменена. Запишитесь на встречу заново.",
         Markup.inlineKeyboard([
           [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
         ])
@@ -244,7 +244,12 @@ const bookingWizard = new Scenes.WizardScene(
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = data.replace("colony_", "");
     const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
-
+    const [attemptsLeftRows] = await pool.query(
+      `SELECT attempts FROM payments WHERE phone_number = ?`,
+      [ctx.wizard.state.phone]
+    );
+    const attemptsLeft = attemptsLeftRows[0]?.attempts || 0;
+    console.log("phone:", ctx.wizard.state.phone, "attemptsLeft:", attemptsLeft);
     if (requiresPayment) {
       if (!ctx.wizard.state.paymentPayload) {
         const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
