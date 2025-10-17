@@ -315,7 +315,7 @@ async function handleYesCancel(ctx) {
       );
     }
 
-    await pool.query(`DELETE FROM payments WHERE attempts <= 0`);
+    await pool.query(`DELETE FROM payments WHERE attempts < 1 AND user_id = ?`, [ctx.from.id]);
 
     if (result.affectedRows === 0) {
       await resetSessionAndScene(ctx);
