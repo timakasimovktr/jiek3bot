@@ -249,7 +249,7 @@ const bookingWizard = new Scenes.WizardScene(
       ctx.session = {
         language: ctx.session.language,
       };
-      ctx.wizard.state = {}; 
+      ctx.wizard.state = {};
       return;
     }
 
@@ -307,7 +307,8 @@ const bookingWizard = new Scenes.WizardScene(
 
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
-
+    
+    const cancelCount = await getCancelCount(ctx.from.id);
     const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
 
     if (requiresPayment) {
@@ -331,7 +332,7 @@ const bookingWizard = new Scenes.WizardScene(
         payload: ctx.wizard.state.paymentPayload,
         provider_token: process.env.PROVIDER_TOKEN,
         currency: "UZS",
-        prices: [{ label: "Заявка", amount: amount * 100 }], 
+        prices: [{ label: "Заявка", amount: amount * 100 }],
       });
 
       await ctx.reply(
@@ -349,7 +350,7 @@ const bookingWizard = new Scenes.WizardScene(
       console.log(
         `Step 3: Invoice sent for paid colony ${ctx.wizard.state.colony}, user ${ctx.from.id}`
       );
-      return; 
+      return;
     }
 
     // If free, proceed directly
