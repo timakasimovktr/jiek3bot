@@ -194,8 +194,21 @@ const bookingWizard = new Scenes.WizardScene(
       }
       await ctx.answerCbQuery();
       ctx.wizard.state.colony = data.replace("colony_", "");
+
+
+      if (!ctx.wizard.state.phone) {
+        const [userRows] = await pool.query(
+          `SELECT phone_number FROM bookings WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`,
+          [ctx.from.id]
+        );
+        if (userRows.length > 0 && userRows[0].phone_number) {
+          ctx.wizard.state.phone = userRows[0].phone_number;
+        }
+      }
+
+      console.log(ctx.wizard.state.phone, 11111111111111);
+
       const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
-      console.log(ctx.wizard.state.phone, 11111111111);
       if (requiresPayment) {
         if (!ctx.wizard.state.paymentPayload) {
           const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
