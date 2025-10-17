@@ -309,7 +309,7 @@ const bookingWizard = new Scenes.WizardScene(
       `SELECT attempts FROM payments WHERE phone_number = ?`,
       [ctx.wizard.state.phone]
     );
-    console.log(attemptsLeft, "ertyhjhtrrghhgrer");
+    console.log(attemptsLeft[0]?.attempts, "ertyhjhtrrghhgrer");
     if (requiresPayment && (!attemptsLeft.length || attemptsLeft <= 0)) {
       if (!ctx.wizard.state.paymentPayload) {
         const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
