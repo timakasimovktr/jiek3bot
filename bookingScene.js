@@ -305,7 +305,7 @@ const bookingWizard = new Scenes.WizardScene(
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
 
     const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
-    const [attemptsLeft] = await pool.query(
+    const attemptsLeft = await pool.query(
       `SELECT attempts FROM payments WHERE phone_number = ?`,
       [ctx.wizard.state.phone]
     );
