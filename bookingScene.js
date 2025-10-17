@@ -221,6 +221,8 @@ const bookingWizard = new Scenes.WizardScene(
         }
         await sendPaymentInvoice(ctx, PAYMENT_AMOUNT);
         return;
+      } else if (requiresPayment) {
+        await ctx.reply(texts[lang].attemptsLeft(attemptsLeft[0][0].attempts));
       }
 
       await proceedToVisitType(ctx);

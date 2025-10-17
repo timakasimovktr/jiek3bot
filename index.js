@@ -57,14 +57,16 @@ bot.on("successful_payment", async (ctx) => {
     );
 
     await ctx.reply(
-      "✅ Оплата прошла успешно! Нажми ниже, чтобы продолжить:",
+      texts[lang].payment_success,
       Markup.inlineKeyboard([
         [Markup.button.callback("Продолжить", "continue_after_payment")],
       ])
     );
   } catch (err) {
     console.error("Payment processing error:", err);
-    await ctx.reply("Произошла ошибка при обработке оплаты. Попробуйте еще раз.");
+    await ctx.reply(
+      "Произошла ошибка при обработке оплаты. Попробуйте еще раз."
+    );
     if (payload) {
       await pool.query("DELETE FROM payments WHERE payload = ?", [payload]);
     }
@@ -127,7 +129,10 @@ bot.command("cancel", async (ctx) => {
   try {
     await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
-    await ctx.reply(texts[lang].process_canceled, buildMainMenu(lang, latestId));
+    await ctx.reply(
+      texts[lang].process_canceled,
+      buildMainMenu(lang, latestId)
+    );
   } catch (err) {
     await ctx.reply(texts[lang].error_occurred);
   }
@@ -168,13 +173,17 @@ bot.start(async (ctx) => {
 
       if (latestBooking.status === "approved") {
         await ctx.reply(
-          texts[lang].approved_status.replace("{id}", latestNumber).replace("{name}", name),
+          texts[lang].approved_status
+            .replace("{id}", latestNumber)
+            .replace("{name}", name),
           buildMainMenu(lang, latestNumber)
         );
       } else if (latestBooking.status === "pending") {
         const pos = await getQueuePosition(latestBooking.id);
         await ctx.reply(
-          pos ? texts[lang].pending_status.replace("{pos}", pos) : texts[lang].queue_not_found,
+          pos
+            ? texts[lang].pending_status.replace("{pos}", pos)
+            : texts[lang].queue_not_found,
           buildMainMenu(lang, latestNumber)
         );
       }
@@ -232,7 +241,10 @@ bot.hears("Yangi ariza yuborish", async (ctx) => {
       } catch {}
       const rel1 = relatives[0] || {};
       const name = rel1.full_name || texts[lang].unknown_name;
-      const statusText = booking.status === "approved" ? texts[lang].status_approved : texts[lang].status_pending;
+      const statusText =
+        booking.status === "approved"
+          ? texts[lang].status_approved
+          : texts[lang].status_pending;
 
       return ctx.reply(
         texts[lang].existing_application
@@ -296,7 +308,10 @@ bot.action("start_booking", async (ctx) => {
       } catch {}
       const rel1 = relatives[0] || {};
       const name = rel1.full_name || texts[lang].unknown_name;
-      const statusText = booking.status === "approved" ? texts[lang].status_approved : texts[lang].status_pending;
+      const statusText =
+        booking.status === "approved"
+          ? texts[lang].status_approved
+          : texts[lang].status_pending;
 
       await ctx.answerCbQuery();
       return ctx.reply(
@@ -324,7 +339,10 @@ bot.action("cancel", async (ctx) => {
     await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.answerCbQuery();
-    await ctx.reply(texts[lang].booking_canceled, buildMainMenu(lang, latestId));
+    await ctx.reply(
+      texts[lang].booking_canceled,
+      buildMainMenu(lang, latestId)
+    );
   } catch (err) {
     await ctx.reply(texts[lang].error_occurred);
   }
