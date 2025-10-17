@@ -105,7 +105,8 @@ async function saveBooking(ctx) {
     await ctx.reply(
       texts[lang].join_group,
       Markup.inlineKeyboard([
-        [Markup.button.url(texts[lang].group_button(colony), groupUrl), Markup.button.url(texts[lang].moneyGroup, "https://t.me/smartdunyopaygroup")],
+        [Markup.button.url(texts[lang].group_button(colony), groupUrl)],
+        [Markup.button.url(texts[lang].moneyGroup, "https://t.me/smartdunyopaygroup")]
       ])
     );
   } catch (err) {

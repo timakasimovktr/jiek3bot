@@ -342,7 +342,7 @@ const texts = {
     cancel_application: (id) => `❌ Arizani bekor qilish #${id}`,
     join_group: "🫂 Grupaga qo'shing",
     group_button: (colony) => `📌 ${colony}-son ${colony === "23" ? "MUIK" : "JIEK"}`,
-    moneyGroup: "Pul o‘tkazmalari guruhi",
+    moneyGroup: "💵 Pul o‘tkazmalari guruhi",
     admin_new: (id) => `📌 Yangi ariza. №: ${id}`,
     admin_applicant: (name) => `👥 Arizachi: ${name}`,
     admin_colony: (colony) =>

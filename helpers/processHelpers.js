@@ -134,7 +134,8 @@ async function handleGroupJoin(ctx) {
     await ctx.reply(
       texts[lang].group_join_prompt,
       Markup.inlineKeyboard([
-        [Markup.button.url(texts[lang].group_button(colony), groupUrl), Markup.button.url(texts[lang].moneyGroup, "https://t.me/smartdunyopaygroup")]
+        [Markup.button.url(texts[lang].group_button(colony), groupUrl)],
+        [Markup.button.url(texts[lang].moneyGroup, "https://t.me/smartdunyopaygroup")]
       ])
     );
   } catch (err) {
