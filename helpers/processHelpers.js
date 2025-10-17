@@ -35,7 +35,6 @@ async function handleBookMeeting(ctx) {
       await ctx.scene.enter("booking-wizard");
     }
   } catch (err) {
-    console.error("Error in book meeting:", err);
     await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
   }
 }
@@ -58,7 +57,6 @@ async function handleQueueStatus(ctx) {
     try {
       relatives = JSON.parse(latestBooking.relatives || "[]");
     } catch (err) {
-      console.error(`JSON parse error for booking ${latestId}:`, err);
       relatives = [];
     }
     const rel1 = relatives[0] || {};
@@ -115,7 +113,6 @@ async function handleQueueStatus(ctx) {
       );
     }
   } catch (err) {
-    console.error("Error in queue status:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
@@ -141,7 +138,6 @@ async function handleGroupJoin(ctx) {
       ])
     );
   } catch (err) {
-    console.error("Error in group join:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
@@ -176,7 +172,6 @@ async function handleColonyLocation(ctx) {
       buildMainMenu(lang, latestNumber)
     );
   } catch (err) {
-    console.error("Error in colony location:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
@@ -197,7 +192,6 @@ async function handleVisitorReminder(ctx) {
       await ctx.reply("Файл не найден 😕");
     }
   } catch (err) {
-    console.error("Ошибка в handleVisitorReminder:", err);
     await ctx.reply("Произошла ошибка.");
   }
 }
@@ -242,7 +236,6 @@ async function handleCancelApplication(ctx) {
       Markup.keyboard([[texts[lang].yes, texts[lang].no]]).resize()
     );
   } catch (err) {
-    console.error("Error in cancel application:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
@@ -258,7 +251,6 @@ async function handleNoCancel(ctx) {
 
     await ctx.reply(texts[lang].cancel_no, buildMainMenu(lang, latestId));
   } catch (err) {
-    console.error("Error in no cancel:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
@@ -318,9 +310,6 @@ async function handleYesCancel(ctx) {
     }
 
     if (result.affectedRows === 0) {
-      console.log(
-        `Deletion failed: No rows affected for bookingId=${bookingId}, user_id=${ctx.from.id}`
-      );
       await resetSessionAndScene(ctx);
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
@@ -335,7 +324,6 @@ async function handleYesCancel(ctx) {
 
     await resetSessionAndScene(ctx);
   } catch (err) {
-    console.error("Error in yes cancel:", err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }

@@ -109,7 +109,6 @@ async function saveBooking(ctx) {
       ])
     );
   } catch (err) {
-    console.error("Error in saveBooking:", err);
     await ctx.reply(texts[lang].error);
   }
 }
@@ -142,7 +141,6 @@ ${texts[application.lang].admin_status}`;
   try {
     await ctx.telegram.sendMessage(application.telegram_id, text);
   } catch (err) {
-    console.error("Error sending message:", err);
   }
 }
 

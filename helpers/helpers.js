@@ -14,7 +14,6 @@ async function getLatestPendingOrApprovedId(userId) {
     );
     return rows.length ? rows[0].colony_application_number : null;
   } catch (err) {
-    console.error("Error in getLatestPendingOrApprovedId:", err);
     throw err;
   }
 }
@@ -31,7 +30,6 @@ async function getLatestBooking(userId) {
     );
     return rows.length ? rows[0] : null;
   } catch (err) {
-    console.error("Error in getLatestBooking:", err);
     throw err;
   }
 }
@@ -75,21 +73,18 @@ async function getQueuePosition(bookingId) {
     const position = numbers.indexOf(colonyApplicationNumber);
     return position !== -1 ? position + 1 : null;
   } catch (err) {
-    console.error("Error in getQueuePosition:", err);
     throw err;
   }
 }
 
 async function resetSessionAndScene(ctx) {
   try {
-    console.log(`Resetting session and scene for user ${ctx.from?.id}`);
     if (ctx.scene && ctx.scene.current) {
       await ctx.scene.leave();
     }
     ctx.session = ctx.session || {};
     delete ctx.session.__scenes;
   } catch (err) {
-    console.error("Error in resetSessionAndScene:", err);
     throw err;
   }
 }

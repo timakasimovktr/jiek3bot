@@ -1,4 +1,5 @@
-// index.js (refactored)
+// index.js (refactored, readable, structured with ctx handling)
+
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 require("dotenv").config();
 const pool = require("./db.js");
@@ -28,30 +29,23 @@ const {
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const stage = new Scenes.Stage([bookingWizard]);
 
-// Middleware для платежей (вне сессии и сцены, но перед ними)
-bot.on("pre_checkout_query", (ctx) => {
-  console.log("✅ pre_checkout_query получен и подтверждён", ctx);
-  ctx.answerPreCheckoutQuery(true);
+// ------------------- Middleware: Payment Handling (pre-session) -------------------
+bot.on("pre_checkout_query", async (ctx) => {
+  await ctx.answerPreCheckoutQuery(true);
 });
 
 bot.on("successful_payment", async (ctx) => {
-  let payload; // Объявляем заранее для использования в catch
+  const lang = ctx.session?.language || "uzl";
+  let payload;
   try {
     const payment = ctx.message.successful_payment;
-    console.log("💸 successful_payment получен:", payment);
-
     payload = payment.invoice_payload;
+
     if (!payload) {
-      console.error("❌ payload отсутствует в successful_payment");
       await ctx.reply(
-        ctx.session?.language?.booking_payment_error || texts.uzl.booking_payment_error,
+        texts[lang].booking_payment_error,
         Markup.inlineKeyboard([
-          [
-            Markup.button.callback(
-              texts[ctx.session?.language || "uzl"].book_meeting,
-              "start_booking"
-            ),
-          ],
+          [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
         ])
       );
       return;
@@ -69,101 +63,90 @@ bot.on("successful_payment", async (ctx) => {
       ])
     );
   } catch (err) {
-    console.error("Ошибка обработки successful_payment:", err);
-    await ctx.reply(
-      "Произошла ошибка при обработке оплаты. Попробуйте еще раз."
-    );
+    console.error("Payment processing error:", err);
+    await ctx.reply("Произошла ошибка при обработке оплаты. Попробуйте еще раз.");
     if (payload) {
       await pool.query("DELETE FROM payments WHERE payload = ?", [payload]);
     }
-    await ctx.scene.leave().catch(() => {}); // Игнорируем если нет сцены
+    await ctx.scene.leave().catch(() => {}); // Safely leave scene if active
     await ctx.reply(
-      ctx.session?.language?.booking_payment_error || texts.uzl.booking_payment_error,
+      texts[lang].booking_payment_error,
       Markup.inlineKeyboard([
-        [
-          Markup.button.callback(
-            texts[ctx.session?.language || "uzl"].book_meeting,
-            "start_booking"
-          ),
-        ],
+        [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
       ])
     );
   }
 });
 
-// Инициализация сессии и сцены
+// ------------------- Session and Scene Setup -------------------
 bot.use(session());
 bot.use(stage.middleware());
 
-// Middleware: проверка приватного чата
+// ------------------- Middleware: Private Chat Check -------------------
 bot.use((ctx, next) => {
-  if (ctx.updateType === "message" || ctx.updateType === "callback_query") {
+  const updateType = ctx.updateType;
+  if (updateType === "message" || updateType === "callback_query") {
     if (ctx.chat?.type !== "private") {
-      return;
+      return; // Ignore non-private chats
     }
   }
   return next();
 });
 
-// Middleware: логирование и установка языка
+// ------------------- Middleware: Session Init and Language Setup -------------------
 bot.use(async (ctx, next) => {
-  console.log(
-    `Middleware: user ${ctx.from?.id}, ctx.wizard exists: ${!!ctx.wizard}, scene: ${
-      ctx.scene?.current?.id || "none"
-    }`
-  );
   if (!ctx.session) ctx.session = {};
   if (!ctx.session.language) {
     const latest = await getLatestBooking(ctx.from?.id);
-    ctx.session.language = latest?.language || "uzl"; // По умолчанию uzl
+    ctx.session.language = latest?.language || "uzl"; // Default to uzl
   }
   return next();
 });
 
-// Команды
+// ------------------- Commands -------------------
 bot.command("bot", async (ctx) => {
-  await ctx.replyWithInvoice({
-    title: "Оплата доступа к боту",
-    description: "Покупка доступа к боту на 1 день",
-    payload: "bot_payment",
-    provider_token: process.env.PROVIDER_TOKEN,
-    currency: "UZS",
-    prices: [{ label: "Подписка", amount: 1000 * 100 }], // Telegram принимает копейки (в сумах — тийины)
-    start_parameter: "payment-example",
-    photo_url: "https://cdn-icons-png.flaticon.com/512/1170/1170576.png",
-  });
+  const lang = ctx.session.language || "uzl";
+  try {
+    await ctx.replyWithInvoice({
+      title: "Оплата доступа к боту",
+      description: "Покупка доступа к боту на 1 день",
+      payload: "bot_payment",
+      provider_token: process.env.PROVIDER_TOKEN,
+      currency: "UZS",
+      prices: [{ label: "Подписка", amount: 1000 * 100 }], // In tiyin
+      start_parameter: "payment-example",
+      photo_url: "https://cdn-icons-png.flaticon.com/512/1170/1170576.png",
+    });
+  } catch (err) {
+    await ctx.reply(texts[lang].error_occurred);
+  }
 });
 
 bot.command("cancel", async (ctx) => {
+  const lang = ctx.session.language || "uzl";
   try {
-    const lang = ctx.session.language || "uzl";
     await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
-    await ctx.reply(
-      texts[lang].process_canceled,
-      buildMainMenu(lang, latestId)
-    );
+    await ctx.reply(texts[lang].process_canceled, buildMainMenu(lang, latestId));
   } catch (err) {
-    console.error("Error in /cancel:", err);
-    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
+    await ctx.reply(texts[lang].error_occurred);
   }
 });
 
 bot.command("menu", async (ctx) => {
+  const lang = ctx.session.language || "uzl";
   try {
-    const lang = ctx.session.language || "uzl";
     await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(texts[lang].main_menu, buildMainMenu(lang, latestId));
   } catch (err) {
-    console.error("Error in /menu:", err);
-    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
+    await ctx.reply(texts[lang].error_occurred);
   }
 });
 
 bot.start(async (ctx) => {
+  const lang = ctx.session.language || "uzl";
   try {
-    const lang = ctx.session.language || "uzl";
     if (ctx.scene.current) {
       await ctx.reply(texts[lang].already_in_process);
       return;
@@ -179,27 +162,19 @@ bot.start(async (ctx) => {
       let relatives = [];
       try {
         relatives = JSON.parse(latestBooking.relatives || "[]");
-      } catch (err) {
-        relatives = [];
-      }
+      } catch {}
       const rel1 = relatives[0] || {};
-      const name =
-        rel1.full_name ||
-        (lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum");
+      const name = rel1.full_name || texts[lang].unknown_name;
 
       if (latestBooking.status === "approved") {
         await ctx.reply(
-          texts[lang].approved_status
-            .replace("{id}", latestNumber)
-            .replace("{name}", name),
+          texts[lang].approved_status.replace("{id}", latestNumber).replace("{name}", name),
           buildMainMenu(lang, latestNumber)
         );
       } else if (latestBooking.status === "pending") {
         const pos = await getQueuePosition(latestBooking.id);
         await ctx.reply(
-          pos
-            ? texts[lang].pending_status.replace("{pos}", pos)
-            : texts[lang].queue_not_found,
+          pos ? texts[lang].pending_status.replace("{pos}", pos) : texts[lang].queue_not_found,
           buildMainMenu(lang, latestNumber)
         );
       }
@@ -207,12 +182,11 @@ bot.start(async (ctx) => {
       await ctx.reply(texts[lang].greeting, buildMainMenu(lang, null));
     }
   } catch (err) {
-    console.error("Error in /start:", err);
-    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
+    await ctx.reply(texts[lang].error_occurred);
   }
 });
 
-// Hears для кнопок главного меню (многоязычные)
+// ------------------- Hears: Main Menu Buttons (Multilang) -------------------
 const languages = ["uzl", "uz", "ru"];
 const hearHandlers = {
   book_meeting: handleBookMeeting,
@@ -233,7 +207,7 @@ for (const key in hearHandlers) {
   });
 }
 
-// Специфические hears с regex
+// Specific regex hears for cancel
 bot.hears(/^❌ Arizani bekor qilish(?:\s*#(\d+))?$/i, handleCancelApplication); // uzl
 bot.hears(/^❌ Аризани бекор қилиш(?:\s*#(\d+))?$/i, handleCancelApplication); // uz
 bot.hears(/^❌ Отменить заявку(?:\s*#(\d+))?$/i, handleCancelApplication); // ru
@@ -242,10 +216,10 @@ languages.forEach((lang) => {
   bot.hears(texts[lang].yes, handleYesCancel);
 });
 
-// Дополнительные hears
+// Additional hears: New application
 bot.hears("Yangi ariza yuborish", async (ctx) => {
+  const lang = ctx.session.language || "uzl";
   try {
-    const lang = ctx.session.language || "uzl";
     await resetSessionAndScene(ctx);
     const userId = ctx.from.id;
     const existingBookingId = await getLatestPendingOrApprovedId(userId);
@@ -255,18 +229,10 @@ bot.hears("Yangi ariza yuborish", async (ctx) => {
       let relatives = [];
       try {
         relatives = JSON.parse(booking.relatives || "[]");
-      } catch (err) {
-        console.error(`JSON parse error for booking ${existingBookingId}:`, err);
-        relatives = [];
-      }
+      } catch {}
       const rel1 = relatives[0] || {};
-      const name =
-        rel1.full_name ||
-        (lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum");
-      const statusText =
-        booking.status === "approved"
-          ? texts[lang].status_approved
-          : texts[lang].status_pending;
+      const name = rel1.full_name || texts[lang].unknown_name;
+      const statusText = booking.status === "approved" ? texts[lang].status_approved : texts[lang].status_pending;
 
       return ctx.reply(
         texts[lang].existing_application
@@ -279,22 +245,26 @@ bot.hears("Yangi ariza yuborish", async (ctx) => {
 
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
-    console.error("Error in new application:", err);
-    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
+    await ctx.reply(texts[lang].error_occurred);
   }
 });
 
-// Actions
+// ------------------- Actions -------------------
 bot.action("choose_language", async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.reply(
-    texts[ctx.session.language || "uzl"].language_prompt,
-    Markup.inlineKeyboard([
-      [Markup.button.callback("🇺🇿 O‘zbekcha (lotin)", "lang_uzl")],
-      [Markup.button.callback("🇺🇿 Ўзбекча (кирилл)", "lang_uz")],
-      [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
-    ])
-  );
+  const lang = ctx.session.language || "uzl";
+  try {
+    await ctx.answerCbQuery();
+    await ctx.reply(
+      texts[lang].language_prompt,
+      Markup.inlineKeyboard([
+        [Markup.button.callback("🇺🇿 O‘zbekcha (lotin)", "lang_uzl")],
+        [Markup.button.callback("🇺🇿 Ўзбекча (кирилл)", "lang_uz")],
+        [Markup.button.callback("🇷🇺 Русский", "lang_ru")],
+      ])
+    );
+  } catch (err) {
+    await ctx.reply(texts[lang].error_occurred);
+  }
 });
 
 bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
@@ -305,17 +275,16 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
     ctx.session.language = ctx.match[0].replace("lang_", "");
     delete ctx.session.__scenes;
 
-    console.log(`Entering booking-wizard for user ${ctx.from.id} with language ${ctx.session.language}`);
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
-    console.error(`Error in language selection for user ${ctx.from.id}:`, err);
-    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
+    const lang = ctx.session.language || "uzl";
+    await ctx.reply(texts[lang].error_occurred);
   }
 });
 
 bot.action("start_booking", async (ctx) => {
+  const lang = ctx.session.language || "uzl";
   try {
-    const lang = ctx.session.language || "uzl";
     const userId = ctx.from.id;
     const existingBookingId = await getLatestPendingOrApprovedId(userId);
 
@@ -324,18 +293,10 @@ bot.action("start_booking", async (ctx) => {
       let relatives = [];
       try {
         relatives = JSON.parse(booking.relatives || "[]");
-      } catch (err) {
-        console.error(`JSON parse error for booking ${existingBookingId}:`, err);
-        relatives = [];
-      }
+      } catch {}
       const rel1 = relatives[0] || {};
-      const name =
-        rel1.full_name ||
-        (lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum");
-      const statusText =
-        booking.status === "approved"
-          ? texts[lang].status_approved
-          : texts[lang].status_pending;
+      const name = rel1.full_name || texts[lang].unknown_name;
+      const statusText = booking.status === "approved" ? texts[lang].status_approved : texts[lang].status_pending;
 
       await ctx.answerCbQuery();
       return ctx.reply(
@@ -347,50 +308,38 @@ bot.action("start_booking", async (ctx) => {
       );
     }
 
-    const language_before_reset = ctx.session.language;
+    const languageBeforeReset = ctx.session.language;
     await resetSessionAndScene(ctx);
-    ctx.session.language = language_before_reset;
-    console.log(`Entering booking-wizard for user ${ctx.from.id}`);
+    ctx.session.language = languageBeforeReset;
     await ctx.answerCbQuery();
     await ctx.scene.enter("booking-wizard");
   } catch (err) {
-    console.error("Error in start_booking:", err);
-    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
+    await ctx.reply(texts[lang].error_occurred);
   }
 });
 
 bot.action("cancel", async (ctx) => {
+  const lang = ctx.session.language || "uzl";
   try {
-    const lang = ctx.session.language || "uzl";
     await resetSessionAndScene(ctx);
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.answerCbQuery();
-    await ctx.reply(
-      texts[lang].booking_canceled,
-      buildMainMenu(lang, latestId)
-    );
+    await ctx.reply(texts[lang].booking_canceled, buildMainMenu(lang, latestId));
   } catch (err) {
-    console.error("Error in cancel action:", err);
-    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
+    await ctx.reply(texts[lang].error_occurred);
   }
 });
 
 bot.action("continue_after_payment", async (ctx) => {
+  const lang = ctx.session.language || "uzl";
   try {
     await ctx.answerCbQuery();
-    if (
-      ctx.scene.current &&
-      ctx.scene.current.id === "booking-wizard" &&
-      ctx.wizard.cursor === 3
-    ) {
+    if (ctx.scene.current?.id === "booking-wizard" && ctx.wizard.cursor === 3) {
       const nextHandler = ctx.wizard.next();
-      if (nextHandler) {
-        await nextHandler(ctx);
-      }
+      if (nextHandler) await nextHandler(ctx);
     }
   } catch (err) {
-    console.error("Error in continue_after_payment:", err);
-    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
+    await ctx.reply(texts[lang].error_occurred);
   }
 });
 
@@ -404,63 +353,55 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
     await ctx.reply(texts[lang].main_menu, buildMainMenu(lang, latestId));
   } catch (err) {
-    console.error(`Error in change language selection for user ${ctx.from.id}:`, err);
-    await ctx.reply(texts[ctx.session.language, "uzl"].error_occurred);
+    const lang = ctx.session.language || "uzl";
+    await ctx.reply(texts[lang].error_occurred);
   }
 });
 
-// Общий обработчик текста (для игнора вне сцены)
-bot.on(message("text"), async (ctx, next) => {
+// ------------------- General Text Handler (Ignore outside scene) -------------------
+bot.on(message("text"), async (ctx) => {
+  const lang = ctx.session.language || "uzl";
   try {
-    const lang = ctx.session.language || "uzl";
     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
-    buildMainMenu(lang, latestId); // Вызов функции, хотя ничего не делает с результатом (оставлено как в оригинале)
+    buildMainMenu(lang, latestId); // Retained as per original (no-op if not used)
 
-    if (ctx.scene && ctx.scene.current) {
-      console.log(
-        texts[lang].unexpected_text_ignore
-          .replace("{id}", ctx.from.id)
-          .replace("{scene}", ctx.scene.current.id)
-          .replace("{text}", ctx.message.text)
-      );
-      return;
-    }
+    if (ctx.scene.current) return;
 
-    await next();
+    // Ignore or handle unexpected text
+    await ctx.reply(texts[lang].unexpected_input);
   } catch (err) {
-    console.error("Error in text handler:", err);
-    await ctx.reply(texts[ctx.session.language || "uzl"].global_error_reply);
+    await ctx.reply(texts[lang].global_error_reply);
   }
 });
 
-// Глобальный catch
+// ------------------- Global Error Handler -------------------
 bot.catch((err, ctx) => {
-  console.error("Global error:", err);
   const lang = ctx.session?.language || "uzl";
-  if (err.response && err.response.error_code === 403) {
-    console.warn(`⚠️ User ${ctx.from?.id} blocked the bot, skip message`);
+  if (err.response?.error_code === 403) {
+    console.warn(`User ${ctx.from?.id} blocked the bot`);
   } else {
-    ctx.reply(texts[lang].global_error_reply);
+    console.error("Bot error:", err);
+    ctx.reply(texts[lang].global_error_reply).catch(() => {});
   }
 });
 
-// Дополнительные функции
+// ------------------- Additional Handlers -------------------
 async function handleAdditionalInfo(ctx) {
+  const lang = ctx.session.language || "uzl";
   try {
-    const lang = ctx.session.language || "uzl";
     await resetSessionAndScene(ctx);
     await ctx.reply(texts[lang].additional_info);
   } catch (err) {
-    console.error("Error in additional info:", err);
-    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
+    await ctx.reply(texts[lang].error_occurred);
   }
 }
 
 async function handleChangeLanguage(ctx) {
+  const lang = ctx.session.language || "uzl";
   try {
     await resetSessionAndScene(ctx);
     await ctx.reply(
-      texts[ctx.session.language || "uzl"].language_prompt,
+      texts[lang].language_prompt,
       Markup.inlineKeyboard([
         [Markup.button.callback("🇺🇿 O‘zbekcha (lotin)", "ch_lang_uzl")],
         [Markup.button.callback("🇺🇿 Ўзбекча (кирилл)", "ch_lang_uz")],
@@ -468,11 +409,10 @@ async function handleChangeLanguage(ctx) {
       ])
     );
   } catch (err) {
-    console.error("Error in change language:", err);
-    await ctx.reply(texts[ctx.session.language || "uzl"].error_occurred);
+    await ctx.reply(texts[lang].error_occurred);
   }
 }
 
-// Запуск
+// ------------------- Launch Bot -------------------
 bot.launch();
-console.log("🚀 Бот запущен!");
+console.log("Bot launched!");
