@@ -206,10 +206,10 @@ const bookingWizard = new Scenes.WizardScene(
         }
       }
 
-      console.log(ctx.wizard.state.phone, 11111111111111);
-
+      const attemptsLeft = await pool.query(`SELECT attempts FROM payments WHERE phone_number = ?`, [ctx.wizard.state.phone]);
       const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
-      if (requiresPayment) {
+
+      if (requiresPayment && (!attemptsLeft[0].length || attemptsLeft[0][0].attempts < 1)) {
         if (!ctx.wizard.state.paymentPayload) {
           const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
           await pool.query(
