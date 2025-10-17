@@ -246,8 +246,10 @@ const bookingWizard = new Scenes.WizardScene(
           [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
         ])
       );
-      ctx.session = {};
-      ctx.wizard.state = {}; // Reset state to restart
+      ctx.session = {
+        language: ctx.session.language,
+      };
+      ctx.wizard.state = {}; 
       return;
     }
 
@@ -283,7 +285,6 @@ const bookingWizard = new Scenes.WizardScene(
             ])
           );
         } else {
-          // If payment already processed, proceed or handle
           await ctx.reply(
             texts[lang].payment_already_processed || "Оплата уже обработана."
           );
