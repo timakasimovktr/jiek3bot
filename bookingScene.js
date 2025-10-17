@@ -1,4 +1,4 @@
-// bookingScene.js 
+// bookingScene.js
 const { Scenes, Markup } = require("telegraf");
 const pool = require("./db.js");
 const texts = require("./texts.js");
@@ -9,7 +9,6 @@ const {
   saveBooking,
 } = require("./helpers/bookingUtils.js");
 const { MAX_RELATIVES } = require("./constants/config.js");
-const { getCancelCount } = require("./helpers/helpers.js");
 
 const paidColonies = ["24"];
 
@@ -235,6 +234,7 @@ const bookingWizard = new Scenes.WizardScene(
 
     if (ctx.callbackQuery?.data === "cancel_payment") {
       await ctx.answerCbQuery();
+      await pool.query("DELETE FROM payments WHERE payload = ?", [ctx.wizard.state.paymentPayload]);
       await ctx.reply(
         texts[lang].payment_canceled ||
           "Оплата отменена. Выберите записаться на встречу заново.",
@@ -301,14 +301,12 @@ const bookingWizard = new Scenes.WizardScene(
 
     await ctx.answerCbQuery();
     ctx.wizard.state.colony = ctx.callbackQuery.data.replace("colony_", "");
-    
-    const cancelCount = await getCancelCount(ctx.from.id);
+
     const requiresPayment = paidColonies.includes(ctx.wizard.state.colony);
     const [attemptsLeft] = await pool.query(
       `SELECT attempts FROM payments WHERE phone_number = ?`,
       [ctx.wizard.state.phone]
     );
-    console.log("11111111111111111111111111111", attemptsLeft);
     if (requiresPayment) {
       if (!ctx.wizard.state.paymentPayload) {
         const payload = `application_payment_${ctx.from.id}_${Date.now()}`;
@@ -486,7 +484,7 @@ const bookingWizard = new Scenes.WizardScene(
     if (ctx.callbackQuery) await ctx.answerCbQuery();
 
     if (ctx.callbackQuery?.data === "confirm") {
-      const bookingId = await saveBooking(ctx);  
+      const bookingId = await saveBooking(ctx);
       if (bookingId && ctx.wizard.state.paymentPayload) {
         await pool.query(
           `UPDATE payments SET booking_id = ? WHERE user_id = ? AND payload = ?`,

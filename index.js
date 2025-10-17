@@ -11,7 +11,6 @@ const {
   buildMainMenu,
   getQueuePosition,
   resetSessionAndScene,
-  getCancelCount, // NEW: Added this function import (define in helpers/helpers.js)
 } = require("./helpers/helpers.js");
 
 const {
