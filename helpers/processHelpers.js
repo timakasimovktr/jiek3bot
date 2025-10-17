@@ -131,7 +131,8 @@ async function handleGroupJoin(ctx) {
     }
 
     const colony = latestBooking.colony;
-    let groupUrl = `https://t.me/SmartJIEK${colony}` || "https://t.me/+qWg7Qh3t_OIxMDBi";
+    let groupUrl =
+      `https://t.me/SmartJIEK${colony}` || "https://t.me/+qWg7Qh3t_OIxMDBi";
 
     await ctx.reply(
       texts[lang].group_join_prompt,
@@ -183,8 +184,8 @@ async function handleColonyLocation(ctx) {
 async function handleVisitorReminder(ctx) {
   try {
     const lang = ctx.session.language;
-    const imageFile = `btashrif_${lang}.jpg`;          
-    const compressedImageFile = `tashrif_${lang}.png`; 
+    const imageFile = `btashrif_${lang}.jpg`;
+    const compressedImageFile = `tashrif_${lang}.png`;
     const imagePath = path.join(__dirname, imageFile);
     const compressedImagePath = path.join(__dirname, compressedImageFile);
 
@@ -205,7 +206,8 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const explicitNumber =
+      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestNumber =
       explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
 
@@ -274,7 +276,7 @@ async function handleYesCancel(ctx) {
     ctx.session.confirmCancelId = null;
 
     const [bookingsRows] = await pool.query(
-      "SELECT colony, relatives, colony_application_number FROM bookings WHERE id = ? AND user_id = ?",
+      "SELECT colony, relatives, colony_application_number, phone_number FROM bookings WHERE id = ? AND user_id = ?",
       [bookingId, ctx.from.id]
     );
 
@@ -284,7 +286,7 @@ async function handleYesCancel(ctx) {
     }
 
     const colony = bookingsRows[0].colony;
-    const colonyApplicationNumber = bookingsRows[0].colony_application_number;
+    const phoneNumber = bookingsRows[0].phone_number;
     let bookingName =
       lang === "ru" ? "Неизвестно" : lang === "uz" ? "Номаълум" : "Noma'lum";
 
@@ -304,6 +306,16 @@ async function handleYesCancel(ctx) {
       [bookingId, ctx.from.id]
     );
 
+    if (colony == 24) {
+      await pool.query(
+        "UPDATE payments SET attempts = attempts - 1 WHERE phone_number = ?",
+        [phoneNumber]
+      );
+      await ctx.reply(
+        "У вас осталась 1 попытка бесплатного бронирования. В следующий раз при отмене бронирования будет взиматься плата за повторное бронирование."
+      );
+    }
+
     if (result.affectedRows === 0) {
       console.log(
         `Deletion failed: No rows affected for bookingId=${bookingId}, user_id=${ctx.from.id}`
@@ -312,7 +324,9 @@ async function handleYesCancel(ctx) {
       return ctx.reply(texts[lang].booking_not_found_or_canceled);
     }
 
-    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(ctx.from.id);
+    const latestNumberAfterDelete = await getLatestPendingOrApprovedId(
+      ctx.from.id
+    );
     await ctx.reply(
       texts[lang].application_canceled,
       buildMainMenu(lang, latestNumberAfterDelete)
@@ -329,7 +343,8 @@ async function handleCancelApplication(ctx) {
   try {
     const lang = ctx.session.language;
     await resetSessionAndScene(ctx);
-    const explicitNumber = ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
+    const explicitNumber =
+      ctx.match && ctx.match[1] ? Number(ctx.match[1]) : null;
     const latestNumber =
       explicitNumber || (await getLatestPendingOrApprovedId(ctx.from.id));
 
