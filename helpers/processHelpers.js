@@ -237,7 +237,7 @@ async function handleCancelApplication(ctx) {
     ctx.session.confirmCancel = true;
     ctx.session.confirmCancelId = bookingId;
 
-    if(attemptsLeft[0][0].attempts < 2) {
+    if(attemptsLeft[0][0]?.attempts < 2) {
       await ctx.reply(texts[lang].cancel_application_attempts);
     }
 
@@ -246,6 +246,7 @@ async function handleCancelApplication(ctx) {
       Markup.keyboard([[texts[lang].yes, texts[lang].no]]).resize()
     );
   } catch (err) {
+    console.log(err);
     await ctx.reply(texts[ctx.session.language].error_occurred);
   }
 }
