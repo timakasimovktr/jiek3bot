@@ -284,6 +284,11 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
     await ctx.answerCbQuery();
     await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } });
 
+    await pool.query(`UPDATE bookings SET language = ? WHERE user_id = ?`, [
+      ctx.match[0].replace("lang_", ""),
+      ctx.from.id,
+    ]);
+
     ctx.session.language = ctx.match[0].replace("lang_", "");
     delete ctx.session.__scenes;
 
