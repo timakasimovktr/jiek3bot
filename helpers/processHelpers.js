@@ -39,8 +39,8 @@ async function handleBookMeeting(ctx) {
   }
 }
 
-async function canSubmitNewBooking(ctx) {
-  const latestBooking = await getLatestBooking(ctx.from.id);
+async function canSubmitNewBooking(chatId) {
+  const latestBooking = await getLatestBooking(chatId);
 
   if (latestBooking && latestBooking.status === "approved") {
     const [dateRows] = await pool.query(
