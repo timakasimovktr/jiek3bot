@@ -42,30 +42,37 @@ async function handleBookMeeting(ctx) {
 
 async function canSubmitNewBooking(chatId) {
   const latestBooking = await getLatestCanceledBooking(chatId);
-
-  if (latestBooking && latestBooking.status === "approved") {
-    const [dateRows] = await pool.query(
-      "SELECT next_available_date, language FROM bookings WHERE user_id = ?",
-      [latestBooking.user_id]
-    );
-    console.log(dateRows, 4444444444444);
-    if (dateRows[0]?.next_available_date > new Date()) {
-      const nextDate = new Date(dateRows[0].next_available_date);
-      const diffTime = Math.abs(nextDate - new Date());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (dateRows[0]?.language === "ru") {
-        return ctx.reply(
-          `🤖 У вас осталось ${diffDays} дней до следующей записи.`
-        );
-      } else if (dateRows[0]?.language === "uz") {
-        return ctx.reply(`🤖 Кейинги ёзилиш учун сизда ${diffDays} кун қолди.`);
-      } else {
-        return ctx.reply(`Keyingi yozilish uchun sizda ${diffDays} kun qoldi.`);
-      }
-    }
+  if (!latestBooking) {
+    return { canSubmit: true, message: "" };
   }
-  return diffDays;
+  const nextAvailableDate = latestBooking.next_available_date;
+  if (!nextAvailableDate) {
+    return { canSubmit: true, message: "" };
+  }
+  const currentDate = new Date();
+  const availableDate = new Date(nextAvailableDate);
+  if (currentDate >= availableDate) {
+    return { canSubmit: true, message: "" };
+  }
+  const diffTime = Math.abs(availableDate - currentDate);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (latestBooking.language === "ru") {
+    return {
+      canSubmit: false,
+      message: `🤖 У вас осталось ${diffDays} дней до следующей записи.`,
+    };
+  } else if (latestBooking.language === "uz") {
+    return {
+      canSubmit: false,
+      message: `🤖 Кейинги ёзилиш учун сизда ${diffDays} кун қолди.`,
+    };
+  } else {
+    return {
+      canSubmit: false,
+      message: `🤖 Keyingi yozilish uchun sizda ${diffDays} kun qoldi.`,
+    };
+  }
 }
 
 async function handleQueueStatus(ctx) {

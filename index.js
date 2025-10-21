@@ -226,11 +226,15 @@ languages.forEach((lang) => {
   bot.hears(texts[lang].yes, handleYesCancel);
 });
 
+// Additional hears: New application
 bot.hears("Yangi ariza yuborish", async (ctx) => {
   const lang = ctx.session.language || "uzl";
-  const {canSubmit} = await canSubmitNewBooking(ctx.from.id);
 
-  console.log(canSubmit, 22222222222222222222);
+  const { canSubmit, message } = await canSubmitNewBooking(ctx.from.id);
+  if (!canSubmit) {
+    await ctx.reply(message);
+    return;
+  }
 
   try {
     await resetSessionAndScene(ctx);
@@ -305,9 +309,12 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
 
 bot.action("start_booking", async (ctx) => {
   const lang = ctx.session.language || "uzl";
-  const {diffDays} = await canSubmitNewBooking(ctx.from.id);
-
-  console.log(diffDays, 11111111111111111111111);
+  const { canSubmit, message } = await canSubmitNewBooking(ctx.from.id);
+  
+  if (!canSubmit) {
+    await ctx.reply(message);
+    return;
+  }
 
   try {
     const userId = ctx.from.id;

@@ -37,7 +37,7 @@ async function getLatestBooking(userId) {
 async function getLatestCanceledBooking(userId) {
   try {
     const [rows] = await pool.query(
-      `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime, colony_application_number, language
+      `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime, colony_application_number, language, next_available_date
        FROM bookings
        WHERE user_id = ? AND status = 'canceled'
        ORDER BY created_at DESC
