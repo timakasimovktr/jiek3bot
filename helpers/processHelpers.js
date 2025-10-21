@@ -47,6 +47,7 @@ async function canSubmitNewBooking(ctx) {
       "SELECT next_available_date FROM bookings WHERE id = ?",
       [latestBooking.id]
     ); 
+    console.log(dateRows);
     if (dateRows[0]?.next_available_date > new Date()) {
       const nextDate = new Date(dateRows[0].next_available_date);
       const diffTime = Math.abs(nextDate - new Date());
