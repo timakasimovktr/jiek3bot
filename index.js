@@ -305,9 +305,9 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
 
 bot.action("start_booking", async (ctx) => {
   const lang = ctx.session.language || "uzl";
-  const canSubmit = await canSubmitNewBooking(ctx.from.id);
+  const {diffDays} = await canSubmitNewBooking(ctx.from.id);
 
-  console.log(canSubmit, 11111111111111111111111);
+  console.log(diffDays, 11111111111111111111111);
 
   try {
     const userId = ctx.from.id;
