@@ -228,7 +228,7 @@ languages.forEach((lang) => {
 
 bot.hears("Yangi ariza yuborish", async (ctx) => {
   const lang = ctx.session.language || "uzl";
-  const { diffDays } = await canSubmitNewBooking(chatId);
+  const { diffDays } = await canSubmitNewBooking(ctx.from.id);
 
   if (diffDays && diffDays > 0) {
     return ctx.reply(`У вас осталось ${diffDays} дней до следующей записи.`);
