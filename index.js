@@ -228,12 +228,9 @@ languages.forEach((lang) => {
 
 bot.hears("Yangi ariza yuborish", async (ctx) => {
   const lang = ctx.session.language || "uzl";
-  const { diffDays } = await canSubmitNewBooking(ctx.from.id);
+  const {canSubmit} = await canSubmitNewBooking(ctx.from.id);
 
-  // if (diffDays && diffDays > 0) {
-  //   return ctx.reply(`У вас осталось ${diffDays} дней до следующей записи.`);
-  // }
-  console.log(diffDays);
+  console.log(canSubmit, 22222222222222222222);
 
   try {
     await resetSessionAndScene(ctx);
@@ -310,7 +307,7 @@ bot.action("start_booking", async (ctx) => {
   const lang = ctx.session.language || "uzl";
   const canSubmit = await canSubmitNewBooking(ctx.from.id);
 
-  console.log(canSubmit);
+  console.log(canSubmit, 11111111111111111111111);
 
   try {
     const userId = ctx.from.id;
@@ -393,20 +390,20 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 });
 
 // ------------------- General Text Handler (Ignore outside scene) -------------------
-// bot.on(message("text"), async (ctx) => {
-//   const lang = ctx.session.language || "uzl";
-//   try {
-//     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
-//     buildMainMenu(lang, latestId); // Retained as per original (no-op if not used)
+bot.on(message("text"), async (ctx) => {
+  const lang = ctx.session.language || "uzl";
+  try {
+    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+    buildMainMenu(lang, latestId); // Retained as per original (no-op if not used)
 
-//     if (ctx.scene.current) return;
+    if (ctx.scene.current) return;
 
-//     // Ignore or handle unexpected text
-//     await ctx.reply(texts[lang].unexpected_input);
-//   } catch (err) {
-//     await ctx.reply(texts[lang].global_error_reply);
-//   }
-// });
+    // Ignore or handle unexpected text
+    await ctx.reply(texts[lang].unexpected_input);
+  } catch (err) {
+    await ctx.reply(texts[lang].global_error_reply);
+  }
+});
 
 // ------------------- Global Error Handler -------------------
 bot.catch((err, ctx) => {
@@ -446,8 +443,6 @@ async function handleChangeLanguage(ctx) {
     await ctx.reply(texts[lang].error_occurred);
   }
 }
-
-bot.command("ping", (ctx) => ctx.reply("pong"));
 
 // ------------------- Launch Bot -------------------
 bot.launch();
