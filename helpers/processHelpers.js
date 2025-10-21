@@ -42,6 +42,7 @@ async function handleBookMeeting(ctx) {
 
 async function canSubmitNewBooking(chatId) {
   const latestBooking = await getLatestCanceledBooking(chatId);
+  console.log(latestBooking);
 
   if (latestBooking && latestBooking.status === "approved") {
     const [dateRows] = await pool.query(
