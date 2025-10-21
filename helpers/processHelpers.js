@@ -7,6 +7,7 @@ const {
   buildMainMenu,
   getQueuePosition,
   resetSessionAndScene,
+  getLatestCanceledBooking,
 } = require("./helpers.js");
 const fs = require("fs");
 const path = require("path");
@@ -40,7 +41,7 @@ async function handleBookMeeting(ctx) {
 }
 
 async function canSubmitNewBooking(chatId) {
-  const latestBooking = await getLatestBooking(chatId);
+  const latestBooking = await getLatestCanceledBooking(chatId);
 
   if (latestBooking && latestBooking.status === "approved") {
     const [dateRows] = await pool.query(

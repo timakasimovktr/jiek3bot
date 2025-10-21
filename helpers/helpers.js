@@ -34,6 +34,22 @@ async function getLatestBooking(userId) {
   }
 }
 
+async function getLatestCanceledBooking(userId) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, user_id, prisoner_name, colony, relatives, status, created_at, start_datetime, colony_application_number, language
+       FROM bookings
+       WHERE user_id = ? AND status = 'canceled'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [userId]
+    );
+    return rows.length ? rows[0] : null;
+  } catch (err) {
+    throw err;
+  }
+}
+
 function buildMainMenu(lang, latestPendingNumber) {
   let rows = [];
   if (latestPendingNumber) {
@@ -95,4 +111,5 @@ module.exports = {
   buildMainMenu,
   getQueuePosition,
   resetSessionAndScene,
+  getLatestCanceledBooking,
 };
