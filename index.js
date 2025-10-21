@@ -1,4 +1,4 @@
-// index.js (refactored, readable, structured with ctx handling)
+// index.js (updated with cooldown check in language selection action)
 
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 require("dotenv").config();
@@ -24,6 +24,7 @@ const {
   handleNoCancel,
   handleApplicationCopy,
   handleVisitorReminder,
+  canSubmitNewBooking,
 } = require("./helpers/processHelpers.js");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -229,6 +230,12 @@ languages.forEach((lang) => {
 bot.hears("Yangi ariza yuborish", async (ctx) => {
   const lang = ctx.session.language || "uzl";
 
+  const { canSubmit, message } = await canSubmitNewBooking(ctx.from.id);
+  if (!canSubmit) {
+    await ctx.reply(message);
+    return;
+  }
+
   try {
     await resetSessionAndScene(ctx);
     const userId = ctx.from.id;
@@ -285,12 +292,24 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
     await ctx.answerCbQuery();
     await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } });
 
+    const newLang = ctx.match[0].replace("lang_", "");
+
     await pool.query(`UPDATE bookings SET language = ? WHERE user_id = ?`, [
-      ctx.match[0].replace("lang_", ""),
+      newLang,
       ctx.from.id,
     ]);
 
-    ctx.session.language = ctx.match[0].replace("lang_", "");
+    ctx.session.language = newLang;
+
+    // Check if can submit new booking
+    const res = await canSubmitNewBooking(ctx.from.id, newLang);
+    if (!res.canSubmit) {
+      await ctx.reply(res.message);
+      const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+      await ctx.reply(texts[newLang].main_menu, buildMainMenu(newLang, latestId));
+      return;
+    }
+
     delete ctx.session.__scenes;
 
     await ctx.scene.enter("booking-wizard");
@@ -302,6 +321,13 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
 
 bot.action("start_booking", async (ctx) => {
   const lang = ctx.session.language || "uzl";
+  const { canSubmit, message } = await canSubmitNewBooking(ctx.from.id);
+  
+  if (!canSubmit) {
+    await ctx.reply(message);
+    return;
+  }
+
   try {
     const userId = ctx.from.id;
     const existingBookingId = await getLatestPendingOrApprovedId(userId);
