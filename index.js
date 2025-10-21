@@ -24,7 +24,6 @@ const {
   handleNoCancel,
   handleApplicationCopy,
   handleVisitorReminder,
-  canSubmitNewBooking,
 } = require("./helpers/processHelpers.js");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -230,12 +229,6 @@ languages.forEach((lang) => {
 bot.hears("Yangi ariza yuborish", async (ctx) => {
   const lang = ctx.session.language || "uzl";
 
-  const { canSubmit, message } = await canSubmitNewBooking(ctx.from.id);
-  if (!canSubmit) {
-    await ctx.reply(message);
-    return;
-  }
-
   try {
     await resetSessionAndScene(ctx);
     const userId = ctx.from.id;
@@ -309,13 +302,6 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
 
 bot.action("start_booking", async (ctx) => {
   const lang = ctx.session.language || "uzl";
-  const { canSubmit, message } = await canSubmitNewBooking(ctx.from.id);
-  
-  if (!canSubmit) {
-    await ctx.reply(message);
-    return;
-  }
-
   try {
     const userId = ctx.from.id;
     const existingBookingId = await getLatestPendingOrApprovedId(userId);

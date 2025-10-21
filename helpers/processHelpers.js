@@ -17,8 +17,24 @@ const Docxtemplater = require("docxtemplater");
 async function handleBookMeeting(ctx) {
   try {
     await resetSessionAndScene(ctx);
-    const latest = await getLatestBooking(ctx.from.id);
 
+    // Check cooldown before proceeding
+    const res = await canSubmitNewBooking(ctx.from.id);
+    const { canSubmit, message, lang: cancelLang } = res;
+
+    if (!canSubmit) {
+      // Set session language from canceled booking if not already set
+      if (cancelLang && !ctx.session.language) {
+        ctx.session.language = cancelLang;
+      }
+      const lang = ctx.session.language || "uzl"; // Fallback
+      await ctx.reply(message);
+      const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+      await ctx.reply(texts[lang].main_menu, buildMainMenu(lang, latestId));
+      return;
+    }
+
+    const latest = await getLatestBooking(ctx.from.id);
     if (latest && latest.language && !ctx.session.language) {
       ctx.session.language = latest.language;
     }
@@ -43,36 +59,34 @@ async function handleBookMeeting(ctx) {
 async function canSubmitNewBooking(chatId) {
   const latestBooking = await getLatestCanceledBooking(chatId);
   if (!latestBooking) {
-    return { canSubmit: true, message: "" };
+    return { canSubmit: true, message: "", lang: null };
   }
   const nextAvailableDate = latestBooking.next_available_date;
   if (!nextAvailableDate) {
-    return { canSubmit: true, message: "" };
+    return { canSubmit: true, message: "", lang: latestBooking.language };
   }
   const currentDate = new Date();
   const availableDate = new Date(nextAvailableDate);
   if (currentDate >= availableDate) {
-    return { canSubmit: true, message: "" };
+    return { canSubmit: true, message: "", lang: latestBooking.language };
   }
   const diffTime = Math.abs(availableDate - currentDate);
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
+  let message;
   if (latestBooking.language === "ru") {
-    return {
-      canSubmit: false,
-      message: `🤖 У вас осталось ${diffDays} дней до следующей записи.`,
-    };
+    message = `🤖 У вас осталось ${diffDays} дней до следующей записи.`;
   } else if (latestBooking.language === "uz") {
-    return {
-      canSubmit: false,
-      message: `🤖 Кейинги ёзилиш учун сизда ${diffDays} кун қолди.`,
-    };
+    message = `🤖 Кейинги ёзилиш учун сизда ${diffDays} кун қолди.`;
   } else {
-    return {
-      canSubmit: false,
-      message: `🤖 Keyingi yozilish uchun sizda ${diffDays} kun qoldi.`,
-    };
+    message = `🤖 Keyingi yozilish uchun sizda ${diffDays} kun qoldi.`;
   }
+
+  return {
+    canSubmit: false,
+    message,
+    lang: latestBooking.language,
+  };
 }
 
 async function handleQueueStatus(ctx) {
