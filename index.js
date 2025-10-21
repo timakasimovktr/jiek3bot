@@ -393,20 +393,20 @@ bot.action(["ch_lang_uzl", "ch_lang_uz", "ch_lang_ru"], async (ctx) => {
 });
 
 // ------------------- General Text Handler (Ignore outside scene) -------------------
-bot.on(message("text"), async (ctx) => {
-  const lang = ctx.session.language || "uzl";
-  try {
-    const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
-    buildMainMenu(lang, latestId); // Retained as per original (no-op if not used)
+// bot.on(message("text"), async (ctx) => {
+//   const lang = ctx.session.language || "uzl";
+//   try {
+//     const latestId = await getLatestPendingOrApprovedId(ctx.from.id);
+//     buildMainMenu(lang, latestId); // Retained as per original (no-op if not used)
 
-    if (ctx.scene.current) return;
+//     if (ctx.scene.current) return;
 
-    // Ignore or handle unexpected text
-    await ctx.reply(texts[lang].unexpected_input);
-  } catch (err) {
-    await ctx.reply(texts[lang].global_error_reply);
-  }
-});
+//     // Ignore or handle unexpected text
+//     await ctx.reply(texts[lang].unexpected_input);
+//   } catch (err) {
+//     await ctx.reply(texts[lang].global_error_reply);
+//   }
+// });
 
 // ------------------- Global Error Handler -------------------
 bot.catch((err, ctx) => {
