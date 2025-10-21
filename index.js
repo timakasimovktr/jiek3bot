@@ -447,6 +447,10 @@ async function handleChangeLanguage(ctx) {
   }
 }
 
+bot.on("text", async (ctx) => {
+  console.log("💬 Received text:", ctx.message.text);
+});
+
 // ------------------- Launch Bot -------------------
 bot.launch();
 console.log("Bot launched!");
