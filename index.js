@@ -230,9 +230,10 @@ bot.hears("Yangi ariza yuborish", async (ctx) => {
   const lang = ctx.session.language || "uzl";
   const { diffDays } = await canSubmitNewBooking(ctx.from.id);
 
-  if (diffDays && diffDays > 0) {
-    return ctx.reply(`У вас осталось ${diffDays} дней до следующей записи.`);
-  }
+  // if (diffDays && diffDays > 0) {
+  //   return ctx.reply(`У вас осталось ${diffDays} дней до следующей записи.`);
+  // }
+  console.log(diffDays);
 
   try {
     await resetSessionAndScene(ctx);
@@ -307,7 +308,9 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
 
 bot.action("start_booking", async (ctx) => {
   const lang = ctx.session.language || "uzl";
-  await canSubmitNewBooking(ctx.from.id);
+  const canSubmit = await canSubmitNewBooking(ctx.from.id);
+
+  console.log(canSubmit);
 
   try {
     const userId = ctx.from.id;
