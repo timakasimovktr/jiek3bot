@@ -46,10 +46,10 @@ async function canSubmitNewBooking(chatId) {
 
   if (latestBooking && latestBooking.status === "approved") {
     const [dateRows] = await pool.query(
-      "SELECT next_available_date, language FROM bookings WHERE id = ?",
-      [latestBooking.id]
+      "SELECT next_available_date, language FROM bookings WHERE user_id = ?",
+      [latestBooking.user_id]
     );
-    console.log(dateRows);
+    console.log(dateRows, 4444444444444);
     if (dateRows[0]?.next_available_date > new Date()) {
       const nextDate = new Date(dateRows[0].next_available_date);
       const diffTime = Math.abs(nextDate - new Date());
