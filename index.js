@@ -447,9 +447,7 @@ async function handleChangeLanguage(ctx) {
   }
 }
 
-bot.on("text", async (ctx) => {
-  console.log("💬 Received text:", ctx.message.text);
-});
+bot.command("ping", (ctx) => ctx.reply("pong"));
 
 // ------------------- Launch Bot -------------------
 bot.launch();
