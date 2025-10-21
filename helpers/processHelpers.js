@@ -39,6 +39,24 @@ async function handleBookMeeting(ctx) {
   }
 }
 
+async function canSubmitNewBooking(ctx) {
+  const latestBooking = await getLatestBooking(ctx.from.id);
+
+  if (latestBooking && latestBooking.status === "approved") {
+    const [dateRows] = await pool.query(
+      "SELECT next_available_date FROM bookings WHERE id = ?",
+      [latestBooking.id]
+    ); 
+    if (dateRows[0]?.next_available_date > new Date()) {
+      const nextDate = new Date(dateRows[0].next_available_date);
+      const diffTime = Math.abs(nextDate - new Date());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    }
+  }
+  return true;
+}
+
 async function handleQueueStatus(ctx) {
   try {
     const lang = ctx.session.language;
@@ -135,7 +153,12 @@ async function handleGroupJoin(ctx) {
       texts[lang].group_join_prompt,
       Markup.inlineKeyboard([
         [Markup.button.url(texts[lang].group_button(colony), groupUrl)],
-        [Markup.button.url(texts[lang].moneyGroup, "https://t.me/smartdunyopaygroup")]
+        [
+          Markup.button.url(
+            texts[lang].moneyGroup,
+            "https://t.me/smartdunyopaygroup"
+          ),
+        ],
       ])
     );
   } catch (err) {
@@ -237,7 +260,7 @@ async function handleCancelApplication(ctx) {
     ctx.session.confirmCancel = true;
     ctx.session.confirmCancelId = bookingId;
 
-    if(attemptsLeft[0][0]?.attempts < 2) {
+    if (attemptsLeft[0][0]?.attempts < 2) {
       await ctx.reply(texts[lang].cancel_application_attempts);
     }
 
@@ -317,7 +340,10 @@ async function handleYesCancel(ctx) {
       );
     }
 
-    await pool.query(`DELETE FROM payments WHERE attempts < 1 AND user_id = ?`, [ctx.from.id]);
+    await pool.query(
+      `DELETE FROM payments WHERE attempts < 1 AND user_id = ?`,
+      [ctx.from.id]
+    );
 
     if (result.affectedRows === 0) {
       await resetSessionAndScene(ctx);
@@ -414,4 +440,5 @@ module.exports = {
   handleNoCancel,
   handleApplicationCopy,
   handleVisitorReminder,
+  canSubmitNewBooking,
 };
