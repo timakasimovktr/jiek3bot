@@ -44,15 +44,24 @@ async function canSubmitNewBooking(chatId) {
 
   if (latestBooking && latestBooking.status === "approved") {
     const [dateRows] = await pool.query(
-      "SELECT next_available_date FROM bookings WHERE id = ?",
+      "SELECT next_available_date, language FROM bookings WHERE id = ?",
       [latestBooking.id]
-    ); 
+    );
     console.log(dateRows);
     if (dateRows[0]?.next_available_date > new Date()) {
       const nextDate = new Date(dateRows[0].next_available_date);
       const diffTime = Math.abs(nextDate - new Date());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays;
+
+      if (dateRows[0]?.language === "ru") {
+        return ctx.reply(
+          `🤖 У вас осталось ${diffDays} дней до следующей записи.`
+        );
+      } else if (dateRows[0]?.language === "uz") {
+        return ctx.reply(`🤖 Кейинги ёзилиш учун сизда ${diffDays} кун қолди.`);
+      } else {
+        return ctx.reply(`Keyingi yozilish uchun sizda ${diffDays} kun qoldi.`);
+      }
     }
   }
   return true;

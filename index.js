@@ -307,11 +307,8 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
 
 bot.action("start_booking", async (ctx) => {
   const lang = ctx.session.language || "uzl";
-  const { diffDays } = await canSubmitNewBooking(ctx.from.id);
+  await canSubmitNewBooking(ctx.from.id);
 
-  if (diffDays && diffDays > 0) {
-    return ctx.reply(`У вас осталось ${diffDays} дней до следующей записи.`);
-  }
   try {
     const userId = ctx.from.id;
     const existingBookingId = await getLatestPendingOrApprovedId(userId);
