@@ -441,9 +441,9 @@ async function sendPaymentInvoice(ctx, amount) {
     currency: "UZS",
     prices: [{ label: "Заявка", amount: amount * 100 }],
     photo_url: "https://ik.imagekit.io/k0nzunnda/photo_2025-09-04_03-56-37.jpg?updatedAt=1761131890801",
-    photo_width: 512,
-    photo_height: 512,
-    photo_size: 512,
+    photo_width: 256,
+    photo_height: 256,
+    photo_size: 256,
   });
   await ctx.reply(
     texts[lang].pay_or_cancel || "Оплатите или отмените.",
