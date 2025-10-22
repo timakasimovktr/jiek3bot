@@ -88,6 +88,7 @@ const texts = {
     confirm_prompt: "⁉️ Подтверждаете эти данные?",
     confirm_button: "✅ Подтвердить",
     cancel_button: "❌ Отменить заявку",
+    cancel_payment: "❌ Отменить",
     booking_canceled: "❌ Запись на встречу отменена.",
     booking_saved: (position) =>
       `✅ Заявка на встречу отправлена!\n📊 Ваша очередь: ${position}`,
@@ -211,6 +212,7 @@ const texts = {
     confirm_prompt: "⁉️ Ушбу маълумотларни тасдиқлайсизми?",
     confirm_button: "✅ Тасдиқлаш",
     cancel_button: "❌ Аризани бекор қилиш",
+    cancel_payment: "❌ Бекор қилиш",
     booking_canceled: "❌ Учрашув ёзуви бекор қилинди.",
     booking_saved: (position) =>
       `✅ Учрашув аризани бериш учун юборилди!\n📊 Сизнинг навбатингиз: ${position}`,
@@ -237,7 +239,7 @@ const texts = {
     continue: "Давом эттириш",
     payment_not_verified: "Тўлов тасдиқланмади.",
     payment_error: "Тўловда хатолик юз берди.",   
-    pay_or_cancel: "Тўловни амалга оширинг ёки бекор қилинг.",
+    pay_or_cancel: "Тулов қилинг ёки бекор қилинг.",
     payment_canceled: "Тўлов бекор қилинди. Учрашувга ёзилинг.",
     payment_already_processed: "Тўлов аллақачон қайта ишланди.",
     booking_payment_error: "❌ Брон қилиш тўловида хатолик юз берди, Қайта уриниб кўринг.",
@@ -336,6 +338,7 @@ const texts = {
     confirm_prompt: "⁉️ Ushbu ma’lumotlarni tasdiqlaysizmi?",
     confirm_button: "✅ Tasdiqlash",
     cancel_button: "❌ Bekor qilish ariza",
+    cancel_payment: "❌ Bekor qilish",
     booking_saved: (position) =>
       `✅ Uchrashuv arizani berish uchun yuborildi!\n📊 Sizning navbatingiz: ${position}`,
     queue_status: "📊 Navbat holati",
@@ -361,7 +364,7 @@ const texts = {
     continue: "Davom ettirish",
     payment_not_verified: "To'lov tasdiqlanmadi.",
     payment_error: "To'lovda xatolik yuz berdi.",
-    pay_or_cancel: "To'lovni amalga oshiring yoki bekor qiling.",
+    pay_or_cancel: "To‘lov qiling yoki bekor qiling.", 
     payment_canceled: "To'lov bekor qilindi. Uchrashuvga yoziling.",
     payment_already_processed: "To'lov allaqachon qayta ishlandi.",
     booking_payment_error: "❌ Bron qilish to‘lovida xatolik yuz berdi, Qayta urinib ko‘ring.",

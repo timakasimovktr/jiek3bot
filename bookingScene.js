@@ -447,7 +447,7 @@ async function sendPaymentInvoice(ctx, amount) {
     Markup.inlineKeyboard([
       [
         Markup.button.callback(
-          texts[lang].cancel_button || "Отмена",
+          texts[lang].cancel_payment || "Отмена",
           "cancel_payment"
         ),
       ],
