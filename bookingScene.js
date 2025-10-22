@@ -440,7 +440,7 @@ async function sendPaymentInvoice(ctx, amount) {
     provider_token: process.env.PROVIDER_TOKEN,
     currency: "UZS",
     prices: [{ label: "Заявка", amount: amount * 100 }],
-    photo_url: "https://ik.imagekit.io/k0nzunnda/photo_2025-09-04_03-56-37.jpg?updatedAt=1761131890801",
+    photo_url: "https://ik.imagekit.io/k0nzunnda/photo_2025-09-04_03-56-37%20_%20%D0%BA%D0%BE%D0%BF%D0%B8%D1%8F%20(2).jpg?updatedAt=1761132866273",
   });
   await ctx.reply(
     texts[lang].pay_or_cancel || "Оплатите или отмените.",
