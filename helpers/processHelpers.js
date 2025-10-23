@@ -75,11 +75,11 @@ async function canSubmitNewBooking(chatId) {
 
   let message;
   if (latestBooking.language === "ru") {
-    message = `🤖 У вас осталось ${diffDays} дней до следующей записи.`;
+    message = `🤖 У вас осталось ${diffDays} дней до подачи следующей заявки.`;
   } else if (latestBooking.language === "uz") {
-    message = `🤖 Кейинги ёзилиш учун сизда ${diffDays} кун қолди.`;
+    message = `🤖 Кейинги ариза бериш учун сизда ${diffDays} кун қолди.`;
   } else {
-    message = `🤖 Keyingi yozilish uchun sizda ${diffDays} kun qoldi.`;
+    message = `🤖 Keyingi ariza berish uchun sizda ${diffDays} kun qoldi.`;
   }
 
   return {
