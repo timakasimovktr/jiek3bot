@@ -195,6 +195,17 @@ const bookingWizard = new Scenes.WizardScene(
       await ctx.answerCbQuery();
       ctx.wizard.state.colony = data.replace("colony_", "");
 
+      if(ctx.wizard.state.colony === "5") {
+        await ctx.reply(texts[lang].colony_5_unavailable);
+        await ctx.reply(
+          texts[lang].book_meeting_unavailable,
+          Markup.inlineKeyboard([
+            [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
+          ])
+        );
+        return;
+      }
+
 
       if (!ctx.wizard.state.phone) {
         const [userRows] = await pool.query(

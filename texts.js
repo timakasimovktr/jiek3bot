@@ -1,5 +1,6 @@
 const texts = {
   ru: {
+    colony_5_unavailable: "❌ Запись на встречи в 5-ю колонию временно недоступна.",
     greeting:
       "👋 Здравствуйте!\nЧерез эту платформу вы можете записаться на встречу с заключёнными в тюрьме.",
     process_canceled: "❌ Процесс отменён.",
@@ -120,8 +121,10 @@ const texts = {
     payment_already_processed: "Оплата уже обработана.",
     booking_payment_error: "❌ Произошла ошибка при оплате бронирования, Попробуйте еще раз.",
     unexpected_input: "❌ Непредвиденный ввод. Пожалуйста, следуйте инструкциям.",
+    session_expired: "❌ Время сессии истекло. Пожалуйста, начните заново с /start.",
   },
   uz: {
+    colony_5_unavailable: "❌ 5-сон колония учун учрашувларга ёзилиш вақтинча мавжуд эмас.",
     // Uzbek Cyrillic
     greeting:
       "👋 Ассалому алайкум!\nБу платформа орқали сиз қамоқхона маҳбуслари билан учрашувга ёзилишингиз мумкин.",
@@ -244,9 +247,11 @@ const texts = {
     payment_already_processed: "Тўлов аллақачон қайта ишланди.",
     booking_payment_error: "❌ Брон қилиш тўловида хатолик юз берди, Қайта уриниб кўринг.",
     unexpected_input: "❌ Нотўғри киритиш. Илтимос, кўрсатмаларга риоя қилинг.",
+    session_expired: "❌ Сессия вақти тугади. Илтимос, тугмаси билан қайтадан бошланг.",
   },
   uzl: {
     // Uzbek Latin (original)
+    colony_5_unavailable: "❌ 5-son koloniya uchun uchrashuvlarga yozilish vaqtincha mavjud emas.",
     greeting:
       "👋 Assalomu alaykum!\nBu platforma orqali siz qamoqxona mahbuslari bilan uchrashuvga yozilishingiz mumkin.",
     process_canceled: "❌ Jarayon bekor qilindi.",
@@ -369,6 +374,7 @@ const texts = {
     payment_already_processed: "To'lov allaqachon qayta ishlandi.",
     booking_payment_error: "❌ Bron qilish to‘lovida xatolik yuz berdi, Qayta urinib ko‘ring.",
     unexpected_input: "❌ Noto‘g‘ri kiritish. Iltimos, ko‘rsatmalarga rioya qiling.",
+    session_expired: "❌ Sessiya vaqti tugadi. Iltimos, tugmasi bilan qaytadan boshlang.",
   },
 };
 

@@ -107,24 +107,6 @@ bot.use(async (ctx, next) => {
 });
 
 // ------------------- Commands -------------------
-bot.command("bot", async (ctx) => {
-  const lang = ctx.session.language || "uzl";
-  try {
-    await ctx.replyWithInvoice({
-      title: "Оплата доступа к боту",
-      description: "Покупка доступа к боту на 1 день",
-      payload: "bot_payment",
-      provider_token: process.env.PROVIDER_TOKEN,
-      currency: "UZS",
-      prices: [{ label: "Подписка", amount: 1000 * 100 }], // In tiyin
-      start_parameter: "payment-example",
-      photo_url: "https://cdn-icons-png.flaticon.com/512/1170/1170576.png",
-    });
-  } catch (err) {
-    await ctx.reply(texts[lang].error_occurred);
-  }
-});
-
 bot.command("cancel", async (ctx) => {
   const lang = ctx.session.language || "uzl";
   try {
@@ -322,6 +304,7 @@ bot.action(["lang_uzl", "lang_uz", "lang_ru"], async (ctx) => {
 bot.action("start_booking", async (ctx) => {
   const lang = ctx.session.language || "uzl";
   const { canSubmit, message } = await canSubmitNewBooking(ctx.from.id);
+  console.log(`User ${ctx.from.id} attempting to start booking. Phone number : ${ctx.wizard.state.phone || 'N/A'}`);
   
   if (!canSubmit) {
     await ctx.reply(message);
@@ -433,6 +416,48 @@ bot.catch((err, ctx) => {
     console.error("Bot error:", err);
     ctx.reply(texts[lang].global_error_reply).catch(() => {});
   }
+});
+  
+bot.catch(async (err, ctx) => {
+  const lang = ctx.session?.language || "uzl";
+  const userId = ctx.from?.id;
+
+  console.error("Bot error:", err);
+
+  if (
+    err.message?.includes("query is too old") ||
+    err.message?.includes("message is not modified") ||
+    err.message?.includes("message to edit not found") ||
+    err.message?.includes("can't parse message")
+  ) {
+    try {
+      await ctx.reply(texts[lang].session_expired, {
+        reply_markup: {
+          inline_keyboard: [
+            [Markup.button.callback(texts[lang].book_meeting, "start_booking")],
+          ],
+        },
+      });
+
+      // Попробуем восстановить сессию
+      const latestId = await getLatestPendingOrApprovedId(userId);
+      await ctx.reply(texts[lang].main_menu, buildMainMenu(lang, latestId));
+    } catch (replyErr) {
+      console.error("Failed to send recovery message:", replyErr);
+    }
+    return;
+  }
+
+  // Обработка блокировки
+  if (err.response?.error_code === 403) {
+    console.warn(`User ${userId} blocked the bot`);
+    return;
+  }
+
+  // Все остальные ошибки
+  try {
+    await ctx.reply(texts[lang].global_error_reply).catch(() => {});
+  } catch {}
 });
 
 // ------------------- Additional Handlers -------------------
